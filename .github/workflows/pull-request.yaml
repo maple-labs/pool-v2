@@ -1,9 +1,6 @@
 name: Forge Tests
 
-on:
-  push:
-    branches: [main]
-  pull_request:
+on: [pull_request]
 
 jobs:
   test:
@@ -22,4 +19,4 @@ jobs:
           git submodule update --init --recursive
 
       - name: Run Forge tests
-        run: ./test.sh -p deep
+        run: ./scripts/test.sh -p deep
