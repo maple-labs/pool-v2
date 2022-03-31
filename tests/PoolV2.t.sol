@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 import { TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
-contract ERC20BaseTest is TestUtils { 
+contract PoolV2 is TestUtils { 
 
     function setUp() public virtual { }
 

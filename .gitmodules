@@ -1,3 +1,6 @@
 [submodule "modules/contract-test-utils"]
 	path = modules/contract-test-utils
 	url = https://github.com/maple-labs/contract-test-utils.git
+[submodule "modules/revenue-distribution-token"]
+	path = modules/revenue-distribution-token
+	url = git@github.com:maple-labs/revenue-distribution-token.git
