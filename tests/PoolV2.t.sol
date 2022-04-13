@@ -11,12 +11,12 @@ import { PoolV2 } from "../contracts/PoolV2.sol";
 
 import { GenericInvestmentVehicle } from "../contracts/GenericInvestmentVehicle.sol";
 
-contract PoolV2Tests is TestUtils { 
-    
+contract PoolV2Tests is TestUtils {
+
     MockERC20 asset;
     PoolV2    pool;
 
-    function setUp() public virtual { 
+    function setUp() public virtual {
         asset = new MockERC20("MockToken", "MT", 18);
         pool  = new PoolV2("Revenue Distribution Token", "RDT", address(this), address(asset), 1e30);
     }
@@ -51,10 +51,10 @@ contract PoolV2Tests is TestUtils {
     }
 
     function test_poolV2_simpleOpenEndedInvestment() external {
-        PoolStaker staker = new PoolStaker();  
+        PoolStaker staker = new PoolStaker();
 
         uint256 deposit = 1000e18;
-        
+
         // Do a deposit
         asset.mint(address(staker), deposit);
 
@@ -81,9 +81,9 @@ contract PoolV2Tests is TestUtils {
 
         uint256 principal    = 1e18;
         uint256 interestRate = 0.12e18;  // 12% a year for easy calculations
-        uint256 interval     = 90 days; 
+        uint256 interval     = 90 days;
 
-        GenericInvestmentVehicle investment = new GenericInvestmentVehicle(principal, interestRate, interval, address(pool), address(asset)); 
+        GenericInvestmentVehicle investment = new GenericInvestmentVehicle(principal, interestRate, interval, address(pool), address(asset));
 
         // Fund an investment on address
         pool.fund(principal, address(investment));
@@ -107,17 +107,17 @@ contract PoolV2Tests is TestUtils {
 
         assertEq(pool.principalOut(),        principal);                         // No principal have been repaid;
         assertEq(pool.interestOut(),         0.029589041095890410e18);           // Still same value because we're using an "infinite" loan
-        assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);        // Period finished was updated again  
+        assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);        // Period finished was updated again
         assertEq(pool.freeAssets(),          deposit + 0.029589041095890409e18);
         assertEq(pool.totalAssets(),         deposit + 0.029589041095890409e18);
     }
 
     function test_poolV2_simpleEndingInvestment() external {
         // ----- Same as above start -------
-        PoolStaker staker = new PoolStaker();  
+        PoolStaker staker = new PoolStaker();
 
         uint256 deposit = 1000e18;
-        
+
         // Do a deposit
         asset.mint(address(staker), deposit);
 
@@ -144,9 +144,9 @@ contract PoolV2Tests is TestUtils {
 
         uint256 principal    = 1e18;
         uint256 interestRate = 0.12e18; // 12% a year for easy calculations
-        uint256 interval     = 90 days; 
+        uint256 interval     = 90 days;
 
-        GenericInvestmentVehicle investment = new GenericInvestmentVehicle(principal, interestRate, interval, address(pool), address(asset)); 
+        GenericInvestmentVehicle investment = new GenericInvestmentVehicle(principal, interestRate, interval, address(pool), address(asset));
 
         // Fund an investment on address
         pool.fund(principal, address(investment));
@@ -170,7 +170,7 @@ contract PoolV2Tests is TestUtils {
         assertEq(pool.interestOut(),         0.029589041095890410e18);                      // Still same value because we're using an "infinite" loan
         assertEq(pool.issuanceRate(),        3805175038.051750257201646090534979423868e30);
         assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);                   // Period finished was updated again
-       
+
         assertEq(pool.freeAssets(),  deposit + 0.029589041095890409e18);
         assertEq(pool.totalAssets(), deposit + 0.029589041095890409e18);
 
@@ -184,13 +184,79 @@ contract PoolV2Tests is TestUtils {
 
         pool.claim(address(investment));
 
-        assertEq(pool.vestingPeriodFinish(), block.timestamp); 
-        assertEq(pool.interestOut(),         0);         
-        assertEq(pool.principalOut(),        0);                 
+        assertEq(pool.vestingPeriodFinish(), block.timestamp);
+        assertEq(pool.interestOut(),         0);
+        assertEq(pool.principalOut(),        0);
         assertEq(pool.issuanceRate(),        0);
 
         assertEq(pool.freeAssets(),  deposit + (2 * 0.029589041095890409e18));  // The pool gained 2 interest payments of "value"
         assertEq(pool.totalAssets(), deposit + (2 * 0.029589041095890409e18));  // The pool gained 2 interest payments of "value"
+    }
+
+    function test_poolV2_setWithdrawalManager() external {
+        address withdrawalManager = address(11);
+
+        pool.setWithdrawalManager(withdrawalManager);
+
+        assertEq(pool.withdrawalManager(), withdrawalManager);
+    }
+
+    function test_poolV2_withdrawal_acl() external {
+        address withdrawalManager = address(11);
+        address staker            = address(22);
+
+        // Set withdrawal manager
+        pool.setWithdrawalManager(withdrawalManager);
+
+        // Do a deposit
+        uint256 deposit = 1000e18;
+        asset.mint(staker, deposit);
+
+        vm.startPrank(staker);
+        asset.approve(address(pool), deposit);
+        uint256 shares = pool.deposit(deposit, address(staker));
+
+        vm.expectRevert("P:W:NOT_WM");
+        pool.withdraw(shares, address(staker), address(staker));
+
+        // Transfer to withdrawal manager
+        pool.approve(address(withdrawalManager), shares);
+
+        vm.stopPrank();
+
+        // Withdraw through WM
+        vm.prank(withdrawalManager);
+        pool.withdraw(shares, address(this), address(staker));
+    }
+
+    function test_poolV2_redeem_acl() external {
+        address withdrawalManager = address(11);
+        address staker            = address(22);
+
+        // Set withdrawal manager
+        pool.setWithdrawalManager(withdrawalManager);
+
+        // Do a deposit
+        uint256 deposit = 1000e18;
+        asset.mint(staker, deposit);
+
+        vm.startPrank(staker);
+        asset.approve(address(pool), deposit);
+        uint256 shares = pool.deposit(deposit, address(staker));
+
+        uint256 redeemAmount = pool.previewRedeem(shares);
+
+        vm.expectRevert("P:R:NOT_WM");
+        pool.redeem(shares, address(staker), address(staker));
+
+        // Transfer to withdrawal manager
+        pool.approve(address(withdrawalManager), redeemAmount);
+
+        vm.stopPrank();
+
+        // Redeem through WM
+        vm.prank(withdrawalManager);
+        pool.redeem(redeemAmount, address(this), address(staker));
     }
 
 }

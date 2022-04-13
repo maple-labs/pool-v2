@@ -44,21 +44,3 @@ contract PoolV2_RDT_MintWithPermitFailureTests is MintWithPermitFailureTests {
     }
 
 }
-
-contract PoolV2_RDT_RedeemRevertOnTransfers is RedeemRevertOnTransfers {
-
-    function setUp() override public {
-        super.setUp();
-        rdToken = RDT(address(new PoolV2("Token", "TKN", address(this), address(revertingAsset), 1e30)));
-    }
-
-}
-
-contract PoolV2_RDT_WithdrawRevertOnTransfers is WithdrawRevertOnTransfers {
-
-    function setUp() override public {
-        super.setUp();
-        rdToken = RDT(address(new PoolV2("Token", "TKN", address(this), address(revertingAsset), 1e30)));
-    }
-
-}
