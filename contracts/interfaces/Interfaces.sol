@@ -9,10 +9,16 @@ interface IERC20Like {
     
 }
 
-interface IInvestmentVehicle {
+interface IInvestmentVehicleLike {
 
     function fund() external returns (uint256 interestForPeriod_, uint256 periodEnd_);
 
     function claim() external returns (uint256 interest_, uint256 principal_, uint256 nextPayment_);
+
+}
+
+interface IPoolCoverManagerLike {
+
+    function distributeAssets(uint256 vestingPeriod_) external returns (address[] memory recipients_, uint256[] memory assets_);
 
 }

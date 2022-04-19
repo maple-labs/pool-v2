@@ -3,7 +3,8 @@ pragma solidity 0.8.7;
 
 import { TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
-import { MockERC20 } from "../modules/revenue-distribution-token/modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { MockERC20 }            from "../modules/revenue-distribution-token/modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { MockPoolCoverManager } from "./mocks/MockPoolCoverManager.sol";
 
 import { PoolStaker } from "./accounts/PoolStaker.sol";
 
@@ -13,12 +14,17 @@ import { GenericInvestmentVehicle } from "../contracts/GenericInvestmentVehicle.
 
 contract PoolV2Tests is TestUtils {
 
-    MockERC20 asset;
-    PoolV2    pool;
+    MockERC20            asset;
+    MockPoolCoverManager poolCoverManager;
+
+    PoolV2 pool;
+
+    uint256 internal immutable VESTING_PERIOD = 30 days;
 
     function setUp() public virtual {
-        asset = new MockERC20("MockToken", "MT", 18);
-        pool  = new PoolV2("Revenue Distribution Token", "RDT", address(this), address(asset), 1e30);
+        asset            = new MockERC20("MockToken", "MT", 18);
+        poolCoverManager = new MockPoolCoverManager(asset);
+        pool             = new PoolV2("MaplePool V2", "MPv2", address(this), address(asset), 1e30);
     }
 
     function test_poolV2_simpleDeposit() external {
@@ -103,13 +109,83 @@ contract PoolV2Tests is TestUtils {
         assertEq(pool.freeAssets(),  deposit);
         assertEq(pool.totalAssets(), deposit + 0.029589041095890409e18);
 
-        pool.claim(address(investment));
+        pool.claim(address(investment), VESTING_PERIOD);
 
         assertEq(pool.principalOut(),        principal);                         // No principal have been repaid;
         assertEq(pool.interestOut(),         0.029589041095890410e18);           // Still same value because we're using an "infinite" loan
         assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);        // Period finished was updated again
         assertEq(pool.freeAssets(),          deposit + 0.029589041095890409e18);
         assertEq(pool.totalAssets(),         deposit + 0.029589041095890409e18);
+    }
+
+    function test_poolV2_simpleOpenEndedInvestment_withPoolCoverManager() external {
+        PoolStaker staker = new PoolStaker();
+
+        uint256 deposit = 1000e18;
+        asset.mint(address(staker), deposit);
+
+        staker.erc20_approve(address(asset), address(pool), deposit);
+        staker.rdToken_deposit(address(pool), deposit);
+
+        // Define the terms of the investment.
+        uint256 principal    = 1e18;
+        uint256 interestRate = 0.12e18;  // 12% a year for easy calculations
+        uint256 interval     = 90 days;
+
+        uint256 interest     = 0.029589041095890410e18;                      // Roughly 90 days of 12% over a 1e18 principal.
+        uint256 issuanceRate = 3805175038.051750257201646090534979423868e30; // Expected issuance rate based on the interest.
+
+        GenericInvestmentVehicle investment = new GenericInvestmentVehicle(principal, interestRate, interval, address(pool), address(asset));
+
+        assertEq(pool.freeAssets(),          deposit);
+        assertEq(pool.totalAssets(),         deposit);
+        assertEq(pool.principalOut(),        0);
+        assertEq(pool.interestOut(),         0);
+        assertEq(pool.issuanceRate(),        0);
+        assertEq(pool.vestingPeriodFinish(), 0);
+
+        assertEq(asset.balanceOf(address(staker)),           0);
+        assertEq(asset.balanceOf(address(pool)),             deposit);
+        assertEq(asset.balanceOf(address(poolCoverManager)), 0);
+
+        // Fund the investment.
+        pool.fund(principal, address(investment));
+
+        assertEq(pool.freeAssets(),          deposit);
+        assertEq(pool.totalAssets(),         deposit);
+        assertEq(pool.principalOut(),        principal);
+        assertEq(pool.interestOut(),         interest);
+        assertEq(pool.issuanceRate(),        issuanceRate);
+        assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);
+
+        assertEq(asset.balanceOf(address(staker)),           0);
+        assertEq(asset.balanceOf(address(pool)),             deposit - principal);
+        assertEq(asset.balanceOf(address(poolCoverManager)), 0);
+
+        vm.warp(block.timestamp + interval);
+
+        assertEq(pool.freeAssets(),  deposit);
+        assertEq(pool.totalAssets(), deposit + interest - 1);
+
+        // Configure the pool cover manager.
+        pool.setPoolCoverManager(address(poolCoverManager));
+
+        // Claim interest and automatically distribute a portion of it to the pool cover manager.
+        pool.claim(address(investment), VESTING_PERIOD);
+
+        assertEq(pool.freeAssets(),          deposit + interest - 1);
+        assertEq(pool.totalAssets(),         deposit + interest - 1);
+        assertEq(pool.principalOut(),        principal);
+        assertEq(pool.interestOut(),         interest);
+        assertEq(pool.issuanceRate(),        issuanceRate);
+        assertEq(pool.vestingPeriodFinish(), block.timestamp + interval);
+
+        // The pool cover portion is 20% of the interest.
+        uint256 coverPortion = 0.2e18 * interest / 1e18;
+
+        assertEq(asset.balanceOf(address(staker)),           0);
+        assertEq(asset.balanceOf(address(pool)),             deposit - principal + interest - coverPortion);
+        assertEq(asset.balanceOf(address(poolCoverManager)), 0);  // Still zero because all assets were immediately distributed.
     }
 
     function test_poolV2_simpleEndingInvestment() external {
@@ -164,7 +240,7 @@ contract PoolV2Tests is TestUtils {
         // Minting extra to cover interest
         asset.mint(address(investment), 1e18);
 
-        pool.claim(address(investment));
+        pool.claim(address(investment), VESTING_PERIOD);
 
         assertEq(pool.principalOut(),        principal);                                    // No principal have been repaid;
         assertEq(pool.interestOut(),         0.029589041095890410e18);                      // Still same value because we're using an "infinite" loan
@@ -182,7 +258,7 @@ contract PoolV2Tests is TestUtils {
         assertEq(pool.freeAssets(),  deposit + 0.029589041095890409e18);
         assertEq(pool.totalAssets(), deposit + (2 * 0.029589041095890409e18));
 
-        pool.claim(address(investment));
+        pool.claim(address(investment), VESTING_PERIOD);
 
         assertEq(pool.vestingPeriodFinish(), block.timestamp);
         assertEq(pool.interestOut(),         0);
@@ -199,6 +275,14 @@ contract PoolV2Tests is TestUtils {
         pool.setWithdrawalManager(withdrawalManager);
 
         assertEq(pool.withdrawalManager(), withdrawalManager);
+    }
+
+    function test_poolV2_setPoolCoverManager() external {
+        assertEq(pool.poolCoverManager(), address(0));
+
+        pool.setPoolCoverManager(address(80085));
+
+        assertEq(pool.poolCoverManager(), address(80085));
     }
 
     function test_poolV2_withdrawal_acl() external {

@@ -4,16 +4,16 @@ pragma solidity 0.8.7;
 import { IERC4626, IRevenueDistributionToken }          from "../modules/revenue-distribution-token/contracts/interfaces/IRevenueDistributionToken.sol";
 import { ERC20, ERC20Helper, RevenueDistributionToken } from "../modules/revenue-distribution-token/contracts/RevenueDistributionToken.sol";
 
-import { IInvestmentVehicle } from "./interfaces/Interfaces.sol";
-import { IPoolV2 }            from "./interfaces/IPoolV2.sol";
-
+import { IInvestmentVehicleLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
+import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
 
 contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
+    address public poolCoverManager;
     address public withdrawalManager;
 
     uint256 public interestOut;
-    uint256 public principalOut;   // Full amount of principal that's not currently on the pool
+    uint256 public principalOut;  // Full amount of principal that's not currently on the pool.
 
     constructor(string memory name_, string memory symbol_, address owner_, address asset_, uint256 precision_)
         RevenueDistributionToken(name_, symbol_, owner_, asset_, precision_) { }
@@ -23,12 +23,17 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         withdrawalManager = withdrawalManager_;
     }
 
+    function setPoolCoverManager(address poolCoverManager_) external {
+        // TODO: ACL
+        poolCoverManager = poolCoverManager_;
+    }
+
     /// @dev Fund an investment opportunity. Maybe this should be the new updateVestingSchedule?
     function fund(uint256 amountOut_, address investment) external returns (uint256 issuanceRate_,  uint256 freeAssets_) {
         require(msg.sender == owner, "P:F:NOT_OWNER");
         require(totalSupply != 0,    "P:F:ZERO_SUPPLY");
 
-        ( uint256 interestForPeriod_, uint256 periodEnd_ ) = IInvestmentVehicle(investment).fund();
+        ( uint256 interestForPeriod_, uint256 periodEnd_ ) = IInvestmentVehicleLike(investment).fund();
 
         // totalAmount += profit;
         principalOut += amountOut_;
@@ -51,12 +56,11 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         require(ERC20Helper.transfer(asset, investment, amountOut_), "GIV:F:TRANSFER_FAILED");
     }
 
-
     /// @dev Claim proceeds of an investment opportunity
     /// Need to break apart what's "principal" and what's interest
-    function claim(address investment_) external {
+    function claim(address investment_, uint256 vestingPeriod_) external {
 
-        ( uint256 interest_, uint256 principal_, uint256 nextPayment_ ) = IInvestmentVehicle(investment_).claim();
+        ( uint256 interest_, uint256 principal_, uint256 nextPayment_ ) = IInvestmentVehicleLike(investment_).claim();
 
         // Very loose accounting
         principalOut -= principal_;
@@ -76,6 +80,9 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         issuanceRate = vestingPeriodFinish > block.timestamp ? interestOut * precision / (vestingPeriodFinish - block.timestamp) : 0;
 
         // TODO: Research the best way to move funds between pool and IV. Currently is being transferred from IV to Pool in `claim`
+
+        // Send a portion of the interest to the pool cover manager.
+        _distributePoolCoverAssets(interest_, vestingPeriod_);
     }
 
     function redeem(uint256 shares_, address receiver_, address owner_) external override(IERC4626, RevenueDistributionToken) nonReentrant returns (uint256 assets_) {
@@ -91,6 +98,22 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
     function updateVestingSchedule(uint256) external virtual override(IRevenueDistributionToken, RevenueDistributionToken) returns (uint256 issuanceRate_, uint256 freeAssets_) {
         // Explicitly locking this function because it'll cause issues with the pool's value calculation.
         require(false);
+    }
+
+    function _distributePoolCoverAssets(uint256 interest_, uint256 vestingPeriod_) internal {
+        // Check if the pool cover manager has been set.
+        // TODO: Should this revert instead?
+        if (poolCoverManager == address(0)) return;
+
+        // Calculate the portion of interest that goes towards all pool cover (currently hardcoded to 20%).
+        // TODO: Read the cover percentage from somewhere and make it configurable.
+        uint256 assets = 0.2e18 * interest_ / 1e18;
+
+        // Transfer the assets (if any exist) to the pool cover manager.
+        require(assets == 0 || ERC20Helper.transfer(asset, poolCoverManager, assets));
+
+        // Trigger distribution of all transferred assets.
+        IPoolCoverManagerLike(poolCoverManager).distributeAssets(vestingPeriod_);
     }
 
 }
