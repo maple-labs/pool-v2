@@ -19,6 +19,6 @@ interface IInvestmentVehicleLike {
 
 interface IPoolCoverManagerLike {
 
-    function distributeAssets(uint256 vestingPeriod_) external returns (address[] memory recipients_, uint256[] memory assets_);
+    function distributeAssets() external returns (address[] memory recipients_, uint256[] memory assets_);
 
 }

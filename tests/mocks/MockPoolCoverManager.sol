@@ -11,7 +11,7 @@ contract MockPoolCoverManager {
         asset = asset_;
     }
 
-    function distributeAssets(uint256 vestingPeriod_) external returns (address[] memory recipients_, uint256[] memory assets_) {
+    function distributeAssets() external returns (address[] memory recipients_, uint256[] memory assets_) {
         // Burn all assets on this contract to simulate the effects of a distribution.
         asset.burn(address(this), asset.balanceOf(address(this)));
     }

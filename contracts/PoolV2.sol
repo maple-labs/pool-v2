@@ -82,7 +82,7 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         // TODO: Research the best way to move funds between pool and IV. Currently is being transferred from IV to Pool in `claim`
 
         // Send a portion of the interest to the pool cover manager.
-        _distributePoolCoverAssets(interest_, vestingPeriod_);
+        _distributePoolCoverAssets(interest_);
     }
 
     function redeem(uint256 shares_, address receiver_, address owner_) external override(IERC4626, RevenueDistributionToken) nonReentrant returns (uint256 assets_) {
@@ -100,7 +100,7 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         require(false);
     }
 
-    function _distributePoolCoverAssets(uint256 interest_, uint256 vestingPeriod_) internal {
+    function _distributePoolCoverAssets(uint256 interest_) internal {
         // Check if the pool cover manager has been set.
         // TODO: Should this revert instead?
         if (poolCoverManager == address(0)) return;
@@ -113,7 +113,7 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         require(assets == 0 || ERC20Helper.transfer(asset, poolCoverManager, assets));
 
         // Trigger distribution of all transferred assets.
-        IPoolCoverManagerLike(poolCoverManager).distributeAssets(vestingPeriod_);
+        IPoolCoverManagerLike(poolCoverManager).distributeAssets();
     }
 
 }
