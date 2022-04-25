@@ -8,7 +8,7 @@ contract LoanInvestmentManager is IInvestmentManagerLike {
 
     address pool; 
 
-    mapping (address => InvestmentVehicle) investments; // This contract manages multiple loans
+    mapping (address => InvestmentVehicle) public investments; // This contract manages multiple loans
 
     // TODO: We could consolidate lastClaim and nextClaim into a single storage slot
     struct InvestmentVehicle {
