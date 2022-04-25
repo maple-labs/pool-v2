@@ -7,7 +7,7 @@ import { ERC20, ERC20Helper, RevenueDistributionToken } from "../modules/revenue
 import { IInvestmentManagerLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
 import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
 
-contract PoolV2 is IPoolV2, RevenueDistributionToken {
+contract PoolV2Discrete is IPoolV2, RevenueDistributionToken {
 
     address public poolCoverManager;
     address public withdrawalManager;
@@ -55,16 +55,15 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         principalOut -= principalBack;
         interestOut   = interestOut + interestAdded - interestReturned;
 
-        uint256 surplus = 0;
         if (interestReturned > expectedInterest) {
-            // We have a surplus
-            surplus = interestReturned - expectedInterest;
+            // Incorporate the difference into free assets
+            freeAssets += interestReturned - expectedInterest;
         } else if (expectedInterest > interestReturned) {
             // TODO: Handle short of interest
         }
   
         // TODO: If nextDate == 0, IV need to be closed by PD
-        _updateVesting(interestOut + surplus, nextDate);
+        _updateVesting(interestOut, nextDate);
 
         // TODO: Research the best way to move funds between pool and IV. Currently is being transferred from IV to Pool in `claim`
 
