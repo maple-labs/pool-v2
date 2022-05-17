@@ -1,3 +1,7 @@
+# Foundry
 cache/
 out/
 .vscode/
+
+# MacOS
+.DS_Store

@@ -1,6 +1,8 @@
 [submodule "modules/contract-test-utils"]
 	path = modules/contract-test-utils
 	url = https://github.com/maple-labs/contract-test-utils.git
+	ignore = dirty
 [submodule "modules/revenue-distribution-token"]
 	path = modules/revenue-distribution-token
 	url = https://github.com/maple-labs/revenue-distribution-token
+	ignore = dirty

@@ -3,17 +3,14 @@ pragma solidity 0.8.7;
 
 import { IRevenueDistributionToken } from "../../modules/revenue-distribution-token/contracts/interfaces/IRevenueDistributionToken.sol";
 
-interface IPoolV2 is IRevenueDistributionToken { 
+interface IPoolV2 is IRevenueDistributionToken {
 
-    // TODO natspec
-    function claim(address investment_) external;
+    function fund(uint256 amountOut_, address investment_, address investmentManager_) external returns (uint256 issuanceRate_);
 
-    function fund(uint256 amountOut_, address investment_) external returns (uint256 issuanceRate_);
-    
     function interestOut() external view returns (uint256 interest_);
-    
+
     function principalOut() external view returns (uint256 principal_);
-    
-    function setInvestmentManager(address investmentManager_) external;
+
+    function setInvestmentManager(address investmentManager_, bool isValid_) external;
 
 }

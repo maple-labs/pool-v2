@@ -7,6 +7,8 @@ import { ERC20, ERC20Helper, RevenueDistributionToken } from "../modules/revenue
 import { IInvestmentManagerLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
 import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
 
+import { console } from "../modules/contract-test-utils/contracts/log.sol";
+
 contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
     address public poolCoverManager;
@@ -15,6 +17,10 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
     uint256 public override interestOut;
     uint256 public override principalOut;  // Full amount of principal that's not currently on the pool
+
+    mapping (address => bool) isInvestmentManager;
+
+    mapping (address => address) investmentManagers;
 
     constructor(string memory name_, string memory symbol_, address owner_, address asset_, uint256 precision_)
         RevenueDistributionToken(name_, symbol_, owner_, asset_, precision_) { }
@@ -33,59 +39,75 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         poolCoverManager = poolCoverManager_;
     }
 
-    function setInvestmentManager(address investmentManager_) external override {
+    function setInvestmentManager(address investmentManager_, bool isValid) external override {
         // TODO: ACL
-        investmentManager = investmentManager_;
+        isInvestmentManager[investmentManager_] = isValid;
     }
 
     /**************************/
     /*** External Functions ***/
     /**************************/
 
-    /// @dev Claim proceeds of an investment opportunity
-    /// Need to break apart what's "principal" and what's interest
-    function claim(address investment_) external override {
-        IInvestmentManagerLike manager = IInvestmentManagerLike(investmentManager);
+    function claim(address investment_) external {
+        require(totalSupply != 0, "P:F:ZERO_SUPPLY");
 
-        uint256 expectedInterest = manager.expectedInterest(investment_);
+        console.log("");
+        console.log("------------");
+        console.log("POOL CLAIM 1");
+        console.log("------------");
 
-        ( uint256 principalBack, uint256 interestAdded, uint256 interestReturned, uint256 nextDate ) = manager.claim(investment_);
+        console.log("freeAssets  1", freeAssets );
+        console.log("totalAssets 1", totalAssets() );
 
-        // Very loose accounting
-        principalOut -= principalBack;
-        interestOut   = interestOut + interestAdded - interestReturned;
+        // Update vesting schedule based on claim results
+        freeAssets = totalAssets();
 
-        uint256 surplus = 0;
-        if (interestReturned > expectedInterest) {
-            // We have a surplus
-            surplus = interestReturned - expectedInterest;
-        } else if (expectedInterest > interestReturned) {
-            // TODO: Handle short of interest
-        }
-  
-        // TODO: If nextDate == 0, IV need to be closed by PD
-        _updateVesting(interestOut + surplus, nextDate);
+        // Claim funds, moving funds into pool
+        (
+            uint256 principalOut_,
+            uint256 freeAssets_,
+            uint256 issuanceRate_,
+            uint256 vestingPeriodFinish_
+        ) = IInvestmentManagerLike(investmentManagers[investment_]).claim(investment_);
 
-        // TODO: Research the best way to move funds between pool and IV. Currently is being transferred from IV to Pool in `claim`
+        console.log("");
+        console.log("------------");
+        console.log("POOL CLAIM 2");
+        console.log("------------");
 
-        // Send a portion of the interest to the pool cover manager.
-        _distributePoolCoverAssets(interestReturned);
+        console.log("principalOut_       ", principalOut_);
+        console.log("freeAssets_         ", freeAssets_);
+        console.log("issuanceRate_       ", issuanceRate_ / 1e30);
+        console.log("vestingPeriodFinish_", (vestingPeriodFinish_ - 1622400000) * 100 / 1 days);
+
+        // Update vesting schedule based on claim results
+        _updateVesting(issuanceRate_, vestingPeriodFinish_);
+
+        // Decrement principalOut, increment freeAssets by any discrepancy between expected and actual interest paid
+        principalOut = principalOut_;
+        freeAssets   = freeAssets_;
+
+        console.log("freeAssets  3", freeAssets );
+        console.log("totalAssets 3", totalAssets() );
     }
 
-    /// @dev Fund an investment opportunity. Maybe this should be the new updateVestingSchedule?
-    function fund(uint256 amountOut_, address investment_) external override returns (uint256 issuanceRate_) {
-        require(msg.sender == owner, "P:F:NOT_OWNER");
-        require(totalSupply != 0,    "P:F:ZERO_SUPPLY");
+    function fund(uint256 amountOut_, address investment_, address investmentManager_) external override returns (uint256 issuanceRate_) {
+        require(msg.sender == owner,                     "P:F:NOT_OWNER");
+        require(totalSupply != 0,                        "P:F:ZERO_SUPPLY");
+        require(isInvestmentManager[investmentManager_], "P:F:IM_INVALID");
 
-        require(ERC20Helper.transfer(asset, investment_, amountOut_), "GIV:F:TRANSFER_FAILED");
-        
-        // TODO: Funds need to be sent beforehand, otherwise the call to loan fails. Research a more robust flow of money
-        ( uint256 interestAdded_, uint256 periodEnd_ ) = IInvestmentManagerLike(investmentManager).fund(investment_);
+        require(ERC20Helper.transfer(asset, investment_, amountOut_), "P:F:TRANSFER_FAILED");
 
+        investmentManagers[investment_] = investmentManager_;
+
+        // Fund loan, getting information from InvestmentManager on how to update issuance params
+        ( uint256 issuanceRate, uint256 vestingPeriodFinish_ ) = IInvestmentManagerLike(investmentManager_).fund(investment_);
+
+        // Update pool accounting state
         principalOut += amountOut_;
-        interestOut  += interestAdded_;
+        issuanceRate_ = issuanceRate;
 
-        _updateVesting(interestOut, periodEnd_);
+        _updateVesting(issuanceRate, vestingPeriodFinish_);
     }
 
     /*****************/
@@ -127,18 +149,18 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         IPoolCoverManagerLike(poolCoverManager).distributeAssets();
     }
 
-    function _updateVesting(uint256 vestingAmount_, uint256 periodEnd_) internal returns (uint256 issuanceRate_) {
-        uint256 freeAssets_ = freeAssets  = totalAssets();
-        
+    function _updateVesting(uint256 issuanceRate_, uint256 vestingPeriodFinish_) internal {
+        uint256 freeAssets_ = freeAssets = totalAssets();
+
         lastUpdated = block.timestamp;
 
-        // Update period finish only if it's the latest investment to be concluded
-        uint256 currentFinish = vestingPeriodFinish;
-        vestingPeriodFinish = periodEnd_ > currentFinish ? periodEnd_ : currentFinish; //TODO: Current finish can be in the past
+        console.log("vestingPeriodFinish_ 3", vestingPeriodFinish == 0 ? 0 : (vestingPeriodFinish - 1622400000) * 100 / 1 days);
 
         // Calculate the new issuance rate using the new amount out and the time to all loans to mature
-        issuanceRate_ = issuanceRate = block.timestamp >= vestingPeriodFinish ? 0 :
-            vestingAmount_ * precision / (vestingPeriodFinish - block.timestamp);
+        issuanceRate        = issuanceRate_;
+        vestingPeriodFinish = vestingPeriodFinish_;
+
+        console.log("vestingPeriodFinish_ 4", (vestingPeriodFinish - 1622400000) * 100 / 1 days);
 
         emit IssuanceParamsUpdated(freeAssets_, issuanceRate_);
         emit VestingScheduleUpdated(msg.sender, vestingPeriodFinish);
