@@ -9,7 +9,7 @@ import { DateLinkedList } from "./LinkedList.sol";
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
 /// @dev JG's implementation, uses the expected interest rate and the issuance rate to calculate pool value.
-contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
+contract TB_ST_01 is IInvestmentManagerLike, DateLinkedList {
 
     address public immutable asset;
     address public immutable pool;
