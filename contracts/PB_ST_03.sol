@@ -14,8 +14,9 @@ import { console } from "../modules/contract-test-utils/contracts/log.sol";
 // Calculate the amount of funds that we've been expecting from this loan since freeAssets got updated last
 //
 
-/// @dev A loan wrapper for pools that can manage multiple loans.
-contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
+/// @dev Lucas' implementation, using balance difference and expected interest for discrepancies
+/// @dev Uses nextPaymentDueDate for endingTimestamp, calculates IR based on nextPaymentDueDate
+contract PB_ST_03 is IInvestmentManagerLike, DateLinkedList {
 
     address public immutable asset;
     address public immutable pool;
@@ -34,7 +35,6 @@ contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
         uint256 paymentDomainEnd;
         uint256 paymentDomainStart;
         uint256 paymentIssuanceRate;
-        uint256 scheduledPayment;
     }
 
     constructor(address pool_) {
@@ -98,15 +98,15 @@ contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
 
             // Calculate the new start and end timestamp of the loan
             // TODO: Use nextPaymentDuedate - block.timestamp for next issuanceRate calculation
-            uint256 paymentInterval   = loan.paymentInterval();
-            uint256 endingTimestamp   = loan.nextPaymentDueDate() + loan.gracePeriod();
+            uint256 paymentInterval = loan.paymentInterval();
+            uint256 endingTimestamp = loan.nextPaymentDueDate();
 
             console.log("");
             console.log("paymentInterval", paymentInterval * 100 / 1 days);
             console.log("block.timestamp", (block.timestamp - 1622400000) * 100 / 1 days);
             console.log("endingTimestamp", (endingTimestamp - 1622400000) * 100 / 1 days);
 
-            uint256 newPaymentIssuanceRate = nextInterestAmount * poolPrecision / (loan.nextPaymentDueDate() - block.timestamp);
+            uint256 newPaymentIssuanceRate = nextInterestAmount * poolPrecision / (endingTimestamp - block.timestamp);
 
             // Update investment position in ordered list
             investments[investment_].indexInList = insert(endingTimestamp, positionPreceeding(endingTimestamp));
@@ -126,10 +126,9 @@ contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
 
             // console.log("vestingPeriodFinish_ 2", (vestingPeriodFinish_ - 1622400000) * 100 / 1 days);
 
-            investments[investment_].paymentDomainStart   = block.timestamp;
-            investments[investment_].paymentDomainEnd     = endingTimestamp;
-            investments[investment_].paymentIssuanceRate  = newPaymentIssuanceRate;
-            investments[investment_].scheduledPayment    += paymentInterval;
+            investments[investment_].paymentDomainStart  = block.timestamp;
+            investments[investment_].paymentDomainEnd    = endingTimestamp;
+            investments[investment_].paymentIssuanceRate = newPaymentIssuanceRate;
         } else {
             // Get current issuance rate
             uint256 currentIssuanceRate = IPoolLike(pool).issuanceRate();
@@ -159,10 +158,8 @@ contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
 
         // Calculate relevant info for determining loan interest accrual rate
         uint256 principal           = loan.principal();
-        uint256 paymentInterval     = loan.paymentInterval();
-        uint256 gracePeriod         = loan.gracePeriod();
-        uint256 endingTimestamp     = block.timestamp + paymentInterval + gracePeriod;
-        uint256 paymentIssuanceRate = nextInterestAmount * poolPrecision / paymentInterval;
+        uint256 endingTimestamp     = loan.nextPaymentDueDate();
+        uint256 paymentIssuanceRate = nextInterestAmount * poolPrecision / (endingTimestamp - block.timestamp);
 
         uint256 indexInList = insert(endingTimestamp, positionPreceeding(endingTimestamp));
 
@@ -172,8 +169,7 @@ contract PB_IM_04 is IInvestmentManagerLike, DateLinkedList {
             lastPrincipal:       principal,
             paymentDomainEnd:    endingTimestamp,
             paymentDomainStart:  block.timestamp,
-            paymentIssuanceRate: paymentIssuanceRate,
-            scheduledPayment:    block.timestamp + paymentInterval
+            paymentIssuanceRate: paymentIssuanceRate
         });
 
         investmentsArray.push(investment_);  // TODO: Do we need to have this array?

@@ -8,8 +8,8 @@ import { DateLinkedList } from "./LinkedList.sol";
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
-/// @dev A loan wrapper for pools that can manage multiple loans.
-contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
+/// @dev JG's implementation, uses the expected interest rate and the issuance rate to calculate pool value.
+contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
 
     address public immutable asset;
     address public immutable pool;
@@ -51,55 +51,39 @@ contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
 
         // Get state of the loan
         uint256 currentPrincipal = loan.principal();
+        uint256 claimable        = loan.claimableFunds();
 
-        {
-            uint256 claimable  = loan.claimableFunds();
+        // Claim funds from the loan, transferring to pool
+        loan.claimFunds(claimable, pool);
 
-            // Claim funds from the loan, transferring to pool
-            loan.claimFunds(claimable, pool);
+        uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
+        uint256 interestReceived  = claimable - principalPaid;
 
-            uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
-            uint256 interestReceived  = claimable - principalPaid;
+        // Setting return values
+        principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
+        freeAssets_          = IPoolV2(pool).freeAssets();
+        issuanceRate_        = IPoolV2(pool).issuanceRate();
+        vestingPeriodFinish_ = rateDomainEnd;
 
-            // Setting return values
-            principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
-            freeAssets_          = IPoolV2(pool).freeAssets();
-            issuanceRate_        = IPoolV2(pool).issuanceRate();
-            vestingPeriodFinish_ = rateDomainEnd;
-
-            // TODO this calculation will need to change for amortized loans.
-            if (interestReceived > investment.nextInterest) {
-                freeAssets_ += interestReceived - investment.nextInterest;
-            }
+        // TODO this calculation will need to change for amortized loans.
+        if (interestReceived > investment.nextInterest) {
+            freeAssets_ += interestReceived - investment.nextInterest;
         }
 
-        // Remove investment from sorted list
-        remove(investment.indexInList);
-
         if (loan.nextPaymentDueDate() != 0) {
-            // Update investment state
-            investments[investment_].lastPrincipal = currentPrincipal;
-
+            console.log("More");
             ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
-            uint256 nextPayment = loan.nextPaymentDueDate();
-            uint256 newLoanIssuanceRate = nextInterestAmount * poolPrecision / investment.paymentInterval;
-
-            investments[investment_].indexInList = insert(nextPayment, positionPreceeding(nextPayment));
-
-            issuanceRate_ = IPoolV2(pool).issuanceRate() - investment.loanIssuanceRate + newLoanIssuanceRate;
-
-            rateDomainEnd = vestingPeriodFinish_ = totalItems == 0 ? block.timestamp : list[head].date;
-
-            investments[investment_].loanIssuanceRate = newLoanIssuanceRate;
-
+            // Update investment state
+            investments[investment_].lastPrincipal = currentPrincipal;
+            investments[investment_].nextInterest  = nextInterestAmount;
 
         } else {
 
             console.log("early", _earlyClosing(investment_));
+            // Remove invesment from sorted list
+            remove(investment.indexInList);
 
-            console.log("block.timestamp   ", block.timestamp);
-            console.log("investment.endDate", investment.endDate);
             if (block.timestamp < investment.endDate && !_earlyClosing(investment_)) {
                 console.log("adjusting");
                 freeAssets_ += investment.loanIssuanceRate * (investment.endDate - block.timestamp) / poolPrecision;
@@ -109,8 +93,7 @@ contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
             //       Doing this temporarily to get tests to pass with imprecision
             issuanceRate_ = investment.loanIssuanceRate > issuanceRate_ ? 0 : issuanceRate_ - investment.loanIssuanceRate;
 
-            // issuanceRate_ = IPoolV2(pool).issuanceRate() - investment.loanIssuanceRate;
-
+            // If no items in list, use block.timestamp for vestingPeriodFinish
             rateDomainEnd = vestingPeriodFinish_ = totalItems == 0 ? block.timestamp : list[head].date;
 
             // Delete investment object
@@ -126,16 +109,18 @@ contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
         // Fund the loan, updating state to reflect transferred pool funds
         loan.fundLoan(address(this), 0);
 
+        // Calculate relevant info for determining loan interest accrual rate
+        uint256 principal       = loan.principal();
+        uint256 paymentInterval = loan.paymentInterval();
+        uint256 totalTerm       = paymentInterval * loan.paymentsRemaining();
+        uint256 totalInterest   = principal * loan.interestRate() * totalTerm / 365 days / 1e18;
+        uint256 endingTimestamp = block.timestamp + totalTerm;
+
+        uint256 indexInList = insert(endingTimestamp, positionPreceeding(endingTimestamp));
+
         ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
-        // Calculate relevant info for determining loan interest accrual rate
-        uint256 principal        = loan.principal();
-        uint256 paymentInterval  = loan.paymentInterval();
-        uint256 gracePeriod      = loan.gracePeriod();
-        uint256 nextPayment      = block.timestamp + paymentInterval + gracePeriod;
-        uint256 loanIssuanceRate = nextInterestAmount * poolPrecision / paymentInterval;
-
-        uint256 indexInList = insert(nextPayment, positionPreceeding(nextPayment));
+        uint256 loanIssuanceRate = totalInterest * poolPrecision / totalTerm;
 
         // Add new loan to investments mapping and array
         investments[investment_] = InvestmentVehicle({
@@ -144,7 +129,7 @@ contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
             lastPrincipal:    principal,
             loanIssuanceRate: loanIssuanceRate,
             nextInterest:     nextInterestAmount,
-            endDate:          block.timestamp + paymentInterval * loan.paymentsRemaining()
+            endDate:          endingTimestamp
         });
 
         investmentsArray.push(investment_);  // TODO: Do we need to have this array?
@@ -160,6 +145,5 @@ contract PB_IM_03 is IInvestmentManagerLike, DateLinkedList {
 
         return block.timestamp <= investment.endDate - investment.paymentInterval;
     }
-
 
 }

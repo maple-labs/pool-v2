@@ -8,8 +8,8 @@ import { DateLinkedList } from "./LinkedList.sol";
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
-/// @dev A loan wrapper for pools that can manage multiple loans.
-contract PB_IM_02 is IInvestmentManagerLike, DateLinkedList {
+/// @dev JG's implementation, using expected interest and custom closing logic
+contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
 
     address public immutable asset;
     address public immutable pool;
@@ -50,7 +50,7 @@ contract PB_IM_02 is IInvestmentManagerLike, DateLinkedList {
         InvestmentVehicle memory investment = investments[investment_];
 
         // Get state of the loan
-        uint256 currentPrincipal = loan.principal();   
+        uint256 currentPrincipal = loan.principal();
 
         {
             uint256 claimable  = loan.claimableFunds();
@@ -59,7 +59,7 @@ contract PB_IM_02 is IInvestmentManagerLike, DateLinkedList {
             loan.claimFunds(claimable, pool);
 
             uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
-            uint256 interestReceived  = claimable - principalPaid; 
+            uint256 interestReceived  = claimable - principalPaid;
 
             // Setting return values
             principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
@@ -158,7 +158,7 @@ contract PB_IM_02 is IInvestmentManagerLike, DateLinkedList {
     function _earlyClosing(address investment_) internal view returns (bool) {
         InvestmentVehicle memory investment = investments[investment_];
 
-        return block.timestamp <= investment.endDate - investment.paymentInterval; 
+        return block.timestamp <= investment.endDate - investment.paymentInterval;
     }
 
 

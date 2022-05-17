@@ -8,8 +8,8 @@ import { DateLinkedList } from "./LinkedList.sol";
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
-/// @dev A loan wrapper for pools that can manage multiple loans.
-contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
+/// @dev JG's implementation, uses Loan IRs to manage overall IR
+contract TB_LT_01 is IInvestmentManagerLike {
 
     address public immutable asset;
     address public immutable pool;
@@ -23,7 +23,6 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
     mapping (address => InvestmentVehicle) public investments;
 
     struct InvestmentVehicle {
-        uint256 indexInList;
         uint256 paymentInterval;
         uint256 lastPrincipal;
         uint256 loanIssuanceRate;
@@ -50,14 +49,15 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
         InvestmentVehicle memory investment = investments[investment_];
 
         // Get state of the loan
-        uint256 currentPrincipal = loan.principal();   
+        uint256 currentPrincipal = loan.principal();
         uint256 claimable        = loan.claimableFunds();
 
         // Claim funds from the loan, transferring to pool
         loan.claimFunds(claimable, pool);
 
+
         uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
-        uint256 interestReceived  = claimable - principalPaid; 
+        uint256 interestReceived  = claimable - principalPaid;
 
         // Setting return values
         principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
@@ -71,7 +71,6 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
         }
 
         if (loan.nextPaymentDueDate() != 0) {
-            console.log("More");
             ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
             // Update investment state
@@ -79,22 +78,28 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
             investments[investment_].nextInterest  = nextInterestAmount;
 
         } else {
-
-            console.log("early", _earlyClosing(investment_));
-            // Remove invesment from sorted list
-            remove(investment.indexInList);
-
-            if (block.timestamp < investment.endDate && !_earlyClosing(investment_)) {
-                console.log("adjusting");
-                freeAssets_ += investment.loanIssuanceRate * (investment.endDate - block.timestamp) / poolPrecision;
-            }
-
+            uint256 oldIssuanceRate = issuanceRate_;
             // TODO: Need to find a more robust way of calculating this
             //       Doing this temporarily to get tests to pass with imprecision
             issuanceRate_ = investment.loanIssuanceRate > issuanceRate_ ? 0 : issuanceRate_ - investment.loanIssuanceRate;
 
-            // If no items in list, use block.timestamp for vestingPeriodFinish
-            rateDomainEnd = vestingPeriodFinish_ = totalItems == 0 ? block.timestamp : list[head].date;
+            // If we're closing the loan before the end timestamp but in the last payment period, need to add discretely the remaining interest.
+            // TODO: Will likely break with amortized loans and need to change to recalculate issuanceRate at each payment
+            if (block.timestamp != investment.endDate && !_earlyClosing(investment_)) {
+
+                if (block.timestamp < investment.endDate) {
+                    // Adjust free assets by the time passed(or that will pass) using the wrong issuance rate
+                    uint256 added   = oldIssuanceRate * (investment.endDate - block.timestamp) / poolPrecision;
+                    uint256 removed = issuanceRate_ * (investment.endDate - block.timestamp) / poolPrecision;
+                    freeAssets_ = freeAssets_ + added - removed;
+
+                } else if (block.timestamp > investment.endDate ) {
+                    // Adjust free assets by the time passed(or that will pass) using the wrong issuance rate
+                    uint256 removed = oldIssuanceRate * (block.timestamp - investment.endDate) / poolPrecision;
+                    uint256 added   = (issuanceRate_ == 0 ? investment.loanIssuanceRate : issuanceRate_) * (block.timestamp - investment.endDate) / poolPrecision;
+                    freeAssets_ = freeAssets_ + added - removed;
+                }
+            }
 
             // Delete investment object
             delete investments[investment_];
@@ -116,15 +121,12 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
         uint256 totalInterest   = principal * loan.interestRate() * totalTerm / 365 days / 1e18;
         uint256 endingTimestamp = block.timestamp + totalTerm;
 
-        uint256 indexInList = insert(endingTimestamp, positionPreceeding(endingTimestamp));
-
         ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
         uint256 loanIssuanceRate = totalInterest * poolPrecision / totalTerm;
 
         // Add new loan to investments mapping and array
         investments[investment_] = InvestmentVehicle({
-            indexInList:      indexInList,
             paymentInterval:  paymentInterval,
             lastPrincipal:    principal,
             loanIssuanceRate: loanIssuanceRate,
@@ -135,7 +137,7 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
         investmentsArray.push(investment_);  // TODO: Do we need to have this array?
 
         // Calculate the new issuance Rate's domain
-        rateDomainEnd = rateDomainEnd_ = list[head].date;  // Get earliest timestamp from linked list
+        rateDomainEnd = rateDomainEnd_ = endingTimestamp > rateDomainEnd ? endingTimestamp : rateDomainEnd;
 
         newIssuanceRate_ = IPoolV2(pool).issuanceRate() + loanIssuanceRate;
     }
@@ -143,7 +145,7 @@ contract TB_IM_03 is IInvestmentManagerLike, DateLinkedList {
     function _earlyClosing(address investment_) internal view returns (bool) {
         InvestmentVehicle memory investment = investments[investment_];
 
-        return block.timestamp <= investment.endDate - investment.paymentInterval; 
+        return block.timestamp <= investment.endDate - investment.paymentInterval;
     }
 
 }
