@@ -21,6 +21,10 @@ interface IMapleLoan {
 
     function fundsAsset() external view returns (address fundsAsset_);
 
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+
     function gracePeriod() external view returns (uint256 gracePeriod_);
 
     function interestRate() external view returns (uint256 interestRate_);
