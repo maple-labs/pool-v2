@@ -34,7 +34,7 @@ contract DateLinkedList {
             // console.log("loopNode.nextId", loopNode.nextId);
             // console.log("loopNode.date  ", loopNode.date);
             // console.log("loopNode.date  ", (loopNode.date - 1622400000) * 100 / 1 days);
-            
+
             nodeId   = loopNode.nextId;
             loopNode = list[loopNode.nextId];
             if (nodeId == 0) break;
@@ -96,7 +96,7 @@ contract DateLinkedList {
             // console.log("inserting head", nodeId_);
             // // console.log("value_        ", value_);
             // console.log("date          ", (value_ - 1622400000) * 100 / 1 days);
-            
+
             list[head].prevId = nodeId_;
             node.nextId       = head;
             head              = nodeId_;
