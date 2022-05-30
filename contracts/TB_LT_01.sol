@@ -27,6 +27,7 @@ contract TB_LT_01 is IInvestmentManagerLike {
         uint256 lastPrincipal;
         uint256 loanIssuanceRate;
         uint256 nextInterest;
+        uint256 paymentTarget;
         uint256 endDate;
     }
 
@@ -50,32 +51,64 @@ contract TB_LT_01 is IInvestmentManagerLike {
 
         // Get state of the loan
         uint256 currentPrincipal = loan.principal();
-        uint256 claimable        = loan.claimableFunds();
+        {
+            uint256 claimable        = loan.claimableFunds();
 
-        // Claim funds from the loan, transferring to pool
-        loan.claimFunds(claimable, pool);
+            // Claim funds from the loan, transferring to pool
+            loan.claimFunds(claimable, pool);
 
 
-        uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
-        uint256 interestReceived  = claimable - principalPaid;
+            uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
+            uint256 interestReceived  = claimable - principalPaid;
 
-        // Setting return values
-        principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
-        freeAssets_          = IPoolV2(pool).freeAssets();
-        issuanceRate_        = IPoolV2(pool).issuanceRate();
-        vestingPeriodFinish_ = rateDomainEnd;
+            // Setting return values
+            principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
+            freeAssets_          = IPoolV2(pool).freeAssets();
+            issuanceRate_        = IPoolV2(pool).issuanceRate();
+            vestingPeriodFinish_ = rateDomainEnd;
+            
 
-        // TODO this calculation will need to change for amortized loans.
-        if (interestReceived > investment.nextInterest) {
-            freeAssets_ += interestReceived - investment.nextInterest;
+            // TODO this calculation will need to change for amortized loans.
+            if (interestReceived > investment.nextInterest) {
+                freeAssets_ += interestReceived - investment.nextInterest;
+            }
         }
 
         if (loan.nextPaymentDueDate() != 0) {
             ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
+            uint256 newLoanRate = nextInterestAmount * poolPrecision / investment.paymentInterval;
+            if (newLoanRate != investment.loanIssuanceRate) {
+                // There's a difference on the interest paid per period
+                uint256 oldIssuance = issuanceRate_;
+                issuanceRate_ = issuanceRate_ + newLoanRate - investment.loanIssuanceRate;
+
+                if (block.timestamp != investment.paymentTarget) {
+                    uint256 diff = block.timestamp > investment.paymentTarget ? 
+                        block.timestamp - investment.paymentTarget : 
+                        investment.paymentTarget - block.timestamp;
+
+                    uint256 added = 0;
+                    uint256 removed = 0;
+
+                    if (block.timestamp < investment.paymentTarget) {
+                        // Early
+                        added   = oldIssuance * diff / poolPrecision;
+                        removed = issuanceRate_ * diff / poolPrecision; 
+                    } else {
+                        added = issuanceRate_ * diff / poolPrecision;
+                        removed = oldIssuance * diff / poolPrecision;
+                    }
+
+                    freeAssets_ = freeAssets_ + added - removed;
+                }
+            }
+
             // Update investment state
-            investments[investment_].lastPrincipal = currentPrincipal;
-            investments[investment_].nextInterest  = nextInterestAmount;
+            investments[investment_].loanIssuanceRate = newLoanRate;
+            investments[investment_].lastPrincipal    = currentPrincipal;
+            investments[investment_].nextInterest     = nextInterestAmount;
+            investments[investment_].paymentTarget    = loan.nextPaymentDueDate(); 
 
         } else {
             uint256 oldIssuanceRate = issuanceRate_;
@@ -123,7 +156,7 @@ contract TB_LT_01 is IInvestmentManagerLike {
 
         ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
 
-        uint256 loanIssuanceRate = totalInterest * poolPrecision / totalTerm;
+        uint256 loanIssuanceRate = nextInterestAmount * poolPrecision / paymentInterval;
 
         // Add new loan to investments mapping and array
         investments[investment_] = InvestmentVehicle({
@@ -131,7 +164,8 @@ contract TB_LT_01 is IInvestmentManagerLike {
             lastPrincipal:    principal,
             loanIssuanceRate: loanIssuanceRate,
             nextInterest:     nextInterestAmount,
-            endDate:          endingTimestamp
+            endDate:          endingTimestamp,
+            paymentTarget:    loan.nextPaymentDueDate()
         });
 
         investmentsArray.push(investment_);  // TODO: Do we need to have this array?
