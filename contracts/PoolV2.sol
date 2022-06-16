@@ -51,14 +51,6 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
     function claim(address investment_) external {
         require(totalSupply != 0, "P:F:ZERO_SUPPLY");
 
-        console.log("");
-        console.log("------------");
-        console.log("POOL CLAIM 1");
-        console.log("------------");
-
-        console.log("freeAssets  1", freeAssets );
-        console.log("totalAssets 1", totalAssets() );
-
         // Update vesting schedule based on claim results
         freeAssets = totalAssets();
 
@@ -70,25 +62,12 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
             uint256 vestingPeriodFinish_
         ) = IInvestmentManagerLike(investmentManagers[investment_]).claim(investment_);
 
-        console.log("");
-        console.log("------------");
-        console.log("POOL CLAIM 2");
-        console.log("------------");
-
-        console.log("principalOut_       ", principalOut_);
-        console.log("freeAssets_         ", freeAssets_);
-        console.log("issuanceRate_       ", issuanceRate_ / 1e30);
-        console.log("vestingPeriodFinish_", (vestingPeriodFinish_ - 1622400000) * 100 / 1 days);
-
         // Update vesting schedule based on claim results
         _updateVesting(issuanceRate_, vestingPeriodFinish_);
 
         // Decrement principalOut, increment freeAssets by any discrepancy between expected and actual interest paid
         principalOut = principalOut_;
         freeAssets   = freeAssets_;
-
-        console.log("freeAssets  3", freeAssets );
-        console.log("totalAssets 3", totalAssets() );
     }
 
     function fund(uint256 amountOut_, address investment_, address investmentManager_) external override returns (uint256 issuanceRate_) {
@@ -154,13 +133,13 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
         lastUpdated = block.timestamp;
 
-        console.log("vestingPeriodFinish_ 3", vestingPeriodFinish == 0 ? 0 : (vestingPeriodFinish - 1622400000) * 100 / 1 days);
+        // console.log("vestingPeriodFinish_ 3", vestingPeriodFinish == 0 ? 0 : (vestingPeriodFinish - 1622400000) * 100 / 1 days);
 
         // Calculate the new issuance rate using the new amount out and the time to all loans to mature
         issuanceRate        = issuanceRate_;
         vestingPeriodFinish = vestingPeriodFinish_;
 
-        console.log("vestingPeriodFinish_ 4", (vestingPeriodFinish - 1622400000) * 100 / 1 days);
+        // console.log("vestingPeriodFinish_ 4", (vestingPeriodFinish - 1622400000) * 100 / 1 days);
 
         emit IssuanceParamsUpdated(freeAssets_, issuanceRate_);
         emit VestingScheduleUpdated(msg.sender, vestingPeriodFinish);

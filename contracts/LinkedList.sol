@@ -19,72 +19,23 @@ contract DateLinkedList {
 
     function insert(uint256 value_, uint256 existingId_) internal returns (uint256 nodeId_) {
 
-        // LOOP
-
         Node memory loopNode = list[head];
         uint256     nodeId   = head;
 
-        // console.log("BEGINNING");
-        // console.log("head", head);
-
         while (true && nodeId > 0) {
-            // console.log("");
-            // console.log("nodeId         ", nodeId);
-            // console.log("loopNode.prevId", loopNode.prevId);
-            // console.log("loopNode.nextId", loopNode.nextId);
-            // console.log("loopNode.date  ", loopNode.date);
-            // console.log("loopNode.date  ", (loopNode.date - 1622400000) * 100 / 1 days);
-
             nodeId   = loopNode.nextId;
             loopNode = list[loopNode.nextId];
             if (nodeId == 0) break;
         }
-        console.log("");
-
-        // LOOP
 
         Node memory node = Node({prevId: 0, date: value_, nextId: 0});
-
-        // console.log("date", (value_ - 1622400000) * 100 / 1 days);
 
         nodeId_ = ++nextId;
 
         // If only item in list, insert as head
         if (totalItems == 0) {
-            // console.log("");
-            // console.log("inserting as head", nodeId_);
-            // // console.log("value_           ", value_);
-            // console.log("date             ", (value_ - 1622400000) * 100 / 1 days);
-
             head          = nodeId_;
             list[nodeId_] = node;
-
-            // LOOP
-
-
-            loopNode = list[head];
-            nodeId   = head;
-
-            // console.log("---------------");
-            // console.log("totalItems == 0");
-            // console.log("---------------");
-            // console.log("head", head);
-
-            while(true) {
-                // console.log("");
-                // console.log("nodeId         ", nodeId);
-                // console.log("loopNode.prevId", loopNode.prevId);
-                // console.log("loopNode.nextId", loopNode.nextId);
-                // console.log("loopNode.date  ", (loopNode.date - 1622400000) * 100 / 1 days);
-
-                nodeId   = loopNode.nextId;
-                loopNode = list[nodeId];
-                if (nodeId == 0) break;
-            }
-            console.log("");
-
-            // LOOP
-
 
             totalItems++;
             return nodeId_;
@@ -92,40 +43,10 @@ contract DateLinkedList {
 
         // Inserting head
         if (existingId_ == 0) {
-            // console.log("");
-            // console.log("inserting head", nodeId_);
-            // // console.log("value_        ", value_);
-            // console.log("date          ", (value_ - 1622400000) * 100 / 1 days);
-
             list[head].prevId = nodeId_;
             node.nextId       = head;
             head              = nodeId_;
             list[nodeId_]     = node;
-
-            // LOOP
-
-            loopNode = list[head];
-            nodeId   = head;
-
-            // console.log("----------------");
-            // console.log("existingId_ == 0");
-            // console.log("----------------");
-            // console.log("head", head);
-
-            while(true) {
-                // console.log("");
-                // console.log("nodeId         ", nodeId);
-                // console.log("loopNode.prevId", loopNode.prevId);
-                // console.log("loopNode.nextId", loopNode.nextId);
-                // console.log("loopNode.date  ", (loopNode.date - 1622400000) * 100 / 1 days);
-
-                nodeId   = loopNode.nextId;
-                loopNode = list[nodeId];
-                if (nodeId == 0) break;
-            }
-            console.log("");
-
-            // LOOP
 
             totalItems++;
             return nodeId_;
@@ -141,17 +62,8 @@ contract DateLinkedList {
         prev.nextId = nodeId_;
 
         if (cachedNext != 0) {
-            // console.log("cachedNext", cachedNext);
-            // console.log("value_    ", value_);
-            // console.log("next.date ", next.date);
-            console.log("list[cachedNext].date ", (list[cachedNext].date - 1622400000) * 100 / 1 days);
-            // console.log("list[prev.nextId].date", (list[prev.nextId].date - 1622400000) * 100 / 1 days);
-
             // If the previous node wasn't the last on the list
             Node memory next = list[cachedNext];
-            // console.log("cachedNext", cachedNext);
-            // console.log("value_    ", (value_ - 1622400000) * 100 / 1 days);
-            // console.log("next.date ", (next.date - 1622400000) * 100 / 1 days);
             require(value_ <= next.date, "wrong position 2");
 
             next.prevId = nodeId_;
@@ -163,31 +75,6 @@ contract DateLinkedList {
         totalItems++;
         list[existingId_] = prev;
         list[nodeId_]     = node;
-
-        // LOOP
-
-        loopNode = list[head];
-        nodeId   = head;
-
-        // console.log("---");
-        // console.log("END");
-        // console.log("---");
-        // console.log("head", head);
-
-        while(true) {
-            // console.log("");
-            // console.log("nodeId         ", nodeId);
-            // console.log("loopNode.prevId", loopNode.prevId);
-            // console.log("loopNode.nextId", loopNode.nextId);
-            // console.log("loopNode.date  ", (loopNode.date - 1622400000) * 100 / 1 days);
-
-            nodeId   = loopNode.nextId;
-            loopNode = list[nodeId];
-            if (nodeId == 0) break;
-        }
-        console.log("");
-
-        // LOOP
     }
 
     function remove(uint256 nodeId) internal {
@@ -205,8 +92,6 @@ contract DateLinkedList {
 
         list[next].prevId = prev;
         list[prev].nextId = next;
-
-        console.log("totalItems", totalItems);
 
         delete list[nodeId];
         totalItems--;

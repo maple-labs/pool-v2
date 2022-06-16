@@ -80,4 +80,6 @@ interface IPoolLike {
 
     function principalOut() external view returns (uint256 principalOut_);
 
+    function totalAssets() external view returns (uint256 totalAssets_);
+
 }
