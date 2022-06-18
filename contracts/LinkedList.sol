@@ -62,6 +62,7 @@ contract DateLinkedList {
         prev.nextId = nodeId_;
 
         if (cachedNext != 0) {
+
             // If the previous node wasn't the last on the list
             Node memory next = list[cachedNext];
             require(value_ <= next.date, "wrong position 2");

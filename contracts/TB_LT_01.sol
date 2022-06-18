@@ -5,14 +5,12 @@ import { IERC20Like, IInvestmentManagerLike, ILoanLike } from "./interfaces/Inte
 import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
 
 import { DateLinkedList } from "./LinkedList.sol";
+import { DefaultHandler } from "./DefaultHandler.sol";
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
 /// @dev JG's implementation, uses Loan IRs to manage overall IR
-contract TB_LT_01 is IInvestmentManagerLike {
-
-    address public immutable asset;
-    address public immutable pool;
+contract TB_LT_01 is IInvestmentManagerLike, DefaultHandler {
 
     uint256 public immutable poolPrecision;
 
@@ -31,9 +29,7 @@ contract TB_LT_01 is IInvestmentManagerLike {
         uint256 endDate;
     }
 
-    constructor(address pool_) {
-        asset         = IPoolV2(pool_).asset();
-        pool          = pool_;
+    constructor(address pool_) DefaultHandler(pool_) {
         poolPrecision = IPoolV2(pool_).precision();
     }
 

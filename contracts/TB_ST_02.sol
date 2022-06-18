@@ -4,14 +4,13 @@ pragma solidity 0.8.7;
 import { IERC20Like, IInvestmentManagerLike, ILoanLike, IPoolLike } from "./interfaces/Interfaces.sol";
 
 import { DateLinkedList } from "./LinkedList.sol";
+import { DefaultHandler } from "./DefaultHandler.sol";
+
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
 /// @dev Lucas' implementation, uses cash + PO for FA.
-contract TB_ST_02 is IInvestmentManagerLike, DateLinkedList {
-
-    address public immutable asset;
-    address public immutable pool;
+contract TB_ST_02 is IInvestmentManagerLike, DateLinkedList, DefaultHandler {
 
     uint256 public immutable poolPrecision;
 
@@ -27,9 +26,7 @@ contract TB_ST_02 is IInvestmentManagerLike, DateLinkedList {
         uint256 loanIssuanceRate;
     }
 
-    constructor(address pool_) {
-        asset         = IPoolLike(pool_).asset();
-        pool          = pool_;
+    constructor(address pool_) DefaultHandler(pool_) {
         poolPrecision = IPoolLike(pool_).precision();
     }
 

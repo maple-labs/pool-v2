@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { IERC20Like, IInvestmentManagerLike, ILoanLike } from "./interfaces/Interfaces.sol";
-import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
+import { IERC20Like, IInvestmentManagerLike, ILoanLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
+import { IPoolV2 }                                                              from "./interfaces/IPoolV2.sol";
 
 import { DateLinkedList } from "./LinkedList.sol";
+import { DefaultHandler } from "./DefaultHandler.sol";
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
 /// @dev JG's implementation, using expected interest and custom closing logic
-contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
+contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList, DefaultHandler {
 
-    address public immutable asset;
-    address public immutable pool;
+    address public immutable poolCoverManager;
 
     uint256 public immutable poolPrecision;
 
@@ -31,10 +31,9 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
         uint256 endDate;
     }
 
-    constructor(address pool_) {
-        asset         = IPoolV2(pool_).asset();
-        pool          = pool_;
-        poolPrecision = IPoolV2(pool_).precision();
+    constructor(address pool_, address poolCoverManager_) DefaultHandler(pool_) {
+        poolCoverManager = poolCoverManager_;
+        poolPrecision    = IPoolV2(pool_).precision();
     }
 
     function claim(address investment_)
@@ -53,13 +52,18 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
         uint256 currentPrincipal = loan.principal();
 
         {
-            uint256 claimable  = loan.claimableFunds();
+            uint256 principalPaid = investment.lastPrincipal - currentPrincipal;
+            uint256 poolInterest  = loan.claimableFunds() - principalPaid;
 
-            // Claim funds from the loan, transferring to pool
-            loan.claimFunds(claimable, pool);
+            if (poolCoverManager != address(0)) {
+                uint256 poolCoverInterest = poolInterest / 5;  // 20%
+                poolInterest = poolInterest * 4 / 5;           // 80%
 
-            uint256 principalPaid     = investment.lastPrincipal - currentPrincipal;
-            uint256 interestReceived  = claimable - principalPaid;
+                loan.claimFunds(poolCoverInterest, poolCoverManager);
+                IPoolCoverManagerLike(poolCoverManager).allocateLiquidity();
+            }
+
+            loan.claimFunds(loan.claimableFunds(), pool);
 
             // Setting return values
             principalOut_        = IPoolV2(pool).principalOut() - principalPaid;
@@ -68,8 +72,8 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
             vestingPeriodFinish_ = rateDomainEnd;
 
             // TODO this calculation will need to change for amortized loans.
-            if (interestReceived > investment.nextInterest) {
-                freeAssets_ += interestReceived - investment.nextInterest;
+            if (poolInterest > investment.nextInterest) {
+                freeAssets_ += poolInterest - investment.nextInterest;
             }
         }
 
@@ -81,6 +85,11 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
             investments[investment_].lastPrincipal = currentPrincipal;
 
             ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
+
+            if (poolCoverManager != address(0)) {
+                // Reduce interest amount to 80%.
+                nextInterestAmount = nextInterestAmount * 4 / 5;
+            }
 
             uint256 nextPayment = loan.nextPaymentDueDate();
             uint256 newLoanIssuanceRate = nextInterestAmount * poolPrecision / investment.paymentInterval;
@@ -96,12 +105,7 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
 
         } else {
 
-            console.log("early", _earlyClosing(investment_));
-
-            console.log("block.timestamp   ", block.timestamp);
-            console.log("investment.endDate", investment.endDate);
             if (block.timestamp < investment.endDate && !_earlyClosing(investment_)) {
-                console.log("adjusting");
                 freeAssets_ += investment.loanIssuanceRate * (investment.endDate - block.timestamp) / poolPrecision;
             }
 
@@ -127,6 +131,11 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
         loan.fundLoan(address(this), 0);
 
         ( , uint256 nextInterestAmount ) = loan.getNextPaymentBreakdown();
+
+        if (poolCoverManager != address(0)) {
+            // Reduce interest amount to 80%.
+            nextInterestAmount = nextInterestAmount * 4 / 5;
+        }
 
         // Calculate relevant info for determining loan interest accrual rate
         uint256 principal        = loan.principal();
@@ -160,6 +169,5 @@ contract PB_ST_01 is IInvestmentManagerLike, DateLinkedList {
 
         return block.timestamp <= investment.endDate - investment.paymentInterval;
     }
-
 
 }

@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
+interface IAuctioneerLike {
+
+    function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 expectedAmount_);
+
+}
+
 interface IERC20Like {
 
     function approve(address spender_, uint256 amount_) external;
@@ -36,11 +42,19 @@ interface IInvestmentVehicleLike {
 
 }
 
+interface ILiquidatorLike {
+
+    function liquidatePortion(uint256 swapAmount_, uint256 maxReturnAmount_, bytes calldata data_) external;
+
+}
+
 interface ILoanLike {
 
     function claimableFunds() external view returns (uint256 claimableFunds_);
 
     function claimFunds(uint256 amount_, address destination_) external;
+
+    function collateralAsset() external view returns(address asset_);
 
     function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
 
@@ -60,11 +74,13 @@ interface ILoanLike {
 
     function principalRequested() external view returns (uint256 principalRequested_);
 
+    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
+
 }
 
 interface IPoolCoverManagerLike {
 
-    function distributeAssets() external returns (address[] memory recipients_, uint256[] memory assets_);
+    function allocateLiquidity() external;
 
 }
 

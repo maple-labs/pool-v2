@@ -6,3 +6,7 @@
 	path = modules/revenue-distribution-token
 	url = https://github.com/maple-labs/revenue-distribution-token
 	ignore = dirty
+[submodule "modules/liquidator"]
+	path = modules/liquidator
+	url = git@github.com:maple-labs/liquidations.git
+	branch = slim-liquidator

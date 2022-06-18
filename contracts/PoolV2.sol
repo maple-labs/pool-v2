@@ -7,8 +7,6 @@ import { ERC20, ERC20Helper, RevenueDistributionToken } from "../modules/revenue
 import { IInvestmentManagerLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
 import { IPoolV2 }                                       from "./interfaces/IPoolV2.sol";
 
-import { console } from "../modules/contract-test-utils/contracts/log.sol";
-
 contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
     address public poolCoverManager;
@@ -17,6 +15,7 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
     uint256 public override interestOut;
     uint256 public override principalOut;  // Full amount of principal that's not currently on the pool
+    uint256 public override unrealizedLosses;
 
     mapping (address => bool) isInvestmentManager;
 
@@ -89,9 +88,35 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         _updateVesting(issuanceRate, vestingPeriodFinish_);
     }
 
+    function decreaseUnrealizedLosses(uint256 decrement_) external override {
+        require(isInvestmentManager[msg.sender], "P:DC:NOT_IM");
+        unrealizedLosses -= decrement_;
+    }
+
+    function increaseUnrealizedLosses(uint256 increment_) external override {
+        require(isInvestmentManager[msg.sender], "P:IC:NOT_IM");
+        unrealizedLosses += increment_;
+    }
+
     /*****************/
     /*** Overrides ***/
     /*****************/
+
+    function previewRedeem(uint256 shares_) public view virtual override(IERC4626, RevenueDistributionToken) returns (uint256 assets_) {
+        // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
+        // it should round DOWN if it’s calculating the amount of assets to send to a user, given amount of shares returned.
+        uint256 supply = totalSupply;  // Cache to stack.
+
+        assets_ = supply == 0 ? shares_ : (shares_ * (totalAssets() - unrealizedLosses)) / supply;
+    }
+
+    function previewWithdraw(uint256 assets_) public view virtual override(IERC4626, RevenueDistributionToken) returns (uint256 shares_) {
+        uint256 supply = totalSupply;  // Cache to stack.
+
+        // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
+        // it should round UP if it’s calculating the amount of shares a user must return, to be sent a given amount of assets.
+        shares_ = supply == 0 ? assets_ : _divRoundUp(assets_ * supply, (totalAssets() - unrealizedLosses));
+    }
 
     function redeem(uint256 shares_, address receiver_, address owner_) external override(IERC4626, RevenueDistributionToken) nonReentrant returns (uint256 assets_) {
         require(msg.sender == withdrawalManager, "P:R:NOT_WM");
@@ -125,7 +150,7 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
         require(assets == 0 || ERC20Helper.transfer(asset, poolCoverManager, assets));
 
         // Trigger distribution of all transferred assets.
-        IPoolCoverManagerLike(poolCoverManager).distributeAssets();
+        IPoolCoverManagerLike(poolCoverManager).allocateLiquidity();
     }
 
     function _updateVesting(uint256 issuanceRate_, uint256 vestingPeriodFinish_) internal {
@@ -133,13 +158,9 @@ contract PoolV2 is IPoolV2, RevenueDistributionToken {
 
         lastUpdated = block.timestamp;
 
-        // console.log("vestingPeriodFinish_ 3", vestingPeriodFinish == 0 ? 0 : (vestingPeriodFinish - 1622400000) * 100 / 1 days);
-
         // Calculate the new issuance rate using the new amount out and the time to all loans to mature
         issuanceRate        = issuanceRate_;
         vestingPeriodFinish = vestingPeriodFinish_;
-
-        // console.log("vestingPeriodFinish_ 4", (vestingPeriodFinish - 1622400000) * 100 / 1 days);
 
         emit IssuanceParamsUpdated(freeAssets_, issuanceRate_);
         emit VestingScheduleUpdated(msg.sender, vestingPeriodFinish);
