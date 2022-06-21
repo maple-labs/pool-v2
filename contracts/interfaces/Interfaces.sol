@@ -26,21 +26,19 @@ interface IInvestmentManagerLike {
         uint256 vestingPeriodFinish_
     );
 
-    function fund(address investment_) external returns (uint256 newIssuanceRate_, uint256 rateDomainEnd_);
+    function finishCollateralLiquidation(address investment_) external returns (uint256 decreasedUnrealizedLosses, uint256 remainingLosses);
+
+    function fund(address investment_) external returns (
+        uint256 principalOut_,
+        uint256 freeAssets_,
+        uint256 issuanceRate_,
+        uint256 vestingPeriodFinish_
+    );
+
+    function triggerCollateralLiquidation(address investment_) external returns (uint256 increasedUnrealizedLosses_);
 
 }
 
-interface IInvestmentVehicleLike {
-
-    function claim() external returns (uint256 principal_, uint256 interestAdded_, uint256 interestReturned_, uint256 periodEnd_);
-
-    function close() external returns (uint256 expectedPrincipal_, uint256 principal_, uint256 interest_);
-
-    function expectedInterest() external view returns (uint256 interest_);
-
-    function fund() external returns (uint256 interestAdded_, uint256 periodEnd_);
-
-}
 
 interface ILiquidatorLike {
 
@@ -56,13 +54,19 @@ interface ILoanLike {
 
     function collateralAsset() external view returns(address asset_);
 
+    function fundsAsset() external view returns (address asset_);
+
     function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
+
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     function gracePeriod() external view returns (uint256 gracePeriod_);
 
     function interestRate() external view returns (uint256 interestRate_);
+
+    function lateFeeRate() external view returns (uint256 lateFeeRate_);
 
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
 
@@ -82,20 +86,42 @@ interface IPoolCoverManagerLike {
 
     function allocateLiquidity() external;
 
+    function triggerCoverLiquidation(uint256 totalLiquidationAmount_) external returns (uint256[] memory liquidationAmounts_);
+
 }
 
 interface IPoolLike {
 
     function asset() external view returns (address asset_);
 
-    function freeAssets() external view returns (uint256 freeAssets_);
+    function decreaseUnrealizedLosses(uint256 decreaseAmount_) external;
 
     function issuanceRate() external view returns (uint256 issuanceRate_);
+
+    function increaseUnrealizedLosses(uint256 increaseAmount_) external;
+
+    function manager() external view returns (address manager_);
 
     function precision() external view returns (uint256 precision_);
 
     function principalOut() external view returns (uint256 principalOut_);
 
+}
+
+interface IPoolManagerLike {
+
+    function issuanceRate() external view returns (uint256 issuanceRate_);
+
+    function poolCoverManager() external view returns (address poolCoverManager_);
+
+    function precision() external view returns (uint256 precision_);
+
+    function principalOut() external view returns (uint256 principalOut_);
+
+    function setPool(address pool_) external;
+
     function totalAssets() external view returns (uint256 totalAssets_);
+
+    function totalAssetsWithUnrealizedLoss() external view returns (uint256 totalAssetsWithUnrealizedLoss_);
 
 }

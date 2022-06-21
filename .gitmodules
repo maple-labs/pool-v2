@@ -2,11 +2,12 @@
 	path = modules/contract-test-utils
 	url = https://github.com/maple-labs/contract-test-utils.git
 	ignore = dirty
-[submodule "modules/revenue-distribution-token"]
-	path = modules/revenue-distribution-token
-	url = https://github.com/maple-labs/revenue-distribution-token
-	ignore = dirty
-[submodule "modules/liquidator"]
-	path = modules/liquidator
-	url = git@github.com:maple-labs/liquidations.git
-	branch = slim-liquidator
+[submodule "modules/erc20"]
+	path = modules/erc20
+	url = git@github.com:maple-labs/erc20.git
+[submodule "modules/erc20-helper"]
+	path = modules/erc20-helper
+	url = git@github.com:maple-labs/erc20-helper.git
+[submodule "modules/liquidations"]
+	path = modules/liquidations
+	url = https://github.com/maple-labs/liquidations.git
