@@ -14,6 +14,7 @@ contract DefaultHandler {
     // TODO ACL
     address public fundsAsset;
     address public pool;
+    address public auctioneer;
 
     mapping (address => LiquidationInfo) public liquidationInfo; // Mapping from address -> liquidation details
 
@@ -64,7 +65,9 @@ contract DefaultHandler {
         address liquidator;
 
         if (collateralAsset != fundsAsset && collateralAssetAmount != uint256(0)) {
-            liquidator = address(new Liquidator(address(this), collateralAsset, fundsAsset, address(this), address(this), address(this)));
+            // TODO: Don't use itself as auctioneer if an auctioneer is available, doing this for now to not break existing tests.
+            address auctioneer_ = auctioneer != address(0) ? auctioneer : address(this);
+            liquidator = address(new Liquidator(address(this), collateralAsset, fundsAsset, auctioneer_, address(this), address(this)));
 
             require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "DL:TD:CA_TRANSFER");
             require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "DL:TD:FA_TRANSFER");
@@ -85,6 +88,11 @@ contract DefaultHandler {
     function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 returnAmount_) {
         // NOTE: Mock value for now as we don't have oracles reference yet
         returnAmount_ = swapAmount_ * 1e6;
+    }
+
+    function setAuctioneer(address auctioneer_) external {
+        // TODO: ACL
+        auctioneer = auctioneer_;
     }
 
     /******************************/
