@@ -3,14 +3,17 @@
 pragma solidity 0.8.7;
 
 import { TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MockLiquidationStrategy, MockLoan, MockPoolCoverManager } from "./mocks/Mocks.sol";
+import { 
+    ConstructablePoolManager as PoolManager,
+    MockLiquidationStrategy, 
+    MockLoan, 
+    MockPoolCoverManager 
+} from "./mocks/Mocks.sol";
 
 import { PB_ST_05 as InvestmentManager } from "../contracts/InvestmentManager.sol";
 import { Pool }                          from "../contracts/Pool.sol";
-import { PoolManager }                   from "../contracts/PoolManager.sol";
 
 contract DefaultHandlerTest is TestUtils {
 
@@ -29,6 +32,8 @@ contract DefaultHandlerTest is TestUtils {
         poolManager       = new PoolManager(address(this), 1e30);
         pool              = new Pool("Pool", "MPL-LP", address(poolManager), address(fundsAsset));
         investmentManager = new InvestmentManager(address(pool));
+
+        poolManager.setPool(address(pool));
 
         poolManager.setInvestmentManager(address(investmentManager), true);
         poolManager.setInvestmentManager(address(this),              true); // Hacky way to directly call increase/decrease unrealizedLosses

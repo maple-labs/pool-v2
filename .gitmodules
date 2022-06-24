@@ -11,3 +11,6 @@
 [submodule "modules/liquidations"]
 	path = modules/liquidations
 	url = https://github.com/maple-labs/liquidations.git
+[submodule "modules/maple-proxy-factory"]
+	path = modules/maple-proxy-factory
+	url = git@github.com:maple-labs/maple-proxy-factory.git

@@ -3,18 +3,20 @@ pragma solidity 0.8.7;
 
 import { console } from "../modules/contract-test-utils/contracts/log.sol";
 
-import { IPool } from "./Pool.sol";
-
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
+import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
+
 import { IInvestmentManagerLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
+import { IPoolManager }                                  from "./interfaces/IPoolManager.sol";
 
-import { IPoolManager } from "./interfaces/IPoolManager.sol";
+import { IPool } from "./Pool.sol";
 
-contract PoolManager is IPoolManager {
+contract PoolManager is IPoolManager, MapleProxiedInternals {
 
-    uint256 public immutable override precision;  // Precision of rates, equals max deposit amounts before rounding errors occur
+    uint256 public override precision;  // Precision of rates, equals max deposit amounts before rounding errors occur
 
+    address public globals;
     address public owner;
     address public override pool;
     address public override poolCoverManager;
@@ -33,9 +35,13 @@ contract PoolManager is IPoolManager {
     mapping (address => bool)    public isInvestmentManager;
     mapping (address => address) public investmentManagers;
 
-    constructor(address owner_, uint256 precision_) {
-        owner     = owner_;      // Naive acl for now
-        precision = precision_;  // TODO: Should we just hardcode this to 1e30?
+    /***********************/
+    /*** Setup Functions ***/
+    /***********************/
+
+    function migrate(address migrator_, bytes calldata arguments_) external {
+        require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_), "PM:M:FAILED");
     }
 
     /******************************/
@@ -139,6 +145,14 @@ contract PoolManager is IPoolManager {
     /**********************/
     /*** View Functions ***/
     /**********************/
+
+    function factory() external view returns (address factory_) {
+        return _factory();
+    }
+
+    function implementation() external view returns (address implementation_) {
+        return _implementation();
+    }
 
     function totalAssets() public view virtual override returns (uint256 totalManagedAssets_) {
         uint256 issuanceRate_ = issuanceRate;

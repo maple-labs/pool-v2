@@ -5,6 +5,31 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IAuctioneerLike, ILiquidatorLike } from "../../contracts/interfaces/Interfaces.sol";
 
+import { PoolManager } from "../../contracts/PoolManager.sol";
+
+contract ConstructablePoolManager is PoolManager {
+
+    constructor(address owner_, uint256 precision_) {
+        owner     = owner_;      // Naive acl for now
+        precision = precision_;  // TODO: Should we just hardcode this to 1e30?
+    }
+    
+}
+
+contract MockGlobals {
+
+    address public governor;
+
+    constructor (address governor_) {
+        governor = governor_;
+    }
+
+    function setGovernor(address governor_) external {
+        governor = governor_;
+    }
+
+}
+
 contract MockLiquidationStrategy {
 
     address auctioneer;

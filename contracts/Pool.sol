@@ -37,8 +37,6 @@ contract Pool is IPool, ERC20 {
 
         asset = asset_;
 
-        IPoolManagerLike(manager_).setPool(address(this));
-
         ERC20(asset_).approve(manager_, type(uint256).max);
     }
 
