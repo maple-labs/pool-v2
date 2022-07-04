@@ -14,6 +14,8 @@ import { MockGlobals } from "./mocks/Mocks.sol";
 
 contract PoolManagerFactoryBase is TestUtils {
 
+    address ADMIN = address(new Address());
+
     MockERC20          asset;
     MockGlobals        globals;
     PoolManagerFactory factory;
@@ -38,20 +40,19 @@ contract PoolManagerFactoryBase is TestUtils {
 contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 
     function test_createInstance() external {
-        address owner_        = address(1);
         string memory name_   = "Pool";
         string memory symbol_ = "P2";
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), owner_, address(asset), name_, symbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), ADMIN, address(asset), name_, symbol_);
 
-        address poolManagerAddress = PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
+        address poolManagerAddress = PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
 
         PoolManager poolManager = PoolManager(poolManagerAddress);
 
         assertEq(poolManager.factory(),        address(factory));
         assertEq(poolManager.implementation(), implementation);
         assertEq(poolManager.globals(),        address(globals));
-        assertEq(poolManager.owner(),          owner_);
+        assertEq(poolManager.admin(),          ADMIN);
 
         assertTrue(address(poolManager.pool()) != address(0));
 
@@ -70,38 +71,37 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 
 contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
 
-    function test_createInstance_failWithZeroAddressOwner() external {
-        address owner_        = address(0);
+    function test_createInstance_failWithZeroAddressAdmin() external {
+        address ZERO_ADMIN = address(0);
+
         string memory name_   = "Pool";
         string memory symbol_ = "P2";
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), owner_, address(asset), name_, symbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), ZERO_ADMIN, address(asset), name_, symbol_);
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
     }
 
     function test_createInstance_failWithZeroGlobals() external {
-        address owner_        = address(1);
         string memory name_   = "Pool";
         string memory symbol_ = "P2";
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(0), owner_, address(asset), name_, symbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(0), ADMIN, address(asset), name_, symbol_);
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
     }
 
     function test_createInstance_failWithNonERC20Asset() external {
-        address owner_        = address(1);
         address asset_        = address(2);
         string memory name_   = "Pool";
         string memory symbol_ = "P2";
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), owner_, asset_, name_, symbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), ADMIN, asset_, name_, symbol_);
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
     }
 
 }

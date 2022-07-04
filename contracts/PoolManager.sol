@@ -28,6 +28,21 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
     }
 
+    /************************************/
+    /*** Ownership Transfer Functions ***/
+    /************************************/
+
+    function acceptPendingAdmin() external {
+        require(msg.sender == pendingAdmin, "PM:APA:NOT_PENDING_ADMIN");
+        admin        = pendingAdmin;
+        pendingAdmin = address(0);
+    }
+
+    function setPendingAdmin(address pendingAdmin_) external {
+        require(msg.sender == admin, "PM:SPA:NOT_ADMIN");
+        pendingAdmin = pendingAdmin_;
+    }
+
     /********************************/
     /*** Administrative Functions ***/
     /********************************/
@@ -39,27 +54,27 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     }
 
     function setInvestmentManager(address investmentManager_, bool isValid_) external {
-        require(msg.sender == owner, "PM:SIM:NOT_OWNER");
+        require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
 
-        isInvesmentManager[investmentManager_] = isValid_;
+        isInvestmentManager[investmentManager_] = isValid_;
 
         investmentManagerList.push(investmentManager_);  // TODO: Add removal functionality
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external {
-        require(msg.sender == owner, "PM:SLC:NOT_OWNER");
+        require(msg.sender == admin, "PM:SLC:NOT_ADMIN");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
     }
 
     function setPoolCoverManager(address poolCoverManager_) external {
-        require(msg.sender == owner, "PM:SPCM:NOT_OWNER");
+        require(msg.sender == admin, "PM:SPCM:NOT_ADMIN");
 
         poolCoverManager = poolCoverManager_;
     }
 
     function setWithdrawalManager(address withdrawalManager_) external {
-        require(msg.sender == owner, "PM:SWM:NOT_OWNER");
+        require(msg.sender == admin, "PM:SWM:NOT_ADMIN");
 
         withdrawalManager = withdrawalManager_;
     }
@@ -75,7 +90,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     }
 
     function fund(uint256 principal_, address loan_, address investmentManager_) external {
-        require(msg.sender == owner,                 "PM:F:NOT_OWNER");
+        require(msg.sender == admin,                 "PM:F:NOT_ADMIN");
         require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
 
         investmentManagers[loan_] = investmentManager_;

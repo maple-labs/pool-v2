@@ -10,9 +10,9 @@ import { PoolManager } from "../../contracts/PoolManager.sol";
 
 contract ConstructablePoolManager is PoolManager {
 
-    constructor(address globals_, address owner_, address asset_) {
+    constructor(address globals_, address admin_, address asset_) {
         require((globals = globals_) != address(0), "PMI:I:ZERO_GLOBALS");
-        require((owner = owner_)     != address(0), "PMI:I:ZERO_OWNER");
+        require((admin = admin_)     != address(0), "PMI:I:ZERO_ADMIN");
         require((asset = asset_)     != address(0), "PMI:I:ZERO_ASSET");
 
         pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));

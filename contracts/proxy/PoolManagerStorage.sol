@@ -3,9 +3,11 @@ pragma solidity 0.8.7;
 
 abstract contract PoolManagerStorage {
 
+    address public admin;
+    address public pendingAdmin;
+
     address public asset;
     address public globals;
-    address public owner;
     address public pool;
 
     address public poolCoverManager;
@@ -18,7 +20,7 @@ abstract contract PoolManagerStorage {
     uint256 public unrealizedLosses;
 
     mapping(address => address) investmentManagers;
-    mapping(address => bool)    isInvesmentManager;
+    mapping(address => bool)    isInvestmentManager;
 
     address[] investmentManagerList;
 
