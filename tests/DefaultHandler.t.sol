@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }                   from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
@@ -22,8 +22,8 @@ import { PoolManager }       from "../contracts/PoolManager.sol";
 
 contract DefaultHandlerTest is TestUtils {
 
-    address constant LP       = address(2);
-    address constant BORROWER = address(3);
+    address LP       = address(new Address());
+    address BORROWER = address(new Address());
 
     address implementation;
     address initializer;
@@ -74,13 +74,12 @@ contract DefaultHandlerTest is TestUtils {
         investmentManager = new InvestmentManager(address(pool), address(poolManager), address(poolCoverManager));
 
         poolManager.setInvestmentManager(address(investmentManager), true);
-        poolManager.setInvestmentManager(address(this),              true); // Hacky way to directly call increase/decrease unrealizedLosses
         poolManager.setPoolCoverManager(address(poolCoverManager));
+        poolManager.setLiquidityCap(type(uint256).max);
     }
 
-    function test_unrealizedLosses() external {
-
-    }
+    // TODO
+    // function test_unrealizedLosses() external { }
 
     // TODO: Add auctioneer to this repo
 

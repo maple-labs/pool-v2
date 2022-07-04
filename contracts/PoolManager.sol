@@ -46,6 +46,12 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         investmentManagerList.push(investmentManager_);  // TODO: Add removal functionality
     }
 
+    function setLiquidityCap(uint256 liquidityCap_) external {
+        require(msg.sender == owner, "PM:SLC:NOT_OWNER");
+
+        liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
+    }
+
     function setPoolCoverManager(address poolCoverManager_) external {
         require(msg.sender == owner, "PM:SPCM:NOT_OWNER");
 
@@ -123,15 +129,14 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** View Functions ***/
     /**********************/
 
-    function totalAssets() external view returns (uint256 totalAssets_) {
-        totalAssets_ = IERC20Like(asset).balanceOf(pool);
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
+        canCall_ = true;
 
-        uint256 length = investmentManagerList.length;
+        if (functionId_ == "P:deposit") {
+            ( uint256 assets, address receiver ) = abi.decode(data_, (uint256, address));
 
-        for (uint256 i = 0; i < length;) {
-            // TODO: How to check if unrecognized losses should be included?
-            totalAssets_ += IInvestmentManagerLike(investmentManagerList[i]).assetsUnderManagement();
-            unchecked { i++; }
+            // if (!openToPublic && !lenderAllowed[receiver]) return (false, "P:D:LENDER_NOT_ALLOWED");  // Example of allowlist
+            if (assets + totalAssets() > liquidityCap) return (false, "P:D:DEPOSIT_GT_LIQ_CAP");
         }
     }
 
@@ -141,6 +146,18 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function implementation() external view returns (address implementation_) {
         return _implementation();
+    }
+
+    function totalAssets() public view returns (uint256 totalAssets_) {
+        totalAssets_ = IERC20Like(asset).balanceOf(pool);
+
+        uint256 length = investmentManagerList.length;
+
+        for (uint256 i = 0; i < length;) {
+            // TODO: How to check if unrecognized losses should be included?
+            totalAssets_ += IInvestmentManagerLike(investmentManagerList[i]).assetsUnderManagement();
+            unchecked { i++; }
+        }
     }
 
 }

@@ -14,6 +14,7 @@ abstract contract PoolManagerStorage {
     bool public active;
 
     // TODO: Should this be located somewhere else?
+    uint256 public liquidityCap;
     uint256 public unrealizedLosses;
 
     mapping(address => address) investmentManagers;

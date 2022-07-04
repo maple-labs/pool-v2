@@ -101,6 +101,8 @@ interface IPoolLike {
 
 interface IPoolManagerLike {
 
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
+
     function claim(address loan_) external;
 
     function fund(uint256 princiaplAmount_, address loan_, address investmentManager_) external;

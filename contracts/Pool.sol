@@ -20,6 +20,13 @@ contract Pool is IPool, ERC20 {
     /*** Modifiers ***/
     /*****************/
 
+    modifier checkCall(bytes32 functionId_) {
+        bytes memory params = msg.data[4:];
+        ( bool success_, string memory errorMessage_ ) = IPoolManagerLike(manager).canCall(functionId_, msg.sender, params);
+        require(success_, errorMessage_);
+        _;
+    }
+
     modifier nonReentrant() {
         require(locked == 1, "P:LOCKED");
 
@@ -39,7 +46,7 @@ contract Pool is IPool, ERC20 {
     /*** Staker Functions ***/
     /************************/
 
-    function deposit(uint256 assets_, address receiver_) external virtual override nonReentrant returns (uint256 shares_) {
+    function deposit(uint256 assets_, address receiver_) external virtual override checkCall("P:deposit") nonReentrant returns (uint256 shares_) {
         _mint(shares_ = previewDeposit(assets_), assets_, receiver_, msg.sender);
     }
 
