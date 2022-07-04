@@ -5,16 +5,37 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IAuctioneerLike, ILiquidatorLike } from "../../contracts/interfaces/Interfaces.sol";
 
+import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
 
 contract ConstructablePoolManager is PoolManager {
 
-    constructor(address owner_, uint256 precision_) {
-        owner     = owner_;      // Naive acl for now
-        precision = precision_;  // TODO: Should we just hardcode this to 1e30?
+    constructor(address globals_, address owner_, address asset_) {
+        require((globals = globals_) != address(0), "PMI:I:ZERO_GLOBALS");
+        require((owner = owner_)     != address(0), "PMI:I:ZERO_OWNER");
+        require((asset = asset_)     != address(0), "PMI:I:ZERO_ASSET");
+
+        pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));
     }
-    
+
 }
+
+contract MockAuctioneer {
+
+    uint256 internal immutable MULTIPLIER;
+    uint256 internal immutable DIVISOR;
+
+    constructor(uint256 multiplier_, uint256 divisor_) {
+        MULTIPLIER = multiplier_;
+        DIVISOR    = divisor_;
+    }
+
+    function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 expectedAmount_) {
+        expectedAmount_ = swapAmount_ * MULTIPLIER / DIVISOR;
+    }
+
+}
+
 
 contract MockGlobals {
 

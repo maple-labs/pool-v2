@@ -13,32 +13,31 @@ interface IERC20Like {
 
     function balanceOf(address account_) external view returns (uint256 balance_);
 
+    function totalSupply() external view returns (uint256 totalSupply_);
+
     function transfer(address destination_, uint256 amount_) external;
+
+}
+
+interface IGlobalsLike {
+
+    function governor() external view returns (address governor_);
 
 }
 
 interface IInvestmentManagerLike {
 
-    function claim(address investment_) external returns (
-        uint256 principalOut_,
-        uint256 freeAssets_,
-        uint256 issuanceRate_,
-        uint256 vestingPeriodFinish_
-    );
+    function claim(address investment_) external;
+
+    function fund(address investment_) external;
+
+    function triggerCollateralLiquidation(address investment_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_);
 
     function finishCollateralLiquidation(address investment_) external returns (uint256 decreasedUnrealizedLosses, uint256 remainingLosses);
 
-    function fund(address investment_) external returns (
-        uint256 principalOut_,
-        uint256 freeAssets_,
-        uint256 issuanceRate_,
-        uint256 vestingPeriodFinish_
-    );
-
-    function triggerCollateralLiquidation(address investment_) external returns (uint256 increasedUnrealizedLosses_);
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
 }
-
 
 interface ILiquidatorLike {
 
@@ -94,34 +93,30 @@ interface IPoolLike {
 
     function asset() external view returns (address asset_);
 
-    function decreaseUnrealizedLosses(uint256 decreaseAmount_) external;
-
-    function issuanceRate() external view returns (uint256 issuanceRate_);
-
-    function increaseUnrealizedLosses(uint256 increaseAmount_) external;
-
     function manager() external view returns (address manager_);
 
-    function precision() external view returns (uint256 precision_);
-
-    function principalOut() external view returns (uint256 principalOut_);
+    function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_);
 
 }
 
 interface IPoolManagerLike {
 
-    function issuanceRate() external view returns (uint256 issuanceRate_);
+    function claim(address loan_) external;
+
+    function fund(uint256 princiaplAmount_, address loan_, address investmentManager_) external;
+
+    function investmentManager() external view returns (address investmentManager_);
 
     function poolCoverManager() external view returns (address poolCoverManager_);
 
-    function precision() external view returns (uint256 precision_);
+    function setInvestmentManager(address investmentManager_, bool isValid_) external;
 
-    function principalOut() external view returns (uint256 principalOut_);
+    function setPoolCoverManager(address poolCoverManager_) external;
 
-    function setPool(address pool_) external;
+    function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);
 
-    function totalAssetsWithUnrealizedLoss() external view returns (uint256 totalAssetsWithUnrealizedLoss_);
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
 }

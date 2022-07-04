@@ -1,123 +1,103 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../modules/contract-test-utils/contracts/log.sol";
-
-import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
-
+import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IInvestmentManagerLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
-import { IPoolManager }                                  from "./interfaces/IPoolManager.sol";
+import {
+    IERC20Like,
+    IGlobalsLike,
+    IInvestmentManagerLike,
+    IPoolCoverManagerLike,
+    IPoolLike
+} from "./interfaces/Interfaces.sol";
 
-import { IPool } from "./Pool.sol";
+import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
-contract PoolManager is IPoolManager, MapleProxiedInternals {
+// TODO: Inherit interface
+contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
-    uint256 public override precision;  // Precision of rates, equals max deposit amounts before rounding errors occur
+    /***************************/
+    /*** Migration Functions ***/
+    /***************************/
 
-    address public globals;
-    address public owner;
-    address public override pool;
-    address public override poolCoverManager;
-    address public withdrawalManager;
-
-    // Maybe those variables should go in the pool?
-    uint256 public interestOut;
-    uint256 public override principalOut;
-    uint256 public override unrealizedLosses;
-
-    uint256 public freeAssets;            // Amount of assets unlocked regardless of time passed.
-    uint256 public override issuanceRate; // asset/second rate dependent on aggregate vesting schedule.
-    uint256 public lastUpdated;           // Timestamp of when issuance equation was last updated.
-    uint256 public vestingPeriodFinish;   // Timestamp when current vesting schedule ends.
-
-    mapping (address => bool)    public isInvestmentManager;
-    mapping (address => address) public investmentManagers;
-
-    /***********************/
-    /*** Setup Functions ***/
-    /***********************/
+    // TODO: Add functions for upgrading: `setImplementation` and `upgrade`
 
     function migrate(address migrator_, bytes calldata arguments_) external {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
     }
 
-    /******************************/
-    /*** Administrative Setters ***/
-    /******************************/
+    /********************************/
+    /*** Administrative Functions ***/
+    /********************************/
 
-    function setInvestmentManager(address investmentManager_, bool isValid) external override {
+    function setActive(bool active_) external {
+        require(msg.sender == IGlobalsLike(globals).governor(), "PM:SA:NOT_GOVERNOR");
+
+        active = active_;
+    }
+
+    function setInvestmentManager(address investmentManager_, bool isValid_) external {
         require(msg.sender == owner, "PM:SIM:NOT_OWNER");
-        isInvestmentManager[investmentManager_] = isValid;
+
+        isInvesmentManager[investmentManager_] = isValid_;
+
+        investmentManagerList.push(investmentManager_);  // TODO: Add removal functionality
     }
 
-    // TODO: Revisit to see if there is a better approach
-    function setPool(address pool_) external override {
-        require(address(pool) == address(0), "PM:SP:POOL_SET");
-        pool = pool_;
-    }
-
-    function setPoolCoverManager(address poolCoverManager_) external override {
+    function setPoolCoverManager(address poolCoverManager_) external {
         require(msg.sender == owner, "PM:SPCM:NOT_OWNER");
+
         poolCoverManager = poolCoverManager_;
     }
 
-    function setWithdrawalManager(address withdrawalManager_) external override {
+    function setWithdrawalManager(address withdrawalManager_) external {
         require(msg.sender == owner, "PM:SWM:NOT_OWNER");
+
         withdrawalManager = withdrawalManager_;
     }
 
     /****************************/
     /*** Investment Functions ***/
     /****************************/
-    // Based on existing implementation for IM, but should be catared to the final solution
 
-    function claim(address investment_) external override {
-        require(IPool(pool).totalSupply() != 0, "P:F:ZERO_SUPPLY");
+    function claim(address loan_) external {
+        require(IERC20Like(pool).totalSupply() != 0, "P:F:ZERO_SUPPLY");
 
-        // Claim funds, moving funds into pool
-        (
-            principalOut,
-            freeAssets,
-            issuanceRate,
-            vestingPeriodFinish
-        ) = IInvestmentManagerLike(investmentManagers[investment_]).claim(investment_);
+        IInvestmentManagerLike(investmentManagers[loan_]).claim(loan_);
     }
 
-    function decreaseTotalAssets(uint256 decrement_) external override returns (uint256 newTotalAssets_) {
+    function fund(uint256 principal_, address loan_, address investmentManager_) external {
+        require(msg.sender == owner,                 "PM:F:NOT_OWNER");
+        require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
+
+        investmentManagers[loan_] = investmentManager_;
+
+        // TODO: This contract needs infinite allowance of asset from pool.
+        require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");
+
+        IInvestmentManagerLike(investmentManager_).fund(loan_);
+    }
+
+    /*****************************/
+    /*** Liquidation Functions ***/
+    /*****************************/
+
+    // TODO: Investigate all return variables that are currently being used.
+    function decreaseUnrealizedLosses(uint256 decrement_) external returns (uint256 remainingUnrealizedLosses_) {
         // TODO: ACL
-        
-        freeAssets = newTotalAssets_ = totalAssets() - decrement_;
-    }
-    
-    function decreaseUnrealizedLosses(uint256 decrement_) external override returns (uint256 remainingUnrealizedLosses_) {
-        // TODO: ACL
-        
-        unrealizedLosses -= decrement_;
-        remainingUnrealizedLosses_ = unrealizedLosses;
+
+        unrealizedLosses            -= decrement_;
+        remainingUnrealizedLosses_   = unrealizedLosses;
     }
 
-    function fund(uint256 amountOut_, address investment_, address investmentManager_) external override {
-        require(msg.sender == owner,                     "PM:F:NOT_OWNER");
-        require(IPool(pool).totalSupply() != 0,          "PM:F:ZERO_SUPPLY");
-        require(isInvestmentManager[investmentManager_], "PM:F:IM_INVALID");
-
-        // NOTE This contracts needs infinite allowance of asset from pool. Or do a 2 step transfer
-        require(ERC20Helper.transferFrom(IPool(pool).asset(), address(pool), investment_, amountOut_), "P:F:TRANSFER_FAILED");
-
-        investmentManagers[investment_] = investmentManager_;
-
-        // Fund loan, getting information from InvestmentManager on how to update issuance params
-        ( principalOut, freeAssets, issuanceRate, vestingPeriodFinish ) = IInvestmentManagerLike(investmentManager_).fund(investment_);
+    // TODO: ACL here and IM
+    function triggerCollateralLiquidation(address investment_, address auctioneer_) external {
+        unrealizedLosses += IInvestmentManagerLike(investmentManagers[investment_]).triggerCollateralLiquidation(investment_, auctioneer_);
     }
 
-    function triggerCollateralLiquidation(address investment_) external override {
-        unrealizedLosses += IInvestmentManagerLike(investmentManagers[investment_]).triggerCollateralLiquidation(investment_);
-    }
-
-    function finishCollateralLiquidation(address investment_) external override returns (uint256 remainingLosses_) {
+    function finishCollateralLiquidation(address investment_) external returns (uint256 remainingLosses_) {
         uint256 decreasedUnrealizedLosses;
         ( decreasedUnrealizedLosses, remainingLosses_ ) = IInvestmentManagerLike(investmentManagers[investment_]).finishCollateralLiquidation(investment_);
 
@@ -129,22 +109,31 @@ contract PoolManager is IPoolManager, MapleProxiedInternals {
         }
     }
 
-    // function finishCoverLiquidation(address poolCoverReserve_) external {
-    //     IPoolCoverManagerLike(poolCoverManager).finishLiquidation
-    // }
-
     /**********************/
     /*** Exit Functions ***/
     /**********************/
 
     function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_) {
         require(msg.sender == withdrawalManager, "PM:R:NOT_WM");
-        return IPool(pool).redeem(shares_, receiver_, owner_);
+
+        return IPoolLike(pool).redeem(shares_, receiver_, owner_);
     }
 
     /**********************/
     /*** View Functions ***/
     /**********************/
+
+    function totalAssets() external view returns (uint256 totalAssets_) {
+        totalAssets_ = IERC20Like(asset).balanceOf(pool);
+
+        uint256 length = investmentManagerList.length;
+
+        for (uint256 i = 0; i < length;) {
+            // TODO: How to check if unrecognized losses should be included?
+            totalAssets_ += IInvestmentManagerLike(investmentManagerList[i]).assetsUnderManagement();
+            unchecked { i++; }
+        }
+    }
 
     function factory() external view returns (address factory_) {
         return _factory();
@@ -152,26 +141,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals {
 
     function implementation() external view returns (address implementation_) {
         return _implementation();
-    }
-
-    function totalAssets() public view virtual override returns (uint256 totalManagedAssets_) {
-        uint256 issuanceRate_ = issuanceRate;
-
-        if (issuanceRate_ == 0) return freeAssets;
-
-        uint256 vestingPeriodFinish_ = vestingPeriodFinish;
-        uint256 lastUpdated_         = lastUpdated;
-
-        uint256 vestingTimePassed =
-            block.timestamp > vestingPeriodFinish_ ?
-                vestingPeriodFinish_ - lastUpdated_ :
-                block.timestamp - lastUpdated_;
-
-        return ((issuanceRate_ * vestingTimePassed) / precision) + freeAssets;
-    }
-
-    function totalAssetsWithUnrealizedLoss() external view override returns (uint256 totalAssetsWithUnrealizedLoss_) {
-        return totalAssets() - unrealizedLosses;
     }
 
 }

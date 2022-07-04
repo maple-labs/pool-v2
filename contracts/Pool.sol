@@ -24,19 +24,14 @@ contract Pool is IPool, ERC20 {
         require(locked == 1, "P:LOCKED");
 
         locked = 2;
-
         _;
-
         locked = 1;
     }
 
-    constructor(string memory name_, string memory symbol_, address manager_, address asset_)
-        ERC20(name_, symbol_, ERC20(asset_).decimals())
-    {
-        require((manager = manager_) != address(0), "P:C:MANAGER_ZERO_ADDRESS");
+    constructor(address manager_, address asset_, string memory name_, string memory symbol_) ERC20(name_, symbol_, ERC20(asset_).decimals()) {
+        require((manager = manager_) != address(0), "P:C:ZERO_ADDRESS");
 
         asset = asset_;
-
         ERC20(asset_).approve(manager_, type(uint256).max);
     }
 
@@ -153,20 +148,21 @@ contract Pool is IPool, ERC20 {
         assets_ = convertToAssets(shares_);
     }
 
+    // TODO: Add back unrealized losses
     function previewWithdraw(uint256 assets_) public view virtual override returns (uint256 shares_) {
         uint256 supply = totalSupply;  // Cache to stack.
 
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round UP if it’s calculating the amount of shares a user must return, to be sent a given amount of assets.
-        shares_ = supply == 0 ? assets_ : _divRoundUp(assets_ * supply, totalAssets());
+        shares_ = supply == 0 ? assets_ : _divRoundUp(assets_ * supply, totalAssetsWithUnrealizedLosses());
     }
 
     function totalAssets() public view virtual override returns (uint256 totalManagedAssets_) {
         return IPoolManagerLike(manager).totalAssets();
     }
 
-    function totalAssetsWithUnrealizedLoss() public view virtual /*override*/ returns (uint256 totalManagedAssets_) {
-        return IPoolManagerLike(manager).totalAssetsWithUnrealizedLoss();
+    function totalAssetsWithUnrealizedLosses() public view virtual /*override*/ returns (uint256 totalManagedAssets_) {
+        return IPoolManagerLike(manager).totalAssets() - IPoolManagerLike(manager).unrealizedLosses();
     }
 
     /**************************/

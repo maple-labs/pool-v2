@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../modules/contract-test-utils/contracts/log.sol";
+import { ERC20Helper } from "../../modules/erc20-helper/src/ERC20Helper.sol";
+import { Liquidator }  from "../../modules/liquidations/contracts/Liquidator.sol";
 
-import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { Liquidator }  from "../modules/liquidations/contracts/Liquidator.sol";
-
-import { IERC20Like, ILoanLike, IPoolLike, IPoolCoverManagerLike } from "./interfaces/Interfaces.sol";
+import { IERC20Like, ILoanLike, IPoolLike, IPoolCoverManagerLike } from "../interfaces/Interfaces.sol";
 
 /// @dev Contract that handles defaults and collateral liquidations. To be inherited by investment managers
 contract DefaultHandler {
 
     // TODO ACL
     address public fundsAsset;
+    address public liquidator;
     address public pool;
-    address public auctioneer;
 
     mapping (address => LiquidationInfo) public liquidationInfo; // Mapping from address -> liquidation details
 
@@ -49,7 +47,7 @@ contract DefaultHandler {
     }
 
     /// @dev Trigger Default on a loan
-    function triggerCollateralLiquidation(address loan_) external returns (uint256 increasedUnrealizedLosses_) {
+    function triggerCollateralLiquidation(address loan_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_) {
         // TODO: Add ACL
 
         // TODO: The loan is not able to handle defaults while there are claimable funds
@@ -62,37 +60,20 @@ contract DefaultHandler {
         (uint256 collateralAssetAmount, uint256 fundsAssetAmount) = loan.repossess(address(this));
 
         address collateralAsset = loan.collateralAsset();
-        address liquidator;
 
         if (collateralAsset != fundsAsset && collateralAssetAmount != uint256(0)) {
-            // TODO: Don't use itself as auctioneer if an auctioneer is available, doing this for now to not break existing tests.
-            address auctioneer_ = auctioneer != address(0) ? auctioneer : address(this);
             liquidator = address(new Liquidator(address(this), collateralAsset, fundsAsset, auctioneer_, address(this), address(this)));
 
             require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "DL:TD:CA_TRANSFER");
             require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "DL:TD:FA_TRANSFER");
         }
 
-        increasedUnrealizedLosses_ = principal;
+        increasedUnrealizedLosses_ = principal;  // TODO: Should this be principal + accrued interest?
 
         liquidationInfo[loan_] = LiquidationInfo(principal, liquidator);
 
         // TODO: Remove issuance rate from loan, but it's dependant on how the IM does that
         // TODO: Incorporate real auctioneer and globals, currently using address(this) for all 3 liquidator actors.
-    }
-
-    /****************************/
-    /*** Auctioneer Functions ***/
-    /****************************/
-
-    function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 returnAmount_) {
-        // NOTE: Mock value for now as we don't have oracles reference yet
-        returnAmount_ = swapAmount_ * 1e6;
-    }
-
-    function setAuctioneer(address auctioneer_) external {
-        // TODO: ACL
-        auctioneer = auctioneer_;
     }
 
     /******************************/
