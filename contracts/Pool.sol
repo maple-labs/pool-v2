@@ -5,7 +5,7 @@ import { ERC20 }       from "../modules/erc20/contracts/ERC20.sol";
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
 import { IPoolManagerLike } from "./interfaces/Interfaces.sol";
-import { IPool }            from "./interfaces/IPool.sol";
+import { IERC20, IPool }    from "./interfaces/IPool.sol";
 
 // TODO: Revisit function order
 
@@ -43,7 +43,7 @@ contract Pool is IPool, ERC20 {
     }
 
     /************************/
-    /*** Staker Functions ***/
+    /*** Lender Functions ***/
     /************************/
 
     function deposit(uint256 assets_, address receiver_) external virtual override checkCall("P:deposit") nonReentrant returns (uint256 shares_) {
@@ -58,13 +58,13 @@ contract Pool is IPool, ERC20 {
         bytes32 r_,
         bytes32 s_
     )
-        external virtual override nonReentrant returns (uint256 shares_)
+        external virtual override checkCall("P:depositWithPermit") nonReentrant returns (uint256 shares_)
     {
         ERC20(asset).permit(msg.sender, address(this), assets_, deadline_, v_, r_, s_);
         _mint(shares_ = previewDeposit(assets_), assets_, receiver_, msg.sender);
     }
 
-    function mint(uint256 shares_, address receiver_) external virtual override nonReentrant returns (uint256 assets_) {
+    function mint(uint256 shares_, address receiver_) external virtual override checkCall("P:mint") nonReentrant returns (uint256 assets_) {
         _mint(shares_, assets_ = previewMint(shares_), receiver_, msg.sender);
     }
 
@@ -77,7 +77,7 @@ contract Pool is IPool, ERC20 {
         bytes32 r_,
         bytes32 s_
     )
-        external virtual override nonReentrant returns (uint256 assets_)
+        external virtual override checkCall("P:mintWithPermit") nonReentrant returns (uint256 assets_)
     {
         require((assets_ = previewMint(shares_)) <= maxAssets_, "P:MWP:INSUFFICIENT_PERMIT");
 
@@ -88,6 +88,25 @@ contract Pool is IPool, ERC20 {
     function redeem(uint256 shares_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 assets_) {
         require(msg.sender == manager, "P:R:NOT_MANAGER");
         _burn(shares_, assets_ = previewRedeem(shares_), receiver_, owner_, msg.sender);
+    }
+
+    function transfer(
+        address recipient_,
+        uint256 amount_
+    )
+        public override(IERC20, ERC20) checkCall("P:transfer") returns (bool success_)
+    {
+        return super.transfer(recipient_, amount_);
+    }
+
+    function transferFrom(
+        address owner_,
+        address recipient_,
+        uint256 amount_
+    )
+        public override(IERC20, ERC20) checkCall("P:transferFrom") returns (bool success_)
+    {
+        return super.transferFrom(owner_, recipient_, amount_);
     }
 
     function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 shares_) {

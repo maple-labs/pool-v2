@@ -57,7 +57,7 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
         poolManager.setPendingAdmin(SET_ADDRESS);
     }
 
-    function test_acceptPendingAdmin_notPendingPD() external {
+    function test_acceptPendingAdmin_notPendingAdmin() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:APA:NOT_PENDING_ADMIN");
         poolManager.acceptPendingAdmin();
@@ -100,11 +100,35 @@ contract SetActive_SetterTests is PoolManagerBase {
     }
 }
 
+contract SetAllowedLender_SetterTests is PoolManagerBase {
+
+    function test_setAllowedLender_notAdmin() external {
+        assertTrue(!poolManager.active());
+
+        vm.expectRevert("PM:SAL:NOT_ADMIN");
+        poolManager.setAllowedLender(address(this), true);
+    }
+
+    function test_setAllowedLender() external {
+        assertTrue(!poolManager.isValidLender(address(this)));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(address(this), true);
+
+        assertTrue(poolManager.isValidLender(address(this)));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(address(this), false);
+
+        assertTrue(!poolManager.isValidLender(address(this)));
+    }
+}
+
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
 
-    function test_setLiquidityCap_notOwner() external {
+    function test_setLiquidityCap_notAdmin() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SLC:NOT_ADMIN");
         poolManager.setLiquidityCap(1000);
@@ -121,12 +145,31 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
 }
 
+contract SetOpenToPublic_SetterTests is PoolManagerBase {
+
+    function test_setOpenToPublic_notAdmin() external {
+        assertTrue(!poolManager.active());
+
+        vm.expectRevert("PM:SOTP:NOT_ADMIN");
+        poolManager.setOpenToPublic();
+    }
+
+    function test_setOpenToPublic() external {
+        assertTrue(!poolManager.openToPublic());
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        assertTrue(poolManager.openToPublic());
+    }
+}
+
 contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
     address SET_ADDRESS       = address(new Address());
 
-    function test_setPendingAdmin_notPD() external {
+    function test_setPendingAdmin_notAdmin() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SPA:NOT_ADMIN");
         poolManager.setPendingAdmin(SET_ADDRESS);

@@ -76,6 +76,7 @@ contract DefaultHandlerTest is TestUtils {
         poolManager.setInvestmentManager(address(investmentManager), true);
         poolManager.setPoolCoverManager(address(poolCoverManager));
         poolManager.setLiquidityCap(type(uint256).max);
+        poolManager.setOpenToPublic();
     }
 
     // TODO

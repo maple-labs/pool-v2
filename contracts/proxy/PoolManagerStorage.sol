@@ -14,13 +14,16 @@ abstract contract PoolManagerStorage {
     address public withdrawalManager;
 
     bool public active;
+    bool public openToPublic;
 
     // TODO: Should this be located somewhere else?
     uint256 public liquidityCap;
     uint256 public unrealizedLosses;
 
-    mapping(address => address) investmentManagers;
-    mapping(address => bool)    isInvestmentManager;
+    mapping(address => address) public investmentManagers;
+
+    mapping(address => bool) public isInvestmentManager;
+    mapping(address => bool) public isValidLender;
 
     address[] investmentManagerList;
 

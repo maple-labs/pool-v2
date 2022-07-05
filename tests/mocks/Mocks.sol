@@ -36,6 +36,21 @@ contract MockAuctioneer {
 
 }
 
+contract MockERC20Pool is Pool {
+
+    constructor(address manager_, address asset_, string memory name_, string memory symbol_)
+        Pool(manager_, asset_, name_, symbol_) { }
+
+    function mint(address recipient_, uint256 amount_) external {
+        _mint(recipient_, amount_);
+    }
+
+    function burn(address owner_, uint256 amount_) external {
+        _burn(owner_, amount_);
+    }
+
+}
+
 
 contract MockGlobals {
 

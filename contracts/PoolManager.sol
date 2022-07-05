@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
+import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
@@ -53,6 +55,12 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         active = active_;
     }
 
+    function setAllowedLender(address lender_, bool isValid_) external {
+        require(msg.sender == admin, "PM:SAL:NOT_ADMIN");
+
+        isValidLender[lender_] = isValid_;
+    }
+
     function setInvestmentManager(address investmentManager_, bool isValid_) external {
         require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
 
@@ -65,6 +73,12 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(msg.sender == admin, "PM:SLC:NOT_ADMIN");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
+    }
+
+    function setOpenToPublic() external {
+        require(msg.sender == admin, "PM:SOTP:NOT_ADMIN");
+
+        openToPublic = true;
     }
 
     function setPoolCoverManager(address poolCoverManager_) external {
@@ -145,14 +159,39 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /**********************/
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
-        canCall_ = true;
+        bool willRevert_;
 
         if (functionId_ == "P:deposit") {
-            ( uint256 assets, address receiver ) = abi.decode(data_, (uint256, address));
-
-            // if (!openToPublic && !lenderAllowed[receiver]) return (false, "P:D:LENDER_NOT_ALLOWED");  // Example of allowlist
-            if (assets + totalAssets() > liquidityCap) return (false, "P:D:DEPOSIT_GT_LIQ_CAP");
+            ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));
+            ( willRevert_, errorMessage_ ) = _canDeposit(assets_, receiver_, "P:D:");
         }
+
+        else if (functionId_ == "P:depositWithPermit") {
+            ( uint256 assets_, address receiver_, , , , ) = abi.decode(data_, (uint256, address, uint256, uint8, bytes32, bytes32));
+            ( willRevert_, errorMessage_ ) = _canDeposit(assets_, receiver_, "P:DWP:");
+        }
+
+        if (functionId_ == "P:mint") {
+            ( uint256 shares_, address receiver_ ) = abi.decode(data_, (uint256, address));
+            ( willRevert_, errorMessage_ ) = _canDeposit(IPoolLike(pool).previewMint(shares_), receiver_, "P:M:");
+        }
+
+        else if (functionId_ == "P:mintWithPermit") {
+            ( uint256 shares_, address receiver_, , , , , ) = abi.decode(data_, (uint256, address, uint256, uint256, uint8, bytes32, bytes32));
+            ( willRevert_, errorMessage_ ) = _canDeposit(IPoolLike(pool).previewMint(shares_), receiver_, "P:MWP:");
+        }
+
+        else if (functionId_ == "P:transfer") {
+            ( address recipient_, ) = abi.decode(data_, (address, uint256));
+            ( willRevert_, errorMessage_ ) = _canTransfer(recipient_, "P:T:");
+        }
+
+        else if (functionId_ == "P:transferFrom") {
+            ( , address recipient_, ) = abi.decode(data_, (address, address, uint256));
+            ( willRevert_, errorMessage_ ) = _canTransfer(recipient_, "P:TF:");
+        }
+
+        canCall_ = !willRevert_;  // TODO: Don't love this, but returning `willRevert` seems counterintuitive here
     }
 
     function factory() external view returns (address factory_) {
@@ -173,6 +212,23 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
             totalAssets_ += IInvestmentManagerLike(investmentManagerList[i]).assetsUnderManagement();
             unchecked { i++; }
         }
+    }
+
+    /**************************/
+    /*** Internal Functions ***/
+    /**************************/
+
+    function _canDeposit(uint256 assets_, address receiver_, string memory errorPrefix_) internal view returns (bool willRevert_, string memory errorMessage_) {
+        if (!openToPublic && !isValidLender[receiver_]) return (true, _formatErrorMessage(errorPrefix_, "LENDER_NOT_ALLOWED"));
+        if (assets_ + totalAssets() > liquidityCap)     return (true, _formatErrorMessage(errorPrefix_, "DEPOSIT_GT_LIQ_CAP"));
+    }
+
+    function _canTransfer(address recipient_, string memory errorPrefix_) internal view returns (bool willRevert_, string memory errorMessage_) {
+        if (!openToPublic && !isValidLender[recipient_]) return (true, _formatErrorMessage(errorPrefix_, "RECIPIENT_NOT_ALLOWED"));
+    }
+
+    function _formatErrorMessage(string memory errorPrefix_, string memory partialError_) internal pure returns (string memory errorMessage_) {
+        errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
     }
 
 }
