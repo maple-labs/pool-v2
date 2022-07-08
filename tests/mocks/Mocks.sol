@@ -51,10 +51,11 @@ contract MockERC20Pool is Pool {
 
 }
 
-
 contract MockGlobals {
 
     address public governor;
+
+    mapping(address => address) public ownedPool;
 
     mapping(address => bool) public isPoolDelegate;
 
@@ -68,6 +69,10 @@ contract MockGlobals {
 
     function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
         isPoolDelegate[poolDelegate_] = isValid_;
+    }
+
+    function setOwnedPool(address owner_, address pool_) external {
+        ownedPool[owner_] = pool_;
     }
 
 }

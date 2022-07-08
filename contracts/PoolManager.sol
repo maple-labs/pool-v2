@@ -36,12 +36,14 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function acceptPendingAdmin() external {
         require(msg.sender == pendingAdmin, "PM:APA:NOT_PENDING_ADMIN");
+
         admin        = pendingAdmin;
         pendingAdmin = address(0);
     }
 
     function setPendingAdmin(address pendingAdmin_) external {
         require(msg.sender == admin, "PM:SPA:NOT_ADMIN");
+
         pendingAdmin = pendingAdmin_;
     }
 
@@ -50,7 +52,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /********************************/
 
     function setActive(bool active_) external {
-        require(msg.sender == IGlobalsLike(globals).governor(), "PM:SA:NOT_GOVERNOR");
+        require(msg.sender == globals, "PM:SA:NOT_GLOBALS");
 
         active = active_;
     }

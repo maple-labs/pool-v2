@@ -25,6 +25,8 @@ interface IGlobalsLike {
 
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
 
+    function ownedPool(address poolDelegate_) external view returns (address pool_);
+
 }
 
 interface IInvestmentManagerLike {

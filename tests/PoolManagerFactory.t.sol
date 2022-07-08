@@ -104,6 +104,15 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
     }
 
+    function test_createInstance_failWithActivePoolDelegate() external {
+        globals.setOwnedPool(ADMIN, address(13));
+
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), ADMIN, address(asset), "Pool", "P2");
+
+        vm.expectRevert("MPF:CI:FAILED");
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
+    }
+
     function test_createInstance_failWithNonERC20Asset() external {
         address asset_        = address(2);
         string memory name_   = "Pool";

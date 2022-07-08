@@ -83,19 +83,19 @@ contract SetActive_SetterTests is PoolManagerBase {
     function test_setActive_notGovernor() external {
         assertTrue(!poolManager.active());
 
-        vm.expectRevert("PM:SA:NOT_GOVERNOR");
+        vm.expectRevert("PM:SA:NOT_GLOBALS");
         poolManager.setActive(true);
     }
 
     function test_setActive() external {
         assertTrue(!poolManager.active());
 
-        vm.prank(GOVERNOR);
+        vm.prank(address(globals));
         poolManager.setActive(true);
 
         assertTrue(poolManager.active());
 
-        vm.prank(GOVERNOR);
+        vm.prank(address(globals));
         poolManager.setActive(false);
 
         assertTrue(!poolManager.active());
