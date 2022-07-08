@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
+import { IGlobalsLike }            from "../interfaces/Interfaces.sol";
 import { IPoolManagerInitializer } from "../interfaces/IPoolManagerInitializer.sol";
 
+import { Pool }               from "../Pool.sol";
 import { PoolManagerStorage } from "./PoolManagerStorage.sol";
-
-import { Pool } from "../Pool.sol";
 
 contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
 
@@ -51,6 +51,8 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require((globals = globals_) != address(0), "PMI:I:ZERO_GLOBALS");
         require((admin = admin_)     != address(0), "PMI:I:ZERO_ADMIN");
         require((asset = asset_)     != address(0), "PMI:I:ZERO_ASSET");
+
+        require(IGlobalsLike(globals_).isPoolDelegate(admin_), "PMI:I:NOT_PD");
 
         pool = address(new Pool(address(this), asset_, name_, symbol_));
 

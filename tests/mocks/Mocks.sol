@@ -56,12 +56,18 @@ contract MockGlobals {
 
     address public governor;
 
+    mapping(address => bool) public isPoolDelegate;
+
     constructor (address governor_) {
         governor = governor_;
     }
 
     function setGovernor(address governor_) external {
         governor = governor_;
+    }
+
+    function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
+        isPoolDelegate[poolDelegate_] = isValid_;
     }
 
 }

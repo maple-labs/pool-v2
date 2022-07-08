@@ -31,6 +31,8 @@ contract PoolManagerBase is TestUtils {
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
 
+        globals.setValidPoolDelegate(POOL_DELEGATE, true);
+
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);

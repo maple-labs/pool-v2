@@ -31,6 +31,8 @@ contract PoolManagerFactoryBase is TestUtils {
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
 
+        globals.setValidPoolDelegate(ADMIN, true);
+
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
     }
@@ -91,6 +93,15 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(ADMIN)));
+    }
+
+    function test_createInstance_failWithInvalidPoolDelegate() external {
+        address owner_ = address(2);
+
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), address(owner_), address(asset), "Pool", "P2");
+
+        vm.expectRevert("MPF:CI:FAILED");
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
     }
 
     function test_createInstance_failWithNonERC20Asset() external {

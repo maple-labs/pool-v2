@@ -54,6 +54,8 @@ contract DefaultHandlerTest is TestUtils {
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
 
+        globals.setValidPoolDelegate(address(this), true);
+
         poolManagerFactory.registerImplementation(1, implementation, initializer);
         poolManagerFactory.setDefaultVersion(1);
 

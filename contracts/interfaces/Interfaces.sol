@@ -23,6 +23,8 @@ interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
 
+    function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
+
 }
 
 interface IInvestmentManagerLike {
