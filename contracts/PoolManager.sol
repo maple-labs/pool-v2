@@ -19,6 +19,8 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 // TODO: Inherit interface
 contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
+    uint256 constant HUNDRED_PERCENT = 1e18;
+
     /***************************/
     /*** Migration Functions ***/
     /***************************/
@@ -62,6 +64,13 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
         isValidLender[lender_] = isValid_;
     }
+    
+    function setCoverFee(uint256 fee_) external {
+        require(msg.sender == admin, "PM:SCF:NOT_ADMIN");
+        
+        // TODO check globals for boundaries
+        coverFee = fee_;
+    }
 
     function setInvestmentManager(address investmentManager_, bool isValid_) external {
         require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
@@ -75,6 +84,13 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(msg.sender == admin, "PM:SLC:NOT_ADMIN");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
+    }
+
+    function setManagementFee(uint256 fee_) external {
+        require(msg.sender == admin, "PM:SMF:NOT_ADMIN");
+        
+        // TODO check globals for boundaries
+        managementFee = fee_;
     }
 
     function setOpenToPublic() external {
@@ -100,9 +116,26 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /****************************/
 
     function claim(address loan_) external {
-        require(IERC20Like(pool).totalSupply() != 0, "P:F:ZERO_SUPPLY");
+        require(IERC20Like(pool).totalSupply() != 0, "P:C:ZERO_SUPPLY");
 
-        IInvestmentManagerLike(investmentManagers[loan_]).claim(loan_);
+        ( uint256 coverPortion_, uint256 managementPortion_ ) = IInvestmentManagerLike(investmentManagers[loan_]).claim(loan_);
+
+        address coverManager_ = poolCoverManager;
+        address asset_        = asset;
+        address globals_      = globals;
+
+        // Send portion to cover.
+        require(ERC20Helper.transfer(asset_, coverManager_, coverPortion_), "PM:C:PAY_COVER_FAILED");
+        IPoolCoverManagerLike(coverManager_).allocateLiquidity();
+
+        // Split Management Fee.
+        uint256 mapleShare_ = managementPortion_ * IGlobalsLike(globals_).managementFeeSplit(pool) / HUNDRED_PERCENT;
+
+        // Pay treasury.
+        require(ERC20Helper.transfer(asset_, IGlobalsLike(globals_).mapleTreasury(), mapleShare_), "PM:C:PAY_TREASURY_FAILED");
+
+        // Pay Pool Delegate.
+        require(ERC20Helper.transfer(asset_, admin, managementPortion_ - mapleShare_), "PM:C:PAY_ADMIN_FAILED");
     }
 
     function fund(uint256 principal_, address loan_, address investmentManager_) external {
@@ -198,6 +231,11 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function factory() external view returns (address factory_) {
         return _factory();
+    }
+
+    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_) {
+        coverFee_      = coverFee;
+        managementFee_ = managementFee;
     }
 
     function implementation() external view returns (address implementation_) {

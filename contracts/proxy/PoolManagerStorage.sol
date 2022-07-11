@@ -19,6 +19,9 @@ abstract contract PoolManagerStorage {
     // TODO: Should this be located somewhere else?
     uint256 public liquidityCap;
     uint256 public unrealizedLosses;
+    
+    uint256 public coverFee;
+    uint256 public managementFee;
 
     mapping(address => address) public investmentManagers;
 

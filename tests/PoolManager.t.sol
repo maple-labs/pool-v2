@@ -187,3 +187,49 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
     }
 
 }
+
+contract SetCoverFee_SetterTests is PoolManagerBase {
+
+    address NOT_POOL_DELEGATE = address(new Address());
+
+    uint256 newFee = uint256(0.1e18);
+
+    function test_setCoverFee_notPD() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SCF:NOT_ADMIN");
+        poolManager.setCoverFee(newFee);
+    }
+
+    function test_setCoverFee() external {
+        assertEq(poolManager.coverFee(), uint256(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setCoverFee(newFee);
+
+        assertEq(poolManager.coverFee(), newFee);
+    }
+
+}
+
+contract SetManagementFee_SetterTests is PoolManagerBase {
+
+    address NOT_POOL_DELEGATE = address(new Address());
+
+    uint256 newFee = uint256(0.1e18);
+
+    function test_setManagementFee_notPD() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SMF:NOT_ADMIN");
+        poolManager.setManagementFee(newFee);
+    }
+
+    function test_setManagementFee() external {
+        assertEq(poolManager.managementFee(), uint256(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setManagementFee(newFee);
+
+        assertEq(poolManager.managementFee(), newFee);
+    }
+
+}

@@ -54,6 +54,9 @@ contract MockERC20Pool is Pool {
 contract MockGlobals {
 
     address public governor;
+    address public mapleTreasury;
+
+    mapping (address => uint256) public managementFeeSplit;
 
     mapping(address => address) public ownedPool;
 
@@ -67,12 +70,20 @@ contract MockGlobals {
         governor = governor_;
     }
 
-    function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
-        isPoolDelegate[poolDelegate_] = isValid_;
+    function setManagementFeeSplit(address pool_, uint256 split_) external {
+        managementFeeSplit[pool_] = split_;
     }
-
+    
     function setOwnedPool(address owner_, address pool_) external {
         ownedPool[owner_] = pool_;
+    }
+
+    function setTreasury(address treasury_) external {
+        mapleTreasury = treasury_;
+    } 
+
+    function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
+        isPoolDelegate[poolDelegate_] = isValid_;
     }
 
 }
@@ -111,6 +122,7 @@ contract MockLoan {
 
     uint256 public collateral;
     uint256 public principal;
+    uint256 public claimableFunds;
 
     constructor(address fundsAsset_, address collateralAsset_, uint256 principalRequested_, uint256 collateralRequired_) {
         fundsAsset      = fundsAsset_;
@@ -119,8 +131,9 @@ contract MockLoan {
         collateral      = collateralRequired_;
     }
 
-    function claimableFunds() external view returns(uint256 claimable_) {
-        claimable_ = 0;
+    function claimFunds(uint256 amount_, address destination_) external {
+        claimableFunds -= amount_;
+        MockERC20(fundsAsset).transfer(destination_, amount_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external {
@@ -146,9 +159,19 @@ contract MockLoan {
         MockERC20(collateralAsset).transfer(destination_, collateral);
     }
 
+    function __setPrincipal(uint256 principal_) external {
+        principal = principal_;
+    }
+
+    function __setClaimableFunds(uint256 claimable_) external {
+        claimableFunds = claimable_;
+    }
+
 }
 
 contract MockPoolCoverManager {
+
+    function allocateLiquidity() external { }
 
     function triggerCoverLiquidation(uint256 remainingLosses_) external { }
 

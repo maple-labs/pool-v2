@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import { console } from "../../modules/contract-test-utils/contracts/log.sol";
 
-import { IERC20Like, ILoanLike, IPoolCoverManagerLike, IPoolLike } from "../interfaces/Interfaces.sol";
+import { IERC20Like, ILoanLike, IPoolLike, IPoolManagerLike } from "../interfaces/Interfaces.sol";
 
 import { DefaultHandler }    from "./DefaultHandler.sol";
 import { SortedInvestments } from "./SortedInvestments.sol";
@@ -11,9 +11,9 @@ import { SortedInvestments } from "./SortedInvestments.sol";
 // TODO: Rename to LoanManager, all instances of `investment` to `loan`
 contract InvestmentManager is SortedInvestments, DefaultHandler {
 
-    uint256 constant PRECISION = 1e30;
+    uint256 constant PRECISION  = 1e30;
+    uint256 constant SCALED_ONE = 1e18;
 
-    address public poolCoverManager;  // TODO: Remove PCM from storage and query PM for fees
     address public poolManager;
 
     uint256 public accountedInterest;
@@ -24,9 +24,8 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
 
     mapping(address => uint256) public principalOf;
 
-    constructor(address pool_, address poolManager_, address poolCoverManager_) DefaultHandler(pool_) {
+    constructor(address pool_, address poolManager_) DefaultHandler(pool_) {
         poolManager      = poolManager_;
-        poolCoverManager = poolCoverManager_;
     }
 
     /**************************/
@@ -35,36 +34,52 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
 
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
 
-    function claim(address investment_) external {
+    function claim(address investmentAddress_) external returns (uint256 coverPortion_, uint256 managementPortion_) {
         // Update initial accounting
         // TODO: Think we need to update issuanceRate here
         accountedInterest = _getAccruedInterest();
         lastUpdated       = block.timestamp;
 
-        // Claim investment and get principal amd interest portion of claimable.
-        ( uint256 principalRecovered, uint256 interestPortion ) = _claimInvestment(investment_);
+        uint256 principalPaid   = 0;
+        uint256 netInterestPaid = 0;
 
-        principalOut -= principalRecovered;
+        // Claim investment and get principal and interest portion of claimable.
+        ( principalPaid, netInterestPaid, coverPortion_, managementPortion_ ) = _claimInvestment(investmentAddress_);
+
+        principalOut -= principalPaid;
 
         // Remove investment from sorted list and get relevant previous parameters.
-        ( uint256 previousStartDate, uint256 previousPaymentDueDate, uint256 previousRate ) = _removeInvestment(investment_);
+        ( , uint256 previousPaymentDueDate, uint256 previousRate ) = _removeInvestment(investmentAddress_);
 
         // Get relevant next parameters.
-        ( , uint256 nextInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(investment_);
-
-        // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
-        // In other words, if the previous payment was early, then the next payment will start accruing from now,
-        // but if the previous payment was late, then we should have been accruing the next payment from the moment the previous payment was due.
-        uint256 nextStartDate = _minimumOf(block.timestamp, previousPaymentDueDate);
+        ( , uint256 incomingNetInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(investmentAddress_);
 
         uint256 newRate = 0;
 
         // If there is a next payment for this investment.
         if (nextPaymentDueDate != 0) {
-            // Add the investment to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-            _addInvestment(nextInterest, nextStartDate, nextPaymentDueDate, investment_);
 
-            newRate = (nextInterest * PRECISION) / (nextPaymentDueDate - nextStartDate);
+            // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
+            // In other words, if the previous payment was early, then the next payment will start accruing from now,
+            // but if the previous payment was late, then we should have been accruing the next payment from the moment the previous payment was due.
+            uint256 nextStartDate = _minimumOf(block.timestamp, previousPaymentDueDate);
+
+            ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
+
+            // Add the investment to the sorted list, making sure to take the effective start date (and not the current block timestamp).
+            _addInvestment(Investment({
+                // Previous and next will be overriden within _addInvestment function
+                previous:            0,
+                next:                0,
+                incomingNetInterest: incomingNetInterest,
+                startDate:           nextStartDate,
+                paymentDueDate:      nextPaymentDueDate,
+                coverFee:            coverFee_,
+                managementFee:       managementFee_,
+                vehicle:             investmentAddress_
+            }));
+
+            newRate = (incomingNetInterest * PRECISION) / (nextPaymentDueDate - nextStartDate);
         }
 
         // If there even is a new rate, and the next payment should have already been accruing, then accrue it.
@@ -82,19 +97,30 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
 
         // If the amount of interest claimed is greater than the amount accounted for, set to zero.
         // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
-        accountedInterest = interestPortion > accountedInterest ? 0 : accountedInterest - interestPortion;
+        accountedInterest = netInterestPaid > accountedInterest ? 0 : accountedInterest - netInterestPaid;
     }
 
-    function fund(address investment_) external {
+    function fund(address investmentAddress_) external {
         require(msg.sender == poolManager, "IM:F:NOT_ADMIN");
 
-        ILoanLike(investment_).fundLoan(address(this), 0);
+        ILoanLike(investmentAddress_).fundLoan(address(this), 0);
 
-        uint256 principal = principalOf[investment_] = ILoanLike(investment_).principal();
+        uint256 principal = principalOf[investmentAddress_] = ILoanLike(investmentAddress_).principal();
 
-        ( , uint256 nextInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(investment_);
+        ( , uint256 nextInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(investmentAddress_);
 
-        _addInvestment(nextInterest, block.timestamp, nextPaymentDueDate, investment_);
+        ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
+
+        _addInvestment(Investment({
+            previous:            0,
+            next:                0,
+            incomingNetInterest: nextInterest,
+            startDate:           block.timestamp,
+            paymentDueDate:      nextPaymentDueDate,
+            coverFee:            coverFee_,
+            managementFee:       managementFee_,
+            vehicle:             investmentAddress_
+        }));
 
         uint256 issuanceRateIncrease = (nextInterest * PRECISION) / (nextPaymentDueDate - block.timestamp);
 
@@ -109,20 +135,22 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
     /*** Internal Functions ***/
     /**************************/
 
-    function _claimInvestment(address investment_) internal returns (uint256 principalPortion_, uint256 interestPortion_) {
+    function _claimInvestment(address investment_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 coverPortion_, uint256 managementPortion_) {
         ILoanLike loan           = ILoanLike(investment_);
         principalPortion_        = principalOf[investment_] - loan.principal();
         interestPortion_         = loan.claimableFunds() - principalPortion_;
         principalOf[investment_] = loan.principal();
 
-        // TODO: Query PM for information about disbursment.
-        // Route a portion of the interest to the pool cover manager (if there is any pool cover).
-        if (poolCoverManager != address(0)) {
-            uint256 coverPortion = interestPortion_ / 5;  // 20%
-            interestPortion_    -= coverPortion;          // 80% (+dust)
+        uint256 id_ = investmentIdOf[investment_];
 
-            loan.claimFunds(coverPortion, poolCoverManager);
-            IPoolCoverManagerLike(poolCoverManager).allocateLiquidity();
+        coverPortion_      = interestPortion_ * investments[id_].coverFee      / SCALED_ONE;
+        managementPortion_ = interestPortion_ * investments[id_].managementFee / SCALED_ONE;
+
+        uint256 portionsSum_ = coverPortion_ + managementPortion_;
+
+        if (portionsSum_ != 0) {
+            loan.claimFunds(portionsSum_, address(poolManager));
+            interestPortion_ -= portionsSum_;
         }
 
         loan.claimFunds(loan.claimableFunds(), pool);
@@ -152,11 +180,9 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
             ? (0, 0)
             : ILoanLike(loan_).getNextPaymentBreakdown();
 
-        // TODO: Query PM for information about disbursment
-        // Reduce interest by 20% to account for interest being routed to pool cover manager.
-        if (address(poolCoverManager) != address(0)) {
-            nextInterest_ -= nextInterest_ / 5;
-        }
+        ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
+
+        nextInterest_ = nextInterest_ * (SCALED_ONE - (coverFee_ + managementFee_)) / SCALED_ONE;
     }
 
     function _maximumOf(uint256 a_, uint256 b_) internal pure returns (uint256 maximum_) {
@@ -193,9 +219,5 @@ contract InvestmentManager is SortedInvestments, DefaultHandler {
 
         return principalOut + accountedInterest + accruedInterest;
     }
-
-    // function finishCoverLiquidation(address poolCoverReserve_) external {
-    //     IPoolCoverManagerLike(poolCoverManager).finishLiquidation
-    // }
 
 }

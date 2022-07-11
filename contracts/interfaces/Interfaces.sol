@@ -22,8 +22,12 @@ interface IERC20Like {
 interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
-
+    
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
+
+    function managementFeeSplit(address pool) external view returns (uint256 split_);
+
+    function mapleTreasury() external view returns (address mapleTreasury_);
 
     function ownedPool(address poolDelegate_) external view returns (address pool_);
 
@@ -31,7 +35,7 @@ interface IGlobalsLike {
 
 interface IInvestmentManagerLike {
 
-    function claim(address investment_) external;
+    function claim(address investment_) external returns (uint256 coverPortion_, uint256 managementPortion_);
 
     function fund(address investment_) external;
 
@@ -112,6 +116,8 @@ interface IPoolManagerLike {
     function claim(address loan_) external;
 
     function fund(uint256 princiaplAmount_, address loan_, address investmentManager_) external;
+
+    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_);
 
     function investmentManager() external view returns (address investmentManager_);
 

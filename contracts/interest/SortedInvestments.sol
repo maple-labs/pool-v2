@@ -15,19 +15,22 @@ contract SortedInvestments {
     struct Investment {
         uint256 previous;
         uint256 next;
-        uint256 payment;
+        uint256 incomingNetInterest;
         uint256 startDate;
         uint256 paymentDueDate;
+        uint256 coverFee;
+        uint256 managementFee;
         address vehicle;
     }
 
-    function _addInvestment(uint256 payment_, uint256 startDate_, uint256 paymentDueDate_, address vehicle_) internal returns (uint256 investmentId_) {
-        investmentId_ = investmentIdOf[vehicle_] = ++investmentCounter;
+    // TODO Passing Memory due to stack too deep error. Investigate if efficiency is lost here
+    function _addInvestment(Investment memory investment_) internal returns (uint256 investmentId_) {
+        investmentId_ = investmentIdOf[investment_.vehicle] = ++investmentCounter;
 
         uint256 current = 0;
         uint256 next = investmentWithEarliestPaymentDueDate;
 
-        while (next != 0 && paymentDueDate_ >= investments[next].paymentDueDate) {
+        while (next != 0 && investment_.paymentDueDate >= investments[next].paymentDueDate) {
             current = next;
             next = investments[current].next;
         }
@@ -42,7 +45,10 @@ contract SortedInvestments {
             investments[next].previous = investmentId_;
         }
 
-        investments[investmentId_] = Investment(current, next, payment_, startDate_, paymentDueDate_, vehicle_);
+        investment_.next     = next;
+        investment_.previous = current;
+
+        investments[investmentId_] = investment_;
     }
 
     function _removeInvestment(uint256 investmentId_) internal returns (uint256 payment_, uint256 startDate_, uint256 paymentDueDate_) {
@@ -51,7 +57,7 @@ contract SortedInvestments {
         uint256 previous = investment.previous;
         uint256 next = investment.next;
 
-        payment_ = investment.payment;
+        payment_ = investment.incomingNetInterest;
         startDate_ = investment.startDate;
         paymentDueDate_ = investment.paymentDueDate;
 

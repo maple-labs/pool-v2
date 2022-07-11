@@ -73,7 +73,7 @@ contract DefaultHandlerTest is TestUtils {
         pool             = Pool(poolManager.pool());
         poolCoverManager = new MockPoolCoverManager();
 
-        investmentManager = new InvestmentManager(address(pool), address(poolManager), address(poolCoverManager));
+        investmentManager = new InvestmentManager(address(pool), address(poolManager));
 
         poolManager.setInvestmentManager(address(investmentManager), true);
         poolManager.setPoolCoverManager(address(poolCoverManager));
