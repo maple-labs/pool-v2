@@ -9,7 +9,7 @@ import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
-import { MockGlobals } from "./mocks/Mocks.sol";
+import { MockGlobals, MockRevertingERC20 } from "./mocks/Mocks.sol";
 
 contract PoolBase is TestUtils {
 
@@ -72,16 +72,41 @@ contract PoolBase is TestUtils {
 
 contract ConstructorTests is PoolBase {
 
+    function setUp() public override {}
+
     function test_constructor_zeroManager() public {
-        // TODO: When the pool manager is the zero address.
+        address asset = address(new MockERC20("Asset", "AT", 18));
+
+        vm.expectRevert("P:C:ZERO_ADDRESS");
+        new Pool(address(0), asset, "Pool", "POOL1");
+
+        new Pool(address(new Address()), asset, "Pool", "POOL1");
     }
 
     function test_constructor_invalidDecimals() public {
-        // TODO: When calling the ERC20 decimal function reverts.
+        address asset = address(new MockRevertingERC20("Asset", "AT", 18));
+        MockRevertingERC20(asset).__setIsRevertingDecimals(true);
+
+        address admin = address(new Address());
+
+        vm.expectRevert("ERC20:D:REVERT");
+        new Pool(admin, asset, "Pool", "POOL1");
+
+        asset = address(new MockERC20("Asset", "AT", 18));
+        new Pool(admin, asset, "Pool", "POOL1");
     }
 
     function test_constructor_invalidApproval() public {
-        // TODO: When calling the ERC20 approve function reverts.
+        address asset = address(new MockRevertingERC20("Asset", "AT", 18));
+        MockRevertingERC20(asset).__setIsRevertingApprove(true);
+
+        address admin = address(new Address());
+
+        vm.expectRevert("ERC20:A:REVERT");
+        new Pool(admin, asset, "Pool", "POOL1");
+
+        asset = address(new MockERC20("Asset", "AT", 18));
+        new Pool(admin, asset, "Pool", "POOL1");
     }
 
 }

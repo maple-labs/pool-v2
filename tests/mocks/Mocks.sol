@@ -176,3 +176,39 @@ contract MockPoolCoverManager {
     function triggerCoverLiquidation(uint256 remainingLosses_) external { }
 
 }
+
+contract MockRevertingERC20 {
+
+    uint8 internal _decimals;
+
+    bool public isRevertingApprove;
+    bool public isRevertingDecimals;
+    string public name;
+    string public symbol;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
+        name      = name_;
+        symbol    = symbol_;
+        _decimals = decimals_;
+    }
+
+    function approve(address spender_, uint256 amount_) external returns (bool success_) {
+        require(!isRevertingApprove, "ERC20:A:REVERT");
+        success_ = true;
+    }
+
+    function decimals() external view returns (uint8 decimals_) {
+        require(!isRevertingDecimals, "ERC20:D:REVERT");
+        decimals_ = _decimals;
+    }
+
+    function __setIsRevertingApprove(bool isReverting_) external {
+        isRevertingApprove = isReverting_;
+    }
+
+    function __setIsRevertingDecimals(bool isReverting_) external {
+        isRevertingDecimals = isReverting_;
+    }
+
+}
+
