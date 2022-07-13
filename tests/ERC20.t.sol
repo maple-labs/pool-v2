@@ -25,18 +25,11 @@ contract Pool_ERC20TestBase {
     PoolManager        poolManager;
     PoolManagerFactory factory;
 
-    address implementation;
-    address initializer;
-
     function _setupPoolWithERC20() internal {
-        asset   = new MockERC20("Asset", "AT", 18);
-        globals = new MockGlobals(address(this));
-
-        string memory poolName_   = "Pool";
-        string memory poolSymbol_ = "POOL1";
-
+        asset       = new MockERC20("Asset", "AT", 18);
+        globals     = new MockGlobals(address(this));
         poolManager = new ConstructablePoolManager(address(globals), POOL_DELEGATE, address(asset));
-        pool        = new MockERC20Pool(address(poolManager), address(asset), poolName_, poolSymbol_);
+        pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "POOL1");
     }
 
 }

@@ -48,7 +48,7 @@ contract PoolManagerBase is TestUtils {
 
 }
 
-contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
+contract AcceptPendingAdmin_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
     address SET_ADDRESS       = address(new Address());
@@ -65,7 +65,7 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
         poolManager.acceptPendingAdmin();
     }
 
-    function test_acceptPendingAdmin() external {
+    function test_acceptPendingAdmin_success() external {
         assertEq(poolManager.pendingAdmin(), SET_ADDRESS);
         assertEq(poolManager.admin(),        POOL_DELEGATE);
 
@@ -74,6 +74,28 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
         assertEq(poolManager.pendingAdmin(), address(0));
         assertEq(poolManager.admin(),        SET_ADDRESS);
+    }
+
+}
+
+contract SetPendingAdmin_SetterTests is PoolManagerBase {
+
+    address NOT_POOL_DELEGATE = address(new Address());
+    address SET_ADDRESS       = address(new Address());
+
+    function test_setPendingAdmin_notAdmin() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SPA:NOT_ADMIN");
+        poolManager.setPendingAdmin(SET_ADDRESS);
+    }
+
+    function test_setPendingAdmin_success() external {
+        assertEq(poolManager.pendingAdmin(), address(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setPendingAdmin(SET_ADDRESS);
+
+        assertEq(poolManager.pendingAdmin(), SET_ADDRESS);
     }
 
 }
@@ -87,7 +109,7 @@ contract SetActive_SetterTests is PoolManagerBase {
         poolManager.setActive(true);
     }
 
-    function test_setActive() external {
+    function test_setActive_success() external {
         assertTrue(!poolManager.active());
 
         vm.prank(address(globals));
@@ -111,7 +133,7 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
         poolManager.setAllowedLender(address(this), true);
     }
 
-    function test_setAllowedLender() external {
+    function test_setAllowedLender_success() external {
         assertTrue(!poolManager.isValidLender(address(this)));
 
         vm.prank(POOL_DELEGATE);
@@ -126,6 +148,35 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
     }
 }
 
+contract SetCoverFee_SetterTests is PoolManagerBase {
+
+    address NOT_POOL_DELEGATE = address(new Address());
+
+    uint256 newFee = uint256(0.1e18);
+
+    function test_setCoverFee_notAdmin() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SCF:NOT_ADMIN");
+        poolManager.setCoverFee(newFee);
+    }
+
+    function test_setCoverFee_success() external {
+        assertEq(poolManager.coverFee(), uint256(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setCoverFee(newFee);
+
+        assertEq(poolManager.coverFee(), newFee);
+    }
+
+}
+
+contract SetInvestmentManager_SetterTests is PoolManagerBase {
+
+    // TODO: Add tests for adding new investment managers.
+
+}
+
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
@@ -136,13 +187,36 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
         poolManager.setLiquidityCap(1000);
     }
 
-    function test_setLiquidityCap() external {
+    function test_setLiquidityCap_success() external {
         assertEq(poolManager.liquidityCap(), 0);
 
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1000);
 
         assertEq(poolManager.liquidityCap(), 1000);
+    }
+
+}
+
+contract SetManagementFee_SetterTests is PoolManagerBase {
+
+    address NOT_POOL_DELEGATE = address(new Address());
+
+    uint256 newFee = uint256(0.1e18);
+
+    function test_setManagementFee_notAdmin() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SMF:NOT_ADMIN");
+        poolManager.setManagementFee(newFee);
+    }
+
+    function test_setManagementFee_success() external {
+        assertEq(poolManager.managementFee(), uint256(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setManagementFee(newFee);
+
+        assertEq(poolManager.managementFee(), newFee);
     }
 
 }
@@ -156,7 +230,7 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
         poolManager.setOpenToPublic();
     }
 
-    function test_setOpenToPublic() external {
+    function test_setOpenToPublic_success() external {
         assertTrue(!poolManager.openToPublic());
 
         vm.prank(POOL_DELEGATE);
@@ -166,70 +240,52 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
     }
 }
 
-contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
+contract SetWithdrawalManager_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
-    address SET_ADDRESS       = address(new Address());
-
-    function test_setPendingAdmin_notAdmin() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SPA:NOT_ADMIN");
-        poolManager.setPendingAdmin(SET_ADDRESS);
+    function test_setWithdrawalManager_notAdmin() external {
+        // TODO
     }
 
-    function test_setPendingAdmin() external {
-        assertEq(poolManager.pendingAdmin(), address(0));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setPendingAdmin(SET_ADDRESS);
-
-        assertEq(poolManager.pendingAdmin(), SET_ADDRESS);
+    function test_setWithdrawalManager_success() external {
+        // TODO
     }
 
 }
 
-contract SetCoverFee_SetterTests is PoolManagerBase {
+contract ClaimTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
+    // TODO: Refactor claim function first.
 
-    uint256 newFee = uint256(0.1e18);
+}
 
-    function test_setCoverFee_notPD() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SCF:NOT_ADMIN");
-        poolManager.setCoverFee(newFee);
+contract FundTests is PoolManagerBase {
+
+    function test_fund_notAdmin() external {
+        // TODO
     }
 
-    function test_setCoverFee() external {
-        assertEq(poolManager.coverFee(), uint256(0));
+    function test_fund_zeroSupply() external {
+        // TODO
+    }
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setCoverFee(newFee);
+    function test_fund_transferFail() external {
+        // TODO
+    }
 
-        assertEq(poolManager.coverFee(), newFee);
+    function test_fund_success() external {
+        // TODO
     }
 
 }
 
-contract SetManagementFee_SetterTests is PoolManagerBase {
+contract RedeemTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
-
-    uint256 newFee = uint256(0.1e18);
-
-    function test_setManagementFee_notPD() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SMF:NOT_ADMIN");
-        poolManager.setManagementFee(newFee);
+    function test_redeem_notWithdrawalManager() external {
+        // TODO
     }
 
-    function test_setManagementFee() external {
-        assertEq(poolManager.managementFee(), uint256(0));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setManagementFee(newFee);
-
-        assertEq(poolManager.managementFee(), newFee);
+    function test_redeem_success() external {
+        // TODO
     }
 
 }

@@ -70,7 +70,23 @@ contract PoolBase is TestUtils {
 
 }
 
-contract DepositFailureTests is PoolBase {
+contract ConstructorTests is PoolBase {
+
+    function test_constructor_zeroManager() public {
+        // TODO: When the pool manager is the zero address.
+    }
+
+    function test_constructor_invalidDecimals() public {
+        // TODO: When calling the ERC20 decimal function reverts.
+    }
+
+    function test_constructor_invalidApproval() public {
+        // TODO: When calling the ERC20 approve function reverts.
+    }
+
+}
+
+contract DepositTests is PoolBase {
 
     uint256 DEPOSIT_AMOUNT = 1e18;
 
@@ -131,6 +147,10 @@ contract DepositFailureTests is PoolBase {
         pool.deposit(DEPOSIT_AMOUNT, address(0));
     }
 
+    function test_deposit_zeroShares() public {
+        // TODO: When shares are zero.
+    }
+
     function test_deposit_zeroAssets() public {
         _openPool();
 
@@ -165,13 +185,17 @@ contract DepositFailureTests is PoolBase {
         pool.deposit(depositAmount_ + 1, address(this));
     }
 
-    function test_deposit_zeroShares() public {
-        // TODO: Use __setTotalAssets for this
+    function test_deposit_reentrancy() public {
+        // TODO: When deposit() is reentered.
+    }
+
+    function testFuzz_deposit_success() public {
+        // TODO: Generic fuzz test.
     }
 
 }
 
-contract DepositWithPermitFailureTests is PoolBase {
+contract DepositWithPermitTests is PoolBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -311,9 +335,37 @@ contract DepositWithPermitFailureTests is PoolBase {
         pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, v, r, s);
     }
 
+    function test_depositWithPermit_zeroReceiver() public {
+        // TODO: When receiver is the zero address.
+    }
+
+    function test_depositWithPermit_zeroShares() public {
+        // TODO: When shares are equal to zero.
+    }
+
+    function test_depositWithPermit_zeroAssets() public {
+        // TODO: When assets are equal to zero.
+    }
+
+    function testFuzz_depositWithPermit_badApprove(uint256 depositAmount_) public {
+        // TODO: When insufficient approval occurs.
+    }
+
+    function testFuzz_depositWithPermit_insufficientBalance(uint256 depositAmount_) public {
+        // TODO: When there are insufficient assets to transfer.
+    }
+
+    function test_depositWithPermit_reentrancy() public {
+        // TODO: When depositWithPermit is reentered.
+    }
+
+    function testFuzz_depositWithPermit_success() public {
+        // TODO: Generic fuzz test.
+    }
+
 }
 
-contract MintFailureTests is PoolBase {
+contract MintTests is PoolBase {
 
     uint256 MINT_AMOUNT = 1e18;
 
@@ -374,6 +426,10 @@ contract MintFailureTests is PoolBase {
         pool.mint(MINT_AMOUNT, address(0));
     }
 
+    function test_mint_zeroShares() public {
+        // TODO: When shares are equal to zero.
+    }
+
     function test_mint_zeroAssets() public {
         _openPool();
 
@@ -408,13 +464,17 @@ contract MintFailureTests is PoolBase {
         pool.mint(mintAmount_ + 1, address(this));
     }
 
-    function test_mint_zeroShares() public {
-        // TODO: Use __setTotalAssets for this
+    function test_mint_reentrancy() public {
+        // TODO: When mint is reentered.
+    }
+
+    function testFuzz_mint_success() public {
+        // TODO: Generic fuzz test.
     }
 
 }
 
-contract MintWithPermitFailureTests is PoolBase {
+contract MintWithPermitTests is PoolBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -435,6 +495,10 @@ contract MintWithPermitFailureTests is PoolBase {
 
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
+    }
+
+    function test_mintWithPermit_insufficientPermit() public {
+        // TODO: When `previewMint(shares)` is greater than `maxAssets`.
     }
 
     function test_mintWithPermit_notOpenToPublic() public {
@@ -555,9 +619,43 @@ contract MintWithPermitFailureTests is PoolBase {
         pool.mintWithPermit(MINT_AMOUNT, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
     }
 
+    function test_mintWithPermit_zeroReceiver() public {
+        // TODO: When receiver is the zero address.
+    }
+
+    function test_mintWithPermit_zeroShares() public {
+        // TODO: When shares are equal to zero.
+    }
+
+    function test_mintWithPermit_zeroAssets() public {
+        // TODO: When assets are equal to zero.
+    }
+
+    function testFuzz_mintWithPermit_badApprove(uint256 depositAmount_) public {
+        // TODO: When insufficient approval occurs.
+    }
+
+    function testFuzz_mintWithPermit_insufficientBalance(uint256 depositAmount_) public {
+        // TODO: When there are insufficient assets to transfer.
+    }
+
+    function test_mintWithPermit_reentrancy() public {
+        // TODO: When mintWithPermit is reentered.
+    }
+
+    function testFuzz_mintWithPermit_success() public {
+        // TODO: Generic fuzz test.
+    }
+
 }
 
-contract TransferFailureTests is PoolBase {
+contract RedeemTests is PoolBase {
+
+    // TODO: Should be tested in similar manner to mint.
+
+}
+
+contract TransferTests is PoolBase {
 
     address RECIPIENT = address(new Address());
 
@@ -597,9 +695,13 @@ contract TransferFailureTests is PoolBase {
         pool.transfer(RECIPIENT, TRANSFER_AMOUNT);
     }
 
+    function testFuzz_transfer_success() public {
+        // TODO: Generic fuzz test.
+    }
+
 }
 
-contract TransferFromFailureTests is PoolBase {
+contract TransferFromTests is PoolBase {
 
     address RECIPIENT = address(new Address());
     address OWNER     = address(new Address());
@@ -643,6 +745,48 @@ contract TransferFromFailureTests is PoolBase {
         poolManager.setAllowedLender(RECIPIENT, true);
 
         pool.transferFrom(OWNER, RECIPIENT, TRANSFER_AMOUNT);
+    }
+
+    function testFuzz_transferFrom_success() public {
+        // TODO: Generic fuzz test.
+    }
+
+}
+
+contract WithdrawTests is PoolBase {
+
+    // TODO: Should be tested in similar manner to deposit.
+
+}
+
+contract PreviewDepositTests is PoolBase {
+
+    function testFuzz_previewDeposit_success() public {
+        // TODO: Check conversion and rounding works correctly.
+    }
+
+}
+
+contract PreviewMintTests is PoolBase {
+
+    function testFuzz_previewMint_success() public {
+        // TODO: Check conversion and rounding works correctly.
+    }
+
+}
+
+contract PreviewRedeemTests is PoolBase {
+
+    function testFuzz_previewRedeem_success() public {
+        // TODO: Check conversion and rounding works correctly.
+    }
+
+}
+
+contract PreviewWithdrawTests is PoolBase {
+
+    function testFuzz_previewWithdraw_success() public {
+        // TODO: Check conversion and rounding works correctly.
     }
 
 }
