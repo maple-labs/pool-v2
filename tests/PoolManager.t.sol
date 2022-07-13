@@ -171,12 +171,6 @@ contract SetCoverFee_SetterTests is PoolManagerBase {
 
 }
 
-contract SetInvestmentManager_SetterTests is PoolManagerBase {
-
-    // TODO: Add tests for adding new investment managers.
-
-}
-
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
@@ -240,18 +234,6 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
     }
 }
 
-contract SetWithdrawalManager_SetterTests is PoolManagerBase {
-
-    function test_setWithdrawalManager_notAdmin() external {
-        // TODO
-    }
-
-    function test_setWithdrawalManager_success() external {
-        // TODO
-    }
-
-}
-
 contract ClaimTests is PoolManagerBase {
 
     // TODO: Refactor claim function first.
@@ -286,6 +268,55 @@ contract RedeemTests is PoolManagerBase {
 
     function test_redeem_success() external {
         // TODO
+    }
+
+}
+
+contract SetLoanManager_SetterTests is PoolManagerBase {
+
+    address LOAN_MANAGER      = address(new Address());
+    address NOT_POOL_DELEGATE = address(new Address());
+
+    function test_setLoanManager_notPD() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SIM:NOT_ADMIN");
+        poolManager.setLoanManager(LOAN_MANAGER, true);
+    }
+
+    function test_setLoanManager() external {
+        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLoanManager(LOAN_MANAGER, true);
+
+        assertTrue(poolManager.isLoanManager(LOAN_MANAGER));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLoanManager(LOAN_MANAGER, false);
+
+        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER));
+    }
+
+}
+
+contract SetWithdrawalManager_SetterTests is PoolManagerBase {
+
+    address WITHDRAWAL_MANAGER = address(new Address());
+    address NOT_POOL_DELEGATE  = address(new Address());
+
+    function test_setWithdrawalManager_notPD() external {
+        vm.prank(NOT_POOL_DELEGATE);
+        vm.expectRevert("PM:SWM:NOT_ADMIN");
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+    }
+
+    function test_setWithdrawalManager() external {
+        assertEq(poolManager.withdrawalManager(), address(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+
+        assertEq(poolManager.withdrawalManager(), WITHDRAWAL_MANAGER);
     }
 
 }
