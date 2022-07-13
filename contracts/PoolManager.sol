@@ -9,7 +9,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 import {
     IERC20Like,
     IGlobalsLike,
-    IInvestmentManagerLike,
+    ILoanManagerLike,
     IPoolCoverManagerLike,
     IPoolLike
 } from "./interfaces/Interfaces.sol";
@@ -64,20 +64,20 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
         isValidLender[lender_] = isValid_;
     }
-    
+
     function setCoverFee(uint256 fee_) external {
         require(msg.sender == admin, "PM:SCF:NOT_ADMIN");
-        
+
         // TODO check globals for boundaries
         coverFee = fee_;
     }
 
-    function setInvestmentManager(address investmentManager_, bool isValid_) external {
+    function setLoanManager(address loanManager_, bool isValid_) external {
         require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
 
-        isInvestmentManager[investmentManager_] = isValid_;
+        isLoanManager[loanManager_] = isValid_;
 
-        investmentManagerList.push(investmentManager_);  // TODO: Add removal functionality
+        loanManagerList.push(loanManager_);  // TODO: Add removal functionality
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external {
@@ -88,7 +88,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function setManagementFee(uint256 fee_) external {
         require(msg.sender == admin, "PM:SMF:NOT_ADMIN");
-        
+
         // TODO check globals for boundaries
         managementFee = fee_;
     }
@@ -111,14 +111,14 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         withdrawalManager = withdrawalManager_;
     }
 
-    /****************************/
-    /*** Investment Functions ***/
-    /****************************/
+    /**********************/
+    /*** Loan Functions ***/
+    /**********************/
 
     function claim(address loan_) external {
         require(IERC20Like(pool).totalSupply() != 0, "P:C:ZERO_SUPPLY");
 
-        ( uint256 coverPortion_, uint256 managementPortion_ ) = IInvestmentManagerLike(investmentManagers[loan_]).claim(loan_);
+        ( uint256 coverPortion_, uint256 managementPortion_ ) = ILoanManagerLike(loanManagers[loan_]).claim(loan_);
 
         address coverManager_ = poolCoverManager;
         address asset_        = asset;
@@ -138,16 +138,16 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(ERC20Helper.transfer(asset_, admin, managementPortion_ - mapleShare_), "PM:C:PAY_ADMIN_FAILED");
     }
 
-    function fund(uint256 principal_, address loan_, address investmentManager_) external {
+    function fund(uint256 principal_, address loan_, address loanManager_) external {
         require(msg.sender == admin,                 "PM:F:NOT_ADMIN");
         require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
 
-        investmentManagers[loan_] = investmentManager_;
+        loanManagers[loan_] = loanManager_;
 
         // TODO: This contract needs infinite allowance of asset from pool.
         require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");
 
-        IInvestmentManagerLike(investmentManager_).fund(loan_);
+        ILoanManagerLike(loanManager_).fund(loan_);
     }
 
     /*****************************/
@@ -163,13 +163,13 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     }
 
     // TODO: ACL here and IM
-    function triggerCollateralLiquidation(address investment_, address auctioneer_) external {
-        unrealizedLosses += IInvestmentManagerLike(investmentManagers[investment_]).triggerCollateralLiquidation(investment_, auctioneer_);
+    function triggerCollateralLiquidation(address loan_, address auctioneer_) external {
+        unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
-    function finishCollateralLiquidation(address investment_) external returns (uint256 remainingLosses_) {
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_) {
         uint256 decreasedUnrealizedLosses;
-        ( decreasedUnrealizedLosses, remainingLosses_ ) = IInvestmentManagerLike(investmentManagers[investment_]).finishCollateralLiquidation(investment_);
+        ( decreasedUnrealizedLosses, remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
         unrealizedLosses -= decreasedUnrealizedLosses;
 
@@ -245,11 +245,11 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     function totalAssets() public view returns (uint256 totalAssets_) {
         totalAssets_ = IERC20Like(asset).balanceOf(pool);
 
-        uint256 length = investmentManagerList.length;
+        uint256 length = loanManagerList.length;
 
         for (uint256 i = 0; i < length;) {
             // TODO: How to check if unrecognized losses should be included?
-            totalAssets_ += IInvestmentManagerLike(investmentManagerList[i]).assetsUnderManagement();
+            totalAssets_ += ILoanManagerLike(loanManagerList[i]).assetsUnderManagement();
             unchecked { i++; }
         }
     }

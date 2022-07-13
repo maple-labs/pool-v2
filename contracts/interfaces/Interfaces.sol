@@ -22,7 +22,7 @@ interface IERC20Like {
 interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
-    
+
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
 
     function managementFeeSplit(address pool) external view returns (uint256 split_);
@@ -33,15 +33,15 @@ interface IGlobalsLike {
 
 }
 
-interface IInvestmentManagerLike {
+interface ILoanManagerLike {
 
-    function claim(address investment_) external returns (uint256 coverPortion_, uint256 managementPortion_);
+    function claim(address loan_) external returns (uint256 coverPortion_, uint256 managementPortion_);
 
-    function fund(address investment_) external;
+    function fund(address loan_) external;
 
-    function triggerCollateralLiquidation(address investment_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_);
+    function triggerCollateralLiquidation(address loan_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_);
 
-    function finishCollateralLiquidation(address investment_) external returns (uint256 decreasedUnrealizedLosses, uint256 remainingLosses);
+    function finishCollateralLiquidation(address loan_) external returns (uint256 decreasedUnrealizedLosses, uint256 remainingLosses);
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
@@ -115,15 +115,15 @@ interface IPoolManagerLike {
 
     function claim(address loan_) external;
 
-    function fund(uint256 princiaplAmount_, address loan_, address investmentManager_) external;
+    function fund(uint256 princiaplAmount_, address loan_, address loanManager_) external;
 
     function getFees() external view returns (uint256 coverFee_, uint256 managementFee_);
 
-    function investmentManager() external view returns (address investmentManager_);
+    function loanManager() external view returns (address loanManager_);
 
     function poolCoverManager() external view returns (address poolCoverManager_);
 
-    function setInvestmentManager(address investmentManager_, bool isValid_) external;
+    function setLoanManager(address loanManager_, bool isValid_) external;
 
     function setPoolCoverManager(address poolCoverManager_) external;
 

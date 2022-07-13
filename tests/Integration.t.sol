@@ -5,7 +5,7 @@ import { Address, TestUtils, console } from "../modules/contract-test-utils/cont
 
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { InvestmentManager } from "../contracts/interest/InvestmentManager.sol";
+import { LoanManager } from "../contracts/interest/LoanManager.sol";
 
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
@@ -15,7 +15,7 @@ import { PoolManager } from "../contracts/PoolManager.sol";
 
 import { MockGlobals, MockLoan, MockPoolCoverManager } from "./mocks/Mocks.sol";
 
-/// @dev Suite of tests that use PoolManagers, Pools, InvestmentManagers and Factories
+/// @dev Suite of tests that use PoolManagers, Pools, LoanManagers and Factories
 contract IntegrationTestBase is TestUtils {
 
     address GOVERNOR = address(new Address());
@@ -26,7 +26,7 @@ contract IntegrationTestBase is TestUtils {
     address implementation;
     address initializer;
 
-    InvestmentManager    investmentManager;
+    LoanManager          loanManager;
     MockERC20            fundsAsset;
     MockERC20            collateralAsset;
     MockGlobals          globals;
@@ -51,10 +51,10 @@ contract IntegrationTestBase is TestUtils {
         vm.stopPrank();
 
         ( poolManager, pool ) = _createManagerAndPool();
-        investmentManager = new InvestmentManager(address(pool), address(poolManager));
+        loanManager = new LoanManager(address(pool), address(poolManager));
 
         vm.startPrank(PD);
-        poolManager.setInvestmentManager(address(investmentManager), true);
+        poolManager.setLoanManager(address(loanManager), true);
         poolManager.setPoolCoverManager(address(poolCover));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setAllowedLender(LP, true);
@@ -77,7 +77,7 @@ contract IntegrationTestBase is TestUtils {
         loan = new MockLoan(address(fundsAsset), address(collateralAsset), principalRequested_, collateralRequired_);
 
         vm.prank(PD);
-        poolManager.fund(principalRequested_, address(loan), address(investmentManager));
+        poolManager.fund(principalRequested_, address(loan), address(loanManager));
 
         collateralAsset.mint(address(loan), collateralRequired_);
 
