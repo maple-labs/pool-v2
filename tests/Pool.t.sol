@@ -9,17 +9,17 @@ import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
-import { MockGlobals, MockRevertingERC20 } from "./mocks/Mocks.sol";
+import { MockGlobals, MockReenteringERC20, MockRevertingERC20 } from "./mocks/Mocks.sol";
 
 contract PoolBase is TestUtils {
 
     address POOL_DELEGATE = address(new Address());
 
-    MockERC20          asset;
-    MockGlobals        globals;
-    Pool               pool;
-    PoolManager        poolManager;
-    PoolManagerFactory factory;
+    MockReenteringERC20 asset;
+    MockGlobals         globals;
+    Pool                pool;
+    PoolManager         poolManager;
+    PoolManagerFactory  factory;
 
     address implementation;
     address initializer;
@@ -27,7 +27,7 @@ contract PoolBase is TestUtils {
     function setUp() public virtual {
         globals = new MockGlobals(address(this));
         factory = new PoolManagerFactory(address(globals));
-        asset   = new MockERC20("Asset", "AT", 18);
+        asset   = new MockReenteringERC20();
 
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
@@ -173,10 +173,6 @@ contract DepositTests is PoolBase {
     }
 
     function test_deposit_zeroShares() public {
-        // TODO: When shares are zero.
-    }
-
-    function test_deposit_zeroAssets() public {
         _openPool();
 
         asset.mint(address(this),    DEPOSIT_AMOUNT);
@@ -211,10 +207,17 @@ contract DepositTests is PoolBase {
     }
 
     function test_deposit_reentrancy() public {
-        // TODO: When deposit() is reentered.
+        _openPool();
+
+        asset.mint(address(this),    1);
+        asset.approve(address(pool), 1);
+        asset.setReentrancy(address(pool));
+
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.deposit(1, address(this));
     }
 
-    function testFuzz_deposit_success() public {
+    function testFuzz_deposit() public {
         // TODO: Generic fuzz test.
     }
 
@@ -361,30 +364,56 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_zeroReceiver() public {
-        // TODO: When receiver is the zero address.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:ZERO_RECEIVER");
+        pool.depositWithPermit(1, address(0), DEADLINE, v, r, s);
     }
 
     function test_depositWithPermit_zeroShares() public {
-        // TODO: When shares are equal to zero.
-    }
+        _openPool();
 
-    function test_depositWithPermit_zeroAssets() public {
-        // TODO: When assets are equal to zero.
-    }
+        asset.mint(STAKER, 1);
 
-    function testFuzz_depositWithPermit_badApprove(uint256 depositAmount_) public {
-        // TODO: When insufficient approval occurs.
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:ZERO_SHARES");
+        pool.depositWithPermit(0, STAKER, DEADLINE, v, r, s);
     }
 
     function testFuzz_depositWithPermit_insufficientBalance(uint256 depositAmount_) public {
-        // TODO: When there are insufficient assets to transfer.
+        _openPool();
+
+        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
+        asset.mint(STAKER, depositAmount_);
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), depositAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.depositWithPermit(depositAmount_ + 1, STAKER, DEADLINE, v, r, s);
     }
 
     function test_depositWithPermit_reentrancy() public {
-        // TODO: When depositWithPermit is reentered.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+        asset.setReentrancy(address(pool));
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.depositWithPermit(1, STAKER, DEADLINE, v, r, s);
     }
 
-    function testFuzz_depositWithPermit_success() public {
+    function testFuzz_depositWithPermit() public {
         // TODO: Generic fuzz test.
     }
 
@@ -452,10 +481,6 @@ contract MintTests is PoolBase {
     }
 
     function test_mint_zeroShares() public {
-        // TODO: When shares are equal to zero.
-    }
-
-    function test_mint_zeroAssets() public {
         _openPool();
 
         asset.mint(address(this),    MINT_AMOUNT);
@@ -465,7 +490,7 @@ contract MintTests is PoolBase {
         pool.mint(0, address(this));
     }
 
-    function tesFuzzt_mint_badApprove(uint256 mintAmount_) public {
+    function testFuzz_mint_badApprove(uint256 mintAmount_) public {
         _openPool();
 
         mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
@@ -490,10 +515,17 @@ contract MintTests is PoolBase {
     }
 
     function test_mint_reentrancy() public {
-        // TODO: When mint is reentered.
+        _openPool();
+
+        asset.mint(address(this),    1);
+        asset.approve(address(pool), 1);
+        asset.setReentrancy(address(pool));
+
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.mint(1, address(this));
     }
 
-    function testFuzz_mint_success() public {
+    function testFuzz_mint() public {
         // TODO: Generic fuzz test.
     }
 
@@ -523,7 +555,15 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_insufficientPermit() public {
-        // TODO: When `previewMint(shares)` is greater than `maxAssets`.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:MWP:INSUFFICIENT_PERMIT");
+        pool.mintWithPermit(1, STAKER, 0, DEADLINE, v, r, s);
     }
 
     function test_mintWithPermit_notOpenToPublic() public {
@@ -645,30 +685,56 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_zeroReceiver() public {
-        // TODO: When receiver is the zero address.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.startPrank(STAKER);
+        vm.expectRevert("P:M:ZERO_RECEIVER");
+        pool.mintWithPermit(1, address(0), 1, DEADLINE, v, r, s);
     }
 
     function test_mintWithPermit_zeroShares() public {
-        // TODO: When shares are equal to zero.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.startPrank(STAKER);
+        vm.expectRevert("P:M:ZERO_SHARES");
+        pool.mintWithPermit(0, STAKER, 1, DEADLINE, v, r, s);
     }
 
-    function test_mintWithPermit_zeroAssets() public {
-        // TODO: When assets are equal to zero.
-    }
+    function testFuzz_mintWithPermit_insufficientBalance(uint256 mintAmount_) public {
+        _openPool();
 
-    function testFuzz_mintWithPermit_badApprove(uint256 depositAmount_) public {
-        // TODO: When insufficient approval occurs.
-    }
+        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
+        asset.mint(STAKER, mintAmount_);
 
-    function testFuzz_mintWithPermit_insufficientBalance(uint256 depositAmount_) public {
-        // TODO: When there are insufficient assets to transfer.
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), mintAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.mintWithPermit(mintAmount_ + 1, STAKER, mintAmount_ + 1, DEADLINE, v, r, s);
     }
 
     function test_mintWithPermit_reentrancy() public {
-        // TODO: When mintWithPermit is reentered.
+        _openPool();
+
+        asset.mint(STAKER, 1);
+        asset.setReentrancy(address(pool));
+
+        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+
+        vm.prank(STAKER);
+        vm.expectRevert("P:M:TRANSFER_FROM");
+        pool.mintWithPermit(1, STAKER, 1, DEADLINE, v, r, s);
     }
 
-    function testFuzz_mintWithPermit_success() public {
+    function testFuzz_mintWithPermit() public {
         // TODO: Generic fuzz test.
     }
 

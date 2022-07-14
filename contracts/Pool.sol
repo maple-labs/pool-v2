@@ -46,7 +46,7 @@ contract Pool is IPool, ERC20 {
     /*** Lender Functions ***/
     /************************/
 
-    function deposit(uint256 assets_, address receiver_) external virtual override checkCall("P:deposit") nonReentrant returns (uint256 shares_) {
+    function deposit(uint256 assets_, address receiver_) external virtual override nonReentrant checkCall("P:deposit") returns (uint256 shares_) {
         _mint(shares_ = previewDeposit(assets_), assets_, receiver_, msg.sender);
     }
 
@@ -58,13 +58,13 @@ contract Pool is IPool, ERC20 {
         bytes32 r_,
         bytes32 s_
     )
-        external virtual override checkCall("P:depositWithPermit") nonReentrant returns (uint256 shares_)
+        external virtual override nonReentrant checkCall("P:depositWithPermit") returns (uint256 shares_)
     {
         ERC20(asset).permit(msg.sender, address(this), assets_, deadline_, v_, r_, s_);
         _mint(shares_ = previewDeposit(assets_), assets_, receiver_, msg.sender);
     }
 
-    function mint(uint256 shares_, address receiver_) external virtual override checkCall("P:mint") nonReentrant returns (uint256 assets_) {
+    function mint(uint256 shares_, address receiver_) external virtual override nonReentrant checkCall("P:mint") returns (uint256 assets_) {
         _mint(shares_, assets_ = previewMint(shares_), receiver_, msg.sender);
     }
 
@@ -77,7 +77,7 @@ contract Pool is IPool, ERC20 {
         bytes32 r_,
         bytes32 s_
     )
-        external virtual override checkCall("P:mintWithPermit") nonReentrant returns (uint256 assets_)
+        external virtual override nonReentrant checkCall("P:mintWithPermit") returns (uint256 assets_)
     {
         require((assets_ = previewMint(shares_)) <= maxAssets_, "P:MWP:INSUFFICIENT_PERMIT");
 

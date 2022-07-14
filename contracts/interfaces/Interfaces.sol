@@ -101,6 +101,8 @@ interface IPoolLike {
 
     function asset() external view returns (address asset_);
 
+    function deposit(uint256 assets_, address receiver_) external returns (uint256 shares_);
+
     function manager() external view returns (address manager_);
 
     function previewMint(uint256 shares_) external view returns (uint256 assets_);

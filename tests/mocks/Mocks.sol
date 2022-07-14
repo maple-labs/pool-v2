@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IAuctioneerLike, ILiquidatorLike } from "../../contracts/interfaces/Interfaces.sol";
+import { IAuctioneerLike, ILiquidatorLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
@@ -177,6 +177,26 @@ contract MockPoolCoverManager {
 
 }
 
+contract MockReenteringERC20 is MockERC20 {
+
+    address pool;
+
+    constructor() MockERC20("Asset", "AST", 18) { }
+
+   function transferFrom(address owner_, address recipient_, uint256 amount_) public virtual override returns (bool success_) {
+        if (pool != address(0)) {
+            IPoolLike(pool).deposit(0, address(0));
+        } else {
+            success_ = super.transferFrom(owner_, recipient_, amount_);
+        }
+    }
+
+    function setReentrancy(address pool_) external {
+        pool = pool_;
+    }
+
+}
+
 contract MockRevertingERC20 {
 
     uint8 internal _decimals;
@@ -211,4 +231,3 @@ contract MockRevertingERC20 {
     }
 
 }
-
