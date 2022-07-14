@@ -169,6 +169,12 @@ contract MockLoan {
 
 }
 
+contract MockPool {
+
+    function asset() external view returns (address asset_) { }
+
+}
+
 contract MockPoolCoverManager {
 
     function allocateLiquidity() external { }

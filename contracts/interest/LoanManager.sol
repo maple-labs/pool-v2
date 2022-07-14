@@ -32,11 +32,12 @@ contract LoanManager {
     uint256 public vestingPeriodFinish;
 
     mapping(address => uint256) public principalOf;
-    mapping(address => uint256) public loanIdOf;
+    mapping(address => uint256) public loanIdOf;  // TODO: This is here to satisfy the suboptimal Pool interface. Can we remove this now?
 
     mapping(uint256 => LoanInfo)        public loans;
     mapping(address => LiquidationInfo) public liquidationInfo; // Mapping from address -> liquidation details
 
+    // TODO: Can this struct be optimized?
     struct LoanInfo {
         uint256 previous;
         uint256 next;
@@ -266,6 +267,7 @@ contract LoanManager {
     }
 
     function _removeLoan(address loan_) internal returns (uint256 payment_, uint256 startDate_, uint256 paymentDueDate_, uint256 issuanceRate_) {
+        // TODO: Should this revert if the loan/id is not used?
         uint256 loanId_      = loanIdOf[loan_];
         LoanInfo memory loan = loans[loanId_];
 
