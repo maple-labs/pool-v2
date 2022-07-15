@@ -253,8 +253,11 @@ contract FundTests is PoolManagerBase {
         super.setUp();
 
         loanManager = new MockLoanManager();
-        loan        = new MockLoan(address(asset), address(asset), principalRequested, collateralRequired);
+        loan        = new MockLoan(address(asset), address(asset));
         pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+
+        loan.__setPrincipal(principalRequested);
+        loan.__setCollateral(collateralRequired);
 
         // Replace the pool in the poolManager
         address currentPool_ = poolManager.pool();
@@ -386,6 +389,354 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
         poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
 
         assertEq(poolManager.withdrawalManager(), WITHDRAWAL_MANAGER);
+    }
+
+}
+
+contract CanCallTests is PoolManagerBase {
+
+    function test_canCall_deposit_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:deposit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:D:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_deposit_lenderNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:deposit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:D:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(receiver_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_deposit_liquidityCapExceeded() external {
+        bytes32 functionId_ = bytes32("P:deposit");
+        address receiver_   = address(this);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+        poolManager.setLiquidityCap(1_000e6);
+        vm.stopPrank();
+
+        bytes memory params = abi.encode(1_000e6 + 1, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:D:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_depositWithPermit_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:depositWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:DWP:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_depositWithPermit_lenderNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:depositWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:DWP:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(receiver_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_depositWithPermit_liquidityCapExceeded() external {
+        bytes32 functionId_ = bytes32("P:depositWithPermit");
+        address receiver_   = address(this);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+        poolManager.setLiquidityCap(1_000e6);
+        vm.stopPrank();
+
+        bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:DWP:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_mint_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:mint");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:M:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_mint_lenderNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:mint");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:M:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(receiver_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_mint_liquidityCapExceeded() external {
+        bytes32 functionId_ = bytes32("P:mint");
+        address receiver_   = address(this);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+        poolManager.setLiquidityCap(1_000e6);
+        vm.stopPrank();
+
+        bytes memory params = abi.encode(1_000e6 + 1, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:M:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_mintWithPermit_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:mintWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:MWP:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_mintWithPermit_lenderNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:mintWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:MWP:LENDER_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(receiver_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_mintWithPermit_liquidityCapExceeded() external {
+        bytes32 functionId_ = bytes32("P:mintWithPermit");
+        address receiver_   = address(this);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+        poolManager.setLiquidityCap(1_000e6);
+        vm.stopPrank();
+
+        bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:MWP:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_transfer_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:transfer");
+        address recipient_  = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:T:RECIPIENT_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_transfer_recipientNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:transfer");
+        address recipient_  = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:T:RECIPIENT_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(recipient_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_transferFrom_notOpenToPublic() external {
+        bytes32 functionId_ = bytes32("P:transferFrom");
+        address recipient_  = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:TF:RECIPIENT_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setOpenToPublic();
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_transferFrom_recipientNotAllowed() external {
+        bytes32 functionId_ = bytes32("P:transferFrom");
+        address recipient_  = address(this);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLiquidityCap(type(uint256).max);
+
+        bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:TF:RECIPIENT_NOT_ALLOWED");
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(recipient_, true);
+
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
     }
 
 }

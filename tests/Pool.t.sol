@@ -25,9 +25,9 @@ contract PoolBase is TestUtils {
     MockReenteringERC20 asset;
     MockGlobals         globals;
     Pool                pool;
-    PoolManager         poolManager;
     PoolManagerFactory  factory;
 
+    address poolManager;
     address implementation;
     address initializer;
 
@@ -49,9 +49,12 @@ contract PoolBase is TestUtils {
 
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
-        poolManager = PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
+        poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
-        pool = Pool(poolManager.pool());
+        pool = Pool(PoolManager(poolManager).pool());
+
+        address mockPoolManager = address(new MockPoolManager());
+        vm.etch(poolManager, mockPoolManager.code);
     }
 
     // Returns an ERC-2612 `permit` digest for the `owner` to sign
@@ -68,11 +71,6 @@ contract PoolBase is TestUtils {
     // Returns a valid `permit` signature signed by this contract's `owner` address
     function _getValidPermitSignature(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_, uint256 ownerSk_) internal returns (uint8 v_, bytes32 r_, bytes32 s_) {
         return vm.sign(ownerSk_, _getDigest(owner_, spender_, value_, nonce_, deadline_));
-    }
-
-    function _openPool() public {
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
     }
 
     function _deposit(address pool_, address poolManager_, address user_, uint256 assetAmount_) internal returns (uint256 shares_) {
@@ -134,56 +132,7 @@ contract DepositTests is PoolBase {
 
     uint256 DEPOSIT_AMOUNT = 1e18;
 
-    function setUp() public override {
-        super.setUp();
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-    }
-
-    function test_deposit_notOpenToPublic() public {
-        asset.mint(address(this),    DEPOSIT_AMOUNT);
-        asset.approve(address(pool), DEPOSIT_AMOUNT);
-
-        vm.expectRevert("P:D:LENDER_NOT_ALLOWED");
-        pool.deposit(DEPOSIT_AMOUNT, address(this));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        pool.deposit(DEPOSIT_AMOUNT, address(this));
-    }
-
-    function test_deposit_notAllowed() public {
-        asset.mint(address(this),    DEPOSIT_AMOUNT);
-        asset.approve(address(pool), DEPOSIT_AMOUNT);
-
-        vm.expectRevert("P:D:LENDER_NOT_ALLOWED");
-        pool.deposit(DEPOSIT_AMOUNT, address(this));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(address(this), true);
-
-        pool.deposit(DEPOSIT_AMOUNT, address(this));
-    }
-
-    function testFuzz_deposit_aboveLiquidityCap(uint256 depositAmount_) public {
-        _openPool();
-
-        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
-
-        asset.mint(address(this),    depositAmount_);
-        asset.approve(address(pool), depositAmount_);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(depositAmount_ - 1);
-
-        vm.expectRevert("P:D:DEPOSIT_GT_LIQ_CAP");
-        pool.deposit(depositAmount_, address(this));
-    }
-
     function test_deposit_zeroReceiver() public {
-        _openPool();
-
         asset.mint(address(this),    DEPOSIT_AMOUNT);
         asset.approve(address(pool), DEPOSIT_AMOUNT);
 
@@ -192,8 +141,6 @@ contract DepositTests is PoolBase {
     }
 
     function test_deposit_zeroShares() public {
-        _openPool();
-
         asset.mint(address(this),    DEPOSIT_AMOUNT);
         asset.approve(address(pool), DEPOSIT_AMOUNT);
 
@@ -202,8 +149,6 @@ contract DepositTests is PoolBase {
     }
 
     function testFuzz_deposit_badApprove(uint256 depositAmount_) public {
-        _openPool();
-
         depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
 
         asset.mint(address(this),    depositAmount_);
@@ -214,8 +159,6 @@ contract DepositTests is PoolBase {
     }
 
     function testFuzz_deposit_insufficientBalance(uint256 depositAmount_) public {
-        _openPool();
-
         depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
 
         asset.mint(address(this),    depositAmount_);
@@ -226,8 +169,6 @@ contract DepositTests is PoolBase {
     }
 
     function test_deposit_reentrancy() public {
-        _openPool();
-
         asset.mint(address(this),    1);
         asset.approve(address(pool), 1);
         asset.setReentrancy(address(pool));
@@ -261,61 +202,9 @@ contract DepositWithPermitTests is PoolBase {
         NOT_STAKER = vm.addr(NOT_STAKER_SK);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-    }
-
-    function test_depositWithPermit_notOpenToPublic() public {
-        asset.mint(STAKER, DEPOSIT_AMOUNT);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:DWP:LENDER_NOT_ALLOWED");
-        pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, v, r, s);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        vm.prank(STAKER);
-        pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, v, r, s);
-    }
-
-    function test_depositWithPermit_notAllowed() public {
-        asset.mint(STAKER, DEPOSIT_AMOUNT);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:DWP:LENDER_NOT_ALLOWED");
-        pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, v, r, s);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(STAKER, true);
-
-        vm.prank(STAKER);
-        pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, v, r, s);
-    }
-
-    function testFuzz_depositWithPermit_aboveLiquidityCap(uint256 depositAmount_) public {
-        _openPool();
-
-        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
-
-        asset.mint(STAKER, depositAmount_);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), depositAmount_, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(depositAmount_ - 1);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:DWP:DEPOSIT_GT_LIQ_CAP");
-        pool.depositWithPermit(depositAmount_, STAKER, DEADLINE, v, r, s);
     }
 
     function test_depositWithPermit_zeroAddress() public {
-        _openPool();
-
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
         ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
@@ -327,8 +216,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_notStakerSignature() public {
-        _openPool();
-
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(NOT_STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, NOT_STAKER_SK);
@@ -340,8 +227,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_pastDeadline() public {
-        _openPool();
-
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
@@ -355,8 +240,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_replay() public {
-        _openPool();
-
         asset.mint(STAKER, DEPOSIT_AMOUNT * 2);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
@@ -370,8 +253,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_badNonce() public {
-        _openPool();
-
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE + 1, DEADLINE, STAKER_SK);
@@ -383,8 +264,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_zeroReceiver() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
@@ -395,8 +274,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_zeroShares() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
@@ -407,8 +284,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function testFuzz_depositWithPermit_insufficientBalance(uint256 depositAmount_) public {
-        _openPool();
-
         depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
         asset.mint(STAKER, depositAmount_);
 
@@ -420,8 +295,6 @@ contract DepositWithPermitTests is PoolBase {
     }
 
     function test_depositWithPermit_reentrancy() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
         asset.setReentrancy(address(pool));
 
@@ -442,56 +315,7 @@ contract MintTests is PoolBase {
 
     uint256 MINT_AMOUNT = 1e18;
 
-    function setUp() public override {
-        super.setUp();
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-    }
-
-    function test_mint_notOpenToPublic() public {
-        asset.mint(address(this),    MINT_AMOUNT);
-        asset.approve(address(pool), MINT_AMOUNT);
-
-        vm.expectRevert("P:M:LENDER_NOT_ALLOWED");
-        pool.mint(MINT_AMOUNT, address(this));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        pool.mint(MINT_AMOUNT, address(this));
-    }
-
-    function test_mint_notAllowed() public {
-        asset.mint(address(this),    MINT_AMOUNT);
-        asset.approve(address(pool), MINT_AMOUNT);
-
-        vm.expectRevert("P:M:LENDER_NOT_ALLOWED");
-        pool.mint(MINT_AMOUNT, address(this));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(address(this), true);
-
-        pool.mint(MINT_AMOUNT, address(this));
-    }
-
-    function testFuzz_mint_aboveLiquidityCap(uint256 mintAmount_) public {
-        _openPool();
-
-        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
-
-        asset.mint(address(this),    mintAmount_);
-        asset.approve(address(pool), mintAmount_);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(mintAmount_ - 1);
-
-        vm.expectRevert("P:M:DEPOSIT_GT_LIQ_CAP");
-        pool.mint(mintAmount_, address(this));
-    }
-
     function test_mint_zeroReceiver() public {
-        _openPool();
-
         asset.mint(address(this),    MINT_AMOUNT);
         asset.approve(address(pool), MINT_AMOUNT);
 
@@ -500,8 +324,6 @@ contract MintTests is PoolBase {
     }
 
     function test_mint_zeroShares() public {
-        _openPool();
-
         asset.mint(address(this),    MINT_AMOUNT);
         asset.approve(address(pool), MINT_AMOUNT);
 
@@ -510,8 +332,6 @@ contract MintTests is PoolBase {
     }
 
     function testFuzz_mint_badApprove(uint256 mintAmount_) public {
-        _openPool();
-
         mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
 
         asset.mint(address(this),    mintAmount_);
@@ -522,8 +342,6 @@ contract MintTests is PoolBase {
     }
 
     function testFuzz_mint_insufficientBalance(uint256 mintAmount_) public {
-        _openPool();
-
         mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
 
         asset.mint(address(this),    mintAmount_);
@@ -534,8 +352,6 @@ contract MintTests is PoolBase {
     }
 
     function test_mint_reentrancy() public {
-        _openPool();
-
         asset.mint(address(this),    1);
         asset.approve(address(pool), 1);
         asset.setReentrancy(address(pool));
@@ -568,14 +384,9 @@ contract MintWithPermitTests is PoolBase {
 
         STAKER     = vm.addr(STAKER_SK);
         NOT_STAKER = vm.addr(NOT_STAKER_SK);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
     }
 
     function test_mintWithPermit_insufficientPermit() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
@@ -585,58 +396,7 @@ contract MintWithPermitTests is PoolBase {
         pool.mintWithPermit(1, STAKER, 0, DEADLINE, v, r, s);
     }
 
-    function test_mintWithPermit_notOpenToPublic() public {
-        asset.mint(STAKER, MINT_AMOUNT);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:MWP:LENDER_NOT_ALLOWED");
-        pool.mintWithPermit(MINT_AMOUNT, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        vm.prank(STAKER);
-        pool.mintWithPermit(MINT_AMOUNT, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
-    }
-
-    function test_mintWithPermit_notAllowed() public {
-        asset.mint(STAKER, MINT_AMOUNT);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:MWP:LENDER_NOT_ALLOWED");
-        pool.mintWithPermit(MINT_AMOUNT, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(STAKER, true);
-
-        vm.prank(STAKER);
-        pool.mintWithPermit(MINT_AMOUNT, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
-    }
-
-    function testFuzz_mintWithPermit_aboveLiquidityCap(uint256 mintAmount_) public {
-        _openPool();
-
-        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
-
-        asset.mint(STAKER, mintAmount_);
-
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(mintAmount_ - 1);
-
-        vm.prank(STAKER);
-        vm.expectRevert("P:MWP:DEPOSIT_GT_LIQ_CAP");
-        pool.mintWithPermit(mintAmount_, STAKER, MAX_ASSETS, DEADLINE, v, r, s);
-    }
-
     function test_mintWithPermit_zeroAddress() public {
-        _openPool();
-
         asset.mint(STAKER, MINT_AMOUNT);
 
         ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
@@ -648,8 +408,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_notStakerSignature() public {
-        _openPool();
-
         asset.mint(STAKER, MINT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(NOT_STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, NOT_STAKER_SK);
@@ -661,8 +419,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_pastDeadline() public {
-        _openPool();
-
         asset.mint(STAKER, MINT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
@@ -676,8 +432,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_replay() public {
-        _openPool();
-
         asset.mint(STAKER, MINT_AMOUNT * 2);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
@@ -691,8 +445,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_badNonce() public {
-        _openPool();
-
         asset.mint(STAKER, MINT_AMOUNT);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE + 1, DEADLINE, STAKER_SK);
@@ -704,8 +456,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_zeroReceiver() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
@@ -716,8 +466,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_zeroShares() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
@@ -728,8 +476,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function testFuzz_mintWithPermit_insufficientBalance(uint256 mintAmount_) public {
-        _openPool();
-
         mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
         asset.mint(STAKER, mintAmount_);
 
@@ -741,8 +487,6 @@ contract MintWithPermitTests is PoolBase {
     }
 
     function test_mintWithPermit_reentrancy() public {
-        _openPool();
-
         asset.mint(STAKER, 1);
         asset.setReentrancy(address(pool));
 
@@ -774,35 +518,10 @@ contract TransferTests is PoolBase {
     function setUp() public override {
         super.setUp();
 
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-        poolManager.setAllowedLender(address(this), true);
-        vm.stopPrank();
-
         asset.mint(address(this),    TRANSFER_AMOUNT);
         asset.approve(address(pool), TRANSFER_AMOUNT);
 
         pool.deposit(TRANSFER_AMOUNT, address(this));
-    }
-
-    function test_transfer_notOpenToPublic() public {
-        vm.expectRevert("P:T:RECIPIENT_NOT_ALLOWED");
-        pool.transfer(RECIPIENT, TRANSFER_AMOUNT);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        pool.transfer(RECIPIENT, TRANSFER_AMOUNT);
-    }
-
-    function test_transfer_recipientNotAllowed() public {
-        vm.expectRevert("P:T:RECIPIENT_NOT_ALLOWED");
-        pool.transfer(RECIPIENT, TRANSFER_AMOUNT);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(RECIPIENT, true);
-
-        pool.transfer(RECIPIENT, TRANSFER_AMOUNT);
     }
 
     function testFuzz_transfer_success() public {
@@ -821,11 +540,6 @@ contract TransferFromTests is PoolBase {
     function setUp() public override {
         super.setUp();
 
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-        poolManager.setAllowedLender(OWNER, true);
-        vm.stopPrank();
-
         vm.startPrank(OWNER);
 
         asset.mint(OWNER,            TRANSFER_AMOUNT);
@@ -835,26 +549,6 @@ contract TransferFromTests is PoolBase {
         pool.approve(address(this), type(uint256).max);
 
         vm.stopPrank();
-    }
-
-    function test_transfer_notOpenToPublic() public {
-        vm.expectRevert("P:TF:RECIPIENT_NOT_ALLOWED");
-        pool.transferFrom(OWNER, RECIPIENT, TRANSFER_AMOUNT);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        pool.transferFrom(OWNER, RECIPIENT, TRANSFER_AMOUNT);
-    }
-
-    function test_transfer_recipientNotAllowed() public {
-        vm.expectRevert("P:TF:RECIPIENT_NOT_ALLOWED");
-        pool.transferFrom(OWNER, RECIPIENT, TRANSFER_AMOUNT);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(RECIPIENT, true);
-
-        pool.transferFrom(OWNER, RECIPIENT, TRANSFER_AMOUNT);
     }
 
     function testFuzz_transferFrom_success() public {
@@ -869,10 +563,6 @@ contract WithdrawTests is PoolBase {
 
     function setUp() public override {
         super.setUp();
-
-        // Replace manager with mock.
-        address mockPoolManager = address(new MockPoolManager());
-        vm.etch(address(poolManager), mockPoolManager.code);
 
         user = address(new Address());
     }

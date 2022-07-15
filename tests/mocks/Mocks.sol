@@ -8,6 +8,8 @@ import { IAuctioneerLike, ILiquidatorLike, IPoolLike } from "../../contracts/int
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
 
+import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";
+
 contract ConstructablePoolManager is PoolManager {
 
     constructor(address globals_, address admin_, address asset_) {
@@ -212,25 +214,6 @@ contract MockPool {
 
 }
 
-contract MockPoolManager {
-
-    uint256 public totalAssets;
-    uint256 public unrealizedLosses;
-
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
-        canCall_ = true;
-    }
-
-    function __setTotalAssets(uint256 totalAssets_) external {
-        totalAssets = totalAssets_;
-    }
-
-    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
-        unrealizedLosses = unrealizedLosses_;
-    }
-
-}
-
 contract MockPoolCoverManager {
 
     function allocateLiquidity() external { }
@@ -239,14 +222,21 @@ contract MockPoolCoverManager {
 
 }
 
-contract MockPoolManager {
+/**
+ *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout, since this contract is used to etch over the real PoolManager implmentation in tests,
+ *       and is therefore used as the implementation contract for the PoolManager proxy. By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
+ */
+contract MockPoolManager is PoolManagerStorage {
 
-    uint256 public coverFee;
-    uint256 public managermentFee;
+    uint256 public totalAssets;
+
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
+        canCall_ = true;
+    }
 
     function getFees() external view returns (uint256 coverFee_, uint256 managementFee_) {
         coverFee_      = coverFee;
-        managementFee_ = managermentFee;
+        managementFee_ = managementFee;
     }
 
     function setCoverFee(uint256 coverFee_) external {
@@ -254,7 +244,15 @@ contract MockPoolManager {
     }
 
     function setManagementFee(uint256 managementFee_) external {
-        managermentFee = managementFee_;
+        managementFee = managementFee_;
+    }
+
+    function __setTotalAssets(uint256 totalAssets_) external {
+        totalAssets = totalAssets_;
+    }
+
+    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
+        unrealizedLosses = unrealizedLosses_;
     }
 
 }
