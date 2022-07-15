@@ -212,6 +212,25 @@ contract MockPool {
 
 }
 
+contract MockPoolManager {
+
+    uint256 public totalAssets;
+    uint256 public unrealizedLosses;
+
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
+        canCall_ = true;
+    }
+
+    function __setTotalAssets(uint256 totalAssets_) external {
+        totalAssets = totalAssets_;
+    }
+
+    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
+        unrealizedLosses = unrealizedLosses_;
+    }
+
+}
+
 contract MockPoolCoverManager {
 
     function allocateLiquidity() external { }
@@ -246,7 +265,15 @@ contract MockReenteringERC20 is MockERC20 {
 
     constructor() MockERC20("Asset", "AST", 18) { }
 
-   function transferFrom(address owner_, address recipient_, uint256 amount_) public virtual override returns (bool success_) {
+    function transfer(address recipient_, uint256 amount_) public virtual override returns (bool success_) {
+        if (pool != address(0)) {
+            IPoolLike(pool).deposit(0, address(0));
+        } else {
+            success_ = super.transfer(recipient_, amount_);
+        }
+    }
+
+    function transferFrom(address owner_, address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
             IPoolLike(pool).deposit(0, address(0));
         } else {
