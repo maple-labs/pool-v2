@@ -8,7 +8,7 @@ import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
-import { MockGlobals } from "./mocks/Mocks.sol";
+import { MockERC20Pool, MockGlobals, MockLoan, MockLoanManager } from "./mocks/Mocks.sol";
 
 contract PoolManagerBase is TestUtils {
 
@@ -242,20 +242,89 @@ contract ClaimTests is PoolManagerBase {
 
 contract FundTests is PoolManagerBase {
 
+    MockLoan        loan;
+    MockLoanManager loanManager;
+    MockERC20Pool   pool;
+
+    uint256 principalRequested = 1_000_000e18;
+    uint256 collateralRequired = 0;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager();
+        loan        = new MockLoan(address(asset), address(asset), principalRequested, collateralRequired);
+        pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+
+        // Replace the pool in the poolManager
+        address currentPool_ = poolManager.pool();
+        vm.etch(currentPool_, address(pool).code);
+
+        pool = MockERC20Pool(currentPool_);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLoanManager(address(loanManager), true);
+    }
+
     function test_fund_notAdmin() external {
-        // TODO
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        vm.expectRevert("PM:F:NOT_ADMIN");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
     function test_fund_zeroSupply() external {
-        // TODO
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:F:ZERO_SUPPLY");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
     }
 
     function test_fund_transferFail() external {
-        // TODO
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("P:F:TRANSFER_FAIL");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_fund_invalidLoanManager() external {
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        // Remove the loanManager from the poolManager (added on setUp)
+        vm.prank(POOL_DELEGATE);
+        poolManager.setLoanManager(address(loanManager), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:F:INVALID_LOAN_MANAGER");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
     function test_fund_success() external {
-        // TODO
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        assertEq(poolManager.loanManagers(address(loan)), address(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
 }

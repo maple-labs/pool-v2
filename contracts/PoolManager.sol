@@ -141,8 +141,10 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     function fund(uint256 principal_, address loan_, address loanManager_) external {
         require(msg.sender == admin,                 "PM:F:NOT_ADMIN");
         require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
+        require(isLoanManager[loanManager_],         "PM:F:INVALID_LOAN_MANAGER");
 
-        loanManagers[loan_] = loanManager_;
+        // TODO: Add check for loanManagers[loan_] == 0 + refinancing function.
+        loanManagers[loan_] = loanManager_; 
 
         // TODO: This contract needs infinite allowance of asset from pool.
         require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");

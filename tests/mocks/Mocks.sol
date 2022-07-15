@@ -196,6 +196,12 @@ contract MockLoan {
 
 }
 
+contract MockLoanManager {
+
+    function fund(address loan_) external { }
+
+}
+
 contract MockPool {
 
     address public asset;
