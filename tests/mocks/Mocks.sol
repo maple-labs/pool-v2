@@ -200,7 +200,23 @@ contract MockLoan {
 
 contract MockLoanManager {
 
+    uint256 public coverPortion;
+    uint256 public managementPortion;
+
     function fund(address loan_) external { }
+
+    function claim(address loan_) external returns (uint256 coverPortion_, uint256 managementPortion_) {
+        coverPortion_      = coverPortion;
+        managementPortion_ = managementPortion;
+    }
+
+    function __setCoverPortion(uint256 coverPortion_) external {
+        coverPortion = coverPortion_;
+    }
+
+    function __setManagementPortion(uint256 managementPortion_) external {
+        managementPortion = managementPortion_;
+    }
 
 }
 

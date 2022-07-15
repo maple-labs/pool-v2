@@ -8,7 +8,15 @@ import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
-import { MockERC20Pool, MockGlobals, MockLoan, MockLoanManager } from "./mocks/Mocks.sol";
+import {
+    MockERC20Pool,
+    MockGlobals,
+    MockLoan,
+    MockLoanManager,
+    MockPoolCoverManager
+} from "./mocks/Mocks.sol";
+
+import { PoolManagerHarness } from "./harnesses/PoolManagerHarness.sol";
 
 contract PoolManagerBase is TestUtils {
 
@@ -236,7 +244,134 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
 
 contract ClaimTests is PoolManagerBase {
 
-    // TODO: Refactor claim function first.
+    address LOAN     = address(new Address());
+    address LP       = address(new Address());
+    address TREASURY = address(new Address());
+
+    MockERC20Pool        pool;
+    MockLoanManager      loanManager;
+    MockPoolCoverManager coverManager;
+
+    uint256 coverPortion       = uint256(1e18);
+    uint256 managementPortion  = uint256(10e18);
+    uint256 managementFeeSplit = uint256(0.4e18);
+
+    function setUp() public override {
+        super.setUp();
+
+        coverManager = new MockPoolCoverManager();
+        loanManager  = new MockLoanManager();
+        pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+
+        // Replace the pool in the poolManager
+        address currentPool_ = poolManager.pool();
+        vm.etch(currentPool_, address(pool).code);
+
+        pool = MockERC20Pool(currentPool_);
+
+        // Set mock cover manager
+        vm.prank(POOL_DELEGATE);
+        poolManager.setPoolCoverManager(address(coverManager));
+
+        // Configure globals
+        globals.setManagementFeeSplit(address(pool), managementFeeSplit);
+        globals.setTreasury(TREASURY);
+
+        // Set fees on LoanManager
+        loanManager.__setCoverPortion(coverPortion);
+        loanManager.__setManagementPortion(managementPortion);
+
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), 1_000_000e18);
+
+        // Get past zero supply check
+        pool.mint(LP, 1);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setLoanManager(address(loanManager), true);
+        poolManager.fund(1_000_000e18, LOAN, address(loanManager));
+        vm.stopPrank();
+    }
+
+    function test_claim_failWithZeroSupply() external {
+        pool.burn(LP, 1);
+
+        vm.expectRevert("PM:C:ZERO_SUPPLY");
+        poolManager.claim(LOAN);
+    }
+
+    function test_claim_failWithZeroLoanManager() external {
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        address newLoan = address(new Address());
+
+        vm.expectRevert("PM:C:NO_LOAN_MANAGER");
+        poolManager.claim(newLoan);
+    }
+
+    function test_claim_failWithZeroCoverManager() external {
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        // Nullify existing manager
+        vm.prank(POOL_DELEGATE);
+        poolManager.setPoolCoverManager(address(0));
+
+        vm.expectRevert("PM:C:NO_COVER_MANAGER");
+        poolManager.claim(LOAN);
+    }
+
+    function test_claim_failWithFailedCoverPayment() external {
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), coverPortion - 1);
+
+        vm.expectRevert("PM:C:PAY_COVER_FAILED");
+        poolManager.claim(LOAN);
+    }
+
+    function test_claim_failWithTreasuryPayment() external {
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), coverPortion + (managementPortion * 4 / 10) - 1);  //  4/10 of managementPortion goes to treasury
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        vm.expectRevert("PM:C:PAY_TREASURY_FAILED");
+        poolManager.claim(LOAN);
+    }
+
+    function test_claim_failWithPDPayment() external {
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), coverPortion + managementPortion - 1);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        vm.expectRevert("PM:C:PAY_ADMIN_FAILED");
+        poolManager.claim(LOAN);
+    }
+
+    function test_claim_success() external {
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), coverPortion + managementPortion);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE),         0);
+        assertEq(asset.balanceOf(TREASURY),              0);
+        assertEq(asset.balanceOf(address(coverManager)), 0);
+
+        poolManager.claim(LOAN);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE),         6e18); // 60% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(TREASURY),              4e18); // 40% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(address(coverManager)), coverPortion);
+    }
 
 }
 

@@ -116,15 +116,19 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /**********************/
 
     function claim(address loan_) external {
-        require(IERC20Like(pool).totalSupply() != 0, "P:C:ZERO_SUPPLY");
+        address loanManager_ = loanManagers[loan_];
+        
+        require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
+        require(loanManager_ != address(0),          "PM:C:NO_LOAN_MANAGER");
 
-        ( uint256 coverPortion_, uint256 managementPortion_ ) = ILoanManagerLike(loanManagers[loan_]).claim(loan_);
+        ( uint256 coverPortion_, uint256 managementPortion_ ) = ILoanManagerLike(loanManager_).claim(loan_);
 
         address coverManager_ = poolCoverManager;
         address asset_        = asset;
         address globals_      = globals;
 
         // Send portion to cover.
+        require(coverManager_ != address(0),                                "PM:C:NO_COVER_MANAGER"); // TODO should we revert?
         require(ERC20Helper.transfer(asset_, coverManager_, coverPortion_), "PM:C:PAY_COVER_FAILED");
         IPoolCoverManagerLike(coverManager_).allocateLiquidity();
 
@@ -144,7 +148,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(isLoanManager[loanManager_],         "PM:F:INVALID_LOAN_MANAGER");
 
         // TODO: Add check for loanManagers[loan_] == 0 + refinancing function.
-        loanManagers[loan_] = loanManager_; 
+        loanManagers[loan_] = loanManager_;
 
         // TODO: This contract needs infinite allowance of asset from pool.
         require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");
