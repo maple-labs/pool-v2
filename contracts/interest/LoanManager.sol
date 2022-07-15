@@ -13,6 +13,7 @@ import {
     IPoolManagerLike
 } from "../interfaces/Interfaces.sol";
 
+// TODO: Move out of interest folder
 contract LoanManager {
 
     uint256 constant PRECISION  = 1e30;
@@ -132,6 +133,7 @@ contract LoanManager {
         accountedInterest = netInterestPaid > accountedInterest ? 0 : accountedInterest - netInterestPaid;
     }
 
+    // TODO should this return the loanId?
     function fund(address loanAddress_) external {
         require(msg.sender == poolManager, "IM:F:NOT_ADMIN");
 

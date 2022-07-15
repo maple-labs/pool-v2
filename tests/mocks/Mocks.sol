@@ -73,14 +73,14 @@ contract MockGlobals {
     function setManagementFeeSplit(address pool_, uint256 split_) external {
         managementFeeSplit[pool_] = split_;
     }
-    
+
     function setOwnedPool(address owner_, address pool_) external {
         ownedPool[owner_] = pool_;
     }
 
     function setTreasury(address treasury_) external {
         mapleTreasury = treasury_;
-    } 
+    }
 
     function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
         isPoolDelegate[poolDelegate_] = isValid_;
@@ -117,18 +117,22 @@ contract MockLiquidationStrategy {
 
 contract MockLoan {
 
-    address public fundsAsset;
     address public collateralAsset;
+    address public fundsAsset;
 
     uint256 public collateral;
-    uint256 public principal;
+    uint256 public collateralRequired;
     uint256 public claimableFunds;
+    uint256 public nextPaymentInterest;
+    uint256 public nextPaymentDueDate;
+    uint256 public nextPaymentPrincipal;
+    uint256 public paymentInterval;
+    uint256 public principal;
+    uint256 public principalRequested;
 
-    constructor(address fundsAsset_, address collateralAsset_, uint256 principalRequested_, uint256 collateralRequired_) {
-        fundsAsset      = fundsAsset_;
+    constructor(address collateralAsset_, address fundsAsset_) {
         collateralAsset = collateralAsset_;
-        principal       = principalRequested_;
-        collateral      = collateralRequired_;
+        fundsAsset      = fundsAsset_;
     }
 
     function claimFunds(uint256 amount_, address destination_) external {
@@ -144,14 +148,9 @@ contract MockLoan {
         // Do nothing
     }
 
-    function getNextPaymentBreakdown() external returns (uint256 principal_, uint256 interest_) { }
-
-    function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_) {
-        return block.timestamp + 30 days;
-    }
-
-    function paymentInterval() external view returns (uint256 paymentInterval_) {
-        return 30 days;
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
+        principal_ = nextPaymentPrincipal;
+        interest_  = nextPaymentInterest;
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -159,8 +158,36 @@ contract MockLoan {
         MockERC20(collateralAsset).transfer(destination_, collateral);
     }
 
+    function __setCollateral(uint256 collateral_) external {
+        collateral = collateral_;
+    }
+
+    function __setCollateralRequired(uint256 collateralRequired_) external {
+        collateralRequired = collateralRequired_;
+    }
+
+    function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
+        nextPaymentDueDate = nextPaymentDueDate_;
+    }
+
+    function __setNextPaymentInterest(uint256 nextPaymentInterest_) external {
+        nextPaymentInterest = nextPaymentInterest_;
+    }
+
+    function __setNextPaymentPrincipal(uint256 nextPaymentPrincipal_) external {
+        nextPaymentPrincipal = nextPaymentPrincipal_;
+    }
+
+    function __setPaymentInterval(uint256 paymentInterval_) external {
+        paymentInterval = paymentInterval_;
+    }
+
     function __setPrincipal(uint256 principal_) external {
         principal = principal_;
+    }
+
+    function __setPrincipalRequested(uint256 principalRequested_) external {
+        principalRequested = principalRequested_;
     }
 
     function __setClaimableFunds(uint256 claimable_) external {
@@ -171,7 +198,11 @@ contract MockLoan {
 
 contract MockPool {
 
-    function asset() external view returns (address asset_) { }
+    address public asset;
+
+    function setAsset(address asset_) external {
+        asset = asset_;
+    }
 
 }
 
@@ -180,6 +211,26 @@ contract MockPoolCoverManager {
     function allocateLiquidity() external { }
 
     function triggerCoverLiquidation(uint256 remainingLosses_) external { }
+
+}
+
+contract MockPoolManager {
+
+    uint256 public coverFee;
+    uint256 public managermentFee;
+
+    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_) {
+        coverFee_      = coverFee;
+        managementFee_ = managermentFee;
+    }
+
+    function setCoverFee(uint256 coverFee_) external {
+        coverFee = coverFee_;
+    }
+
+    function setManagementFee(uint256 managementFee_) external {
+        managermentFee = managementFee_;
+    }
 
 }
 
