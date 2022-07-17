@@ -13,6 +13,7 @@ import {
     MockGlobals,
     MockLoan,
     MockLoanManager,
+    MockPool,
     MockPoolCoverManager
 } from "./mocks/Mocks.sol";
 
@@ -469,12 +470,20 @@ contract FundTests is PoolManagerBase {
 
 contract RedeemTests is PoolManagerBase {
 
+    address WITHDRAWAL_MANAGER = address(new Address());
+
     function test_redeem_notWithdrawalManager() external {
-        // TODO
+        vm.expectRevert("PM:R:NOT_WM");
+        poolManager.redeem(0, address(0), address(0));
     }
 
     function test_redeem_success() external {
-        // TODO
+        vm.prank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+
+        vm.etch(poolManager.pool(), address(new MockPool()).code);
+        vm.prank(WITHDRAWAL_MANAGER);
+        poolManager.redeem(0, address(0), address(0));
     }
 
 }

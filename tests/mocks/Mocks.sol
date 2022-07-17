@@ -228,6 +228,8 @@ contract MockPool {
         asset = asset_;
     }
 
+    function redeem(uint256, address, address) external pure returns (uint256) { }
+
 }
 
 contract MockPoolCoverManager {
