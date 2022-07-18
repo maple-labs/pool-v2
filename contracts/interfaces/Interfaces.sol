@@ -31,6 +31,8 @@ interface IGlobalsLike {
 
     function ownedPool(address poolDelegate_) external view returns (address pool_);
 
+    function protocolPaused() external view returns (bool protocolPaused_);
+
 }
 
 interface ILoanManagerLike {

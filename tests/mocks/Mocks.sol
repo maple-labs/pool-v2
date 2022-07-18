@@ -58,6 +58,8 @@ contract MockGlobals {
     address public governor;
     address public mapleTreasury;
 
+    bool public protocolPaused;
+
     mapping (address => uint256) public managementFeeSplit;
 
     mapping(address => address) public ownedPool;
@@ -78,6 +80,10 @@ contract MockGlobals {
 
     function setOwnedPool(address owner_, address pool_) external {
         ownedPool[owner_] = pool_;
+    }
+
+    function setProtocolPause(bool paused_) external {
+        protocolPaused = paused_;
     }
 
     function setTreasury(address treasury_) external {

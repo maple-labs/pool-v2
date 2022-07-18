@@ -883,4 +883,33 @@ contract CanCallTests is PoolManagerBase {
         assertEq(errorMessage_, "");
     }
 
+    function test_canCall_protocolPaused() external {
+        address caller     = address(new Address());
+        bytes32 functionId = bytes32("Fake Function");
+
+        bytes memory data = new bytes(0);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+
+        // Call can be performed
+        assertTrue(canCall_);
+
+        // Set protocol paused
+        globals.setProtocolPause(true);
+
+        // Call cannot be performed
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PROTOCOL_PAUSED");
+
+        // Set protocol paused to false
+        globals.setProtocolPause(false);
+
+        // Call can be performed again
+        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+        
+        assertTrue(canCall_);
+    }
+
 }

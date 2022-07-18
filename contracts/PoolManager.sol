@@ -117,7 +117,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function claim(address loan_) external {
         address loanManager_ = loanManagers[loan_];
-        
+
         require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
         require(loanManager_ != address(0),          "PM:C:NO_LOAN_MANAGER");
 
@@ -201,6 +201,8 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
         bool willRevert_;
+
+        if (IGlobalsLike(globals).protocolPaused()) return (false, "PROTOCOL_PAUSED");
 
         if (functionId_ == "P:deposit") {
             ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));
