@@ -161,12 +161,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Liquidation Functions ***/
     /*****************************/
 
-    // TODO: Investigate all return variables that are currently being used.
-    function decreaseUnrealizedLosses(uint256 decrement_) external override returns (uint256 remainingUnrealizedLosses_) {
-        // TODO: ACL
-
-        unrealizedLosses            -= decrement_;
-        remainingUnrealizedLosses_   = unrealizedLosses;
+    // TODO: ACL
+    function decreaseUnrealizedLosses(uint256 decrement_) external override {
+        unrealizedLosses -= decrement_;
     }
 
     // TODO: ACL here and IM
@@ -174,15 +171,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
-    function finishCollateralLiquidation(address loan_) external override returns (uint256 remainingLosses_) {
-        uint256 decreasedUnrealizedLosses;
-        ( decreasedUnrealizedLosses, remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
+    function finishCollateralLiquidation(address loan_) external override {
+        ( uint256 decreasedUnrealizedLosses, uint256 remainingLosses ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
         unrealizedLosses -= decreasedUnrealizedLosses;
 
         // TODO: Dust threshold?
-        if (remainingLosses_ > 0) {
-            IPoolCoverManagerLike(poolCoverManager).triggerCoverLiquidation(remainingLosses_);
+        if (remainingLosses > 0) {
+            IPoolCoverManagerLike(poolCoverManager).triggerCoverLiquidation(remainingLosses);
         }
     }
 

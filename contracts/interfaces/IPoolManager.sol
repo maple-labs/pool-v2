@@ -51,9 +51,9 @@ interface IPoolManager {
     /*** Liquidation Functions ***/
     /*****************************/
 
-    function decreaseUnrealizedLosses(uint256 decrement_) external returns (uint256 remainingUnrealizedLosses_);
+    function decreaseUnrealizedLosses(uint256 decrement_) external;
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_);
+    function finishCollateralLiquidation(address loan_) external;
 
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external;
 
