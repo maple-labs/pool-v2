@@ -70,7 +70,7 @@ contract LoanManager {
     function claim(address loanAddress_) external returns (uint256 coverPortion_, uint256 managementPortion_) {
         // Update initial accounting
         // TODO: Think we need to update issuanceRate here
-        accountedInterest = _getAccruedInterest();
+        accountedInterest = getAccruedInterest();
         lastUpdated       = block.timestamp;
 
         uint256 principalPaid   = 0;
@@ -115,11 +115,6 @@ contract LoanManager {
             newRate = (incomingNetInterest * PRECISION) / (nextPaymentDueDate - nextStartDate);
         }
 
-        // If there even is a new rate, and the next payment should have already been accruing, then accrue it.
-        if (newRate != 0 && block.timestamp > previousPaymentDueDate) {
-            accountedInterest += (block.timestamp - previousPaymentDueDate) * newRate / PRECISION;
-        }
-
         // The new vesting period finish is the maximum of the current earliest, if it does not exist set to current timestamp to end vesting.
         // TODO: Should we make this paymentDueDate + gracePeriod?
         vestingPeriodFinish = _maximumOf(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
@@ -131,6 +126,11 @@ contract LoanManager {
         // If the amount of interest claimed is greater than the amount accounted for, set to zero.
         // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
         accountedInterest = netInterestPaid > accountedInterest ? 0 : accountedInterest - netInterestPaid;
+
+        // If there even is a new rate, and the next payment should have already been accruing, then accrue it.
+        if (newRate != 0 && block.timestamp > previousPaymentDueDate) {
+            accountedInterest += (block.timestamp - previousPaymentDueDate) * newRate / PRECISION;
+        }
     }
 
     // TODO should this return the loanId?
@@ -159,7 +159,7 @@ contract LoanManager {
         uint256 issuanceRateIncrease = (nextInterest * PRECISION) / (nextPaymentDueDate - block.timestamp);
 
         principalOut        += principal;
-        accountedInterest    = _getAccruedInterest();
+        accountedInterest    = getAccruedInterest();
         issuanceRate        += issuanceRateIncrease;
         vestingPeriodFinish  = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
         lastUpdated          = block.timestamp;
@@ -248,9 +248,9 @@ contract LoanManager {
     }
 
     function _claimLoan(address loan_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 coverPortion_, uint256 managementPortion_) {
-        ILoanLike loan           = ILoanLike(loan_);
-        principalPortion_        = principalOf[loan_] - loan.principal();
-        interestPortion_         = loan.claimableFunds() - principalPortion_;
+        ILoanLike loan     = ILoanLike(loan_);
+        principalPortion_  = principalOf[loan_] - loan.principal();
+        interestPortion_   = loan.claimableFunds() - principalPortion_;
         principalOf[loan_] = loan.principal();
 
         uint256 id_ = loanIdOf[loan_];
@@ -308,21 +308,6 @@ contract LoanManager {
         return _minimumOf(a_, b_);
     }
 
-    function _getAccruedInterest() internal view returns (uint256 accruedInterest_) {
-        uint256 issuanceRate_ = issuanceRate;
-
-        if (issuanceRate_ == 0) return accountedInterest;
-
-        uint256 vestingPeriodFinish_ = vestingPeriodFinish;
-        uint256 lastUpdated_         = lastUpdated;
-
-        uint256 vestingTimePassed = block.timestamp > vestingPeriodFinish_
-            ? vestingPeriodFinish_ - lastUpdated_
-            : block.timestamp - lastUpdated_;
-
-        accruedInterest_ = issuanceRate_ * vestingTimePassed / PRECISION;
-    }
-
     function _getNextPaymentOf(address loan_) internal view returns (uint256 nextPrincipal_, uint256 nextInterest_, uint256 nextPaymentDueDate_) {
         nextPaymentDueDate_ = ILoanLike(loan_).nextPaymentDueDate();
         ( nextPrincipal_, nextInterest_ ) = nextPaymentDueDate_ == 0
@@ -349,9 +334,24 @@ contract LoanManager {
     // TODO: Add bool flag for optionally including unrecognized losses.
     function assetsUnderManagement() public view virtual returns (uint256 assetsUnderManagement_) {
         // TODO: Figure out better approach for this
-        uint256 accruedInterest = lastUpdated == block.timestamp ? 0 : _getAccruedInterest();
+        uint256 accruedInterest = lastUpdated == block.timestamp ? 0 : getAccruedInterest();
 
         return principalOut + accountedInterest + accruedInterest;
+    }
+
+    function getAccruedInterest() public view returns (uint256 accruedInterest_) {
+        uint256 issuanceRate_ = issuanceRate;
+
+        if (issuanceRate_ == 0) return accountedInterest;
+
+        uint256 vestingPeriodFinish_ = vestingPeriodFinish;
+        uint256 lastUpdated_         = lastUpdated;
+
+        uint256 vestingTimePassed = block.timestamp > vestingPeriodFinish_
+            ? vestingPeriodFinish_ - lastUpdated_
+            : block.timestamp - lastUpdated_;
+
+        accruedInterest_ = issuanceRate_ * vestingTimePassed / PRECISION;
     }
 
     function isLiquidationActive(address loan_) public view returns (bool isActive_) {
