@@ -11,29 +11,10 @@ import { IERC20, IPool }    from "./interfaces/IPool.sol";
 
 contract Pool is IPool, ERC20 {
 
-    address public override asset;    // Underlying ERC-20 asset used by ERC-4626 functionality.
-    address public override manager;  // Address that manages administrative/conditional functionality.
+    address public override asset;    // Underlying ERC-20 asset handled by the ERC-4626 contract.
+    address public override manager;  // Address of the contract that manages administrative functionality.
 
-    uint256 private locked = 1;  // Used in reentrancy check.
-
-    /*****************/
-    /*** Modifiers ***/
-    /*****************/
-
-    modifier checkCall(bytes32 functionId_) {
-        bytes memory params = msg.data[4:];
-        ( bool success_, string memory errorMessage_ ) = IPoolManagerLike(manager).canCall(functionId_, msg.sender, params);
-        require(success_, errorMessage_);
-        _;
-    }
-
-    modifier nonReentrant() {
-        require(locked == 1, "P:LOCKED");
-
-        locked = 2;
-        _;
-        locked = 1;
-    }
+    uint256 private locked = 1;  // Used when checking for reentrancy.
 
     constructor(address manager_, address asset_, string memory name_, string memory symbol_) ERC20(name_, symbol_, ERC20(asset_).decimals()) {
         require((manager = manager_) != address(0), "P:C:ZERO_ADDRESS");
@@ -42,9 +23,31 @@ contract Pool is IPool, ERC20 {
         ERC20(asset_).approve(manager_, type(uint256).max);
     }
 
-    /************************/
-    /*** Lender Functions ***/
-    /************************/
+    /*****************/
+    /*** Modifiers ***/
+    /*****************/
+
+    modifier checkCall(bytes32 functionId_) {
+        ( bool success_, string memory errorMessage_ ) = IPoolManagerLike(manager).canCall(functionId_, msg.sender, msg.data[4:]);
+
+        require(success_, errorMessage_);
+
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(locked == 1, "P:LOCKED");
+
+        locked = 2;
+
+        _;
+
+        locked = 1;
+    }
+
+    /********************/
+    /*** LP Functions ***/
+    /********************/
 
     function deposit(uint256 assets_, address receiver_) external virtual override nonReentrant checkCall("P:deposit") returns (uint256 shares_) {
         _mint(shares_ = previewDeposit(assets_), assets_, receiver_, msg.sender);
@@ -90,6 +93,12 @@ contract Pool is IPool, ERC20 {
         _burn(shares_, assets_ = previewRedeem(shares_), receiver_, owner_, msg.sender);
     }
 
+    function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 shares_) {
+        require(msg.sender == manager, "P:W:NOT_MANAGER");
+
+        _burn(shares_ = previewWithdraw(assets_), assets_, receiver_, owner_, msg.sender);
+    }
+
     function transfer(
         address recipient_,
         uint256 amount_
@@ -109,30 +118,45 @@ contract Pool is IPool, ERC20 {
         return super.transferFrom(owner_, recipient_, amount_);
     }
 
-    function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 shares_) {
-        require(msg.sender == manager, "P:W:NOT_MANAGER");
-        _burn(shares_ = previewWithdraw(assets_), assets_, receiver_, owner_, msg.sender);
+    /**************************/
+    /*** Internal Functions ***/
+    /**************************/
+
+    function _burn(uint256 shares_, uint256 assets_, address receiver_, address owner_, address caller_) internal {
+        require(receiver_ != address(0), "P:B:ZERO_RECEIVER");
+        require(shares_   != uint256(0), "P:B:ZERO_SHARES");
+        require(assets_   != uint256(0), "P:B:ZERO_ASSETS");
+
+        if (caller_ != owner_) {
+            _decreaseAllowance(owner_, caller_, shares_);
+        }
+
+        _burn(owner_, shares_);
+
+        emit Withdraw(caller_, receiver_, owner_, assets_, shares_);
+
+        require(ERC20Helper.transfer(asset, receiver_, assets_), "P:B:TRANSFER");
     }
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    function _mint(uint256 shares_, uint256 assets_, address receiver_, address caller_) internal {
+        require(receiver_ != address(0), "P:M:ZERO_RECEIVER");
+        require(shares_   != uint256(0), "P:M:ZERO_SHARES");
+        require(assets_   != uint256(0), "P:M:ZERO_ASSETS");
 
-    function balanceOfAssets(address account_) public view virtual override returns (uint256 balanceOfAssets_) {
-        return convertToAssets(balanceOf[account_]);
+        _mint(receiver_, shares_);
+
+        emit Deposit(caller_, receiver_, assets_, shares_);
+
+        require(ERC20Helper.transferFrom(asset, caller_, address(this), assets_), "P:M:TRANSFER_FROM");
     }
 
-    function convertToAssets(uint256 shares_) public view virtual override returns (uint256 assets_) {
-        uint256 supply = totalSupply;  // Cache to stack.
-
-        assets_ = supply == 0 ? shares_ : (shares_ * totalAssets()) / supply;
+    function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
+       return (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
     }
 
-    function convertToShares(uint256 assets_) public view virtual override returns (uint256 shares_) {
-        uint256 supply = totalSupply;  // Cache to stack.
-
-        shares_ = supply == 0 ? assets_ : (assets_ * supply) / totalAssets();
-    }
+    /*******************************/
+    /*** External View Functions ***/
+    /*******************************/
 
     function maxDeposit(address receiver_) external pure virtual override returns (uint256 maxAssets_) {
         receiver_;  // Silence warning
@@ -150,6 +174,26 @@ contract Pool is IPool, ERC20 {
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
         maxAssets_ = balanceOfAssets(owner_);
+    }
+
+    /*****************************/
+    /*** Public View Functions ***/
+    /*****************************/
+
+    function balanceOfAssets(address account_) public view virtual override returns (uint256 balanceOfAssets_) {
+        return convertToAssets(balanceOf[account_]);
+    }
+
+    function convertToAssets(uint256 shares_) public view virtual override returns (uint256 assets_) {
+        uint256 supply = totalSupply;  // Cache to stack.
+
+        assets_ = supply == 0 ? shares_ : (shares_ * totalAssets()) / supply;
+    }
+
+    function convertToShares(uint256 assets_) public view virtual override returns (uint256 shares_) {
+        uint256 supply = totalSupply;  // Cache to stack.
+
+        shares_ = supply == 0 ? assets_ : (assets_ * supply) / totalAssets();
     }
 
     // TODO consider unrealized losses
@@ -189,42 +233,6 @@ contract Pool is IPool, ERC20 {
 
     function totalAssetsWithUnrealizedLosses() public view virtual /*override*/ returns (uint256 totalManagedAssets_) {
         return IPoolManagerLike(manager).totalAssets() - IPoolManagerLike(manager).unrealizedLosses();
-    }
-
-    /**************************/
-    /*** Internal Functions ***/
-    /**************************/
-
-    function _mint(uint256 shares_, uint256 assets_, address receiver_, address caller_) internal {
-        require(receiver_ != address(0), "P:M:ZERO_RECEIVER");
-        require(shares_   != uint256(0), "P:M:ZERO_SHARES");
-        require(assets_   != uint256(0), "P:M:ZERO_ASSETS");
-
-        _mint(receiver_, shares_);
-
-        emit Deposit(caller_, receiver_, assets_, shares_);
-
-        require(ERC20Helper.transferFrom(asset, caller_, address(this), assets_), "P:M:TRANSFER_FROM");
-    }
-
-    function _burn(uint256 shares_, uint256 assets_, address receiver_, address owner_, address caller_) internal {
-        require(receiver_ != address(0), "P:B:ZERO_RECEIVER");
-        require(shares_   != uint256(0), "P:B:ZERO_SHARES");
-        require(assets_   != uint256(0), "P:B:ZERO_ASSETS");
-
-        if (caller_ != owner_) {
-            _decreaseAllowance(owner_, caller_, shares_);
-        }
-
-        _burn(owner_, shares_);
-
-        emit Withdraw(caller_, receiver_, owner_, assets_, shares_);
-
-        require(ERC20Helper.transfer(asset, receiver_, assets_), "P:B:TRANSFER");
-    }
-
-    function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
-       return (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
     }
 
 }
