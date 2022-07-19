@@ -14,10 +14,11 @@ import {
     IPoolLike
 } from "./interfaces/Interfaces.sol";
 
+import { IPoolManager } from "./interfaces/IPoolManager.sol";
+
 import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
-// TODO: Inherit interface
-contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
+contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
 
     uint256 constant HUNDRED_PERCENT = 1e18;
 
@@ -27,7 +28,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
 
     // TODO: Add functions for upgrading: `setImplementation` and `upgrade`
 
-    function migrate(address migrator_, bytes calldata arguments_) external {
+    function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
     }
@@ -36,14 +37,14 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** Ownership Transfer Functions ***/
     /************************************/
 
-    function acceptPendingAdmin() external {
+    function acceptPendingAdmin() external override {
         require(msg.sender == pendingAdmin, "PM:APA:NOT_PENDING_ADMIN");
 
         admin        = pendingAdmin;
         pendingAdmin = address(0);
     }
 
-    function setPendingAdmin(address pendingAdmin_) external {
+    function setPendingAdmin(address pendingAdmin_) external override {
         require(msg.sender == admin, "PM:SPA:NOT_ADMIN");
 
         pendingAdmin = pendingAdmin_;
@@ -53,26 +54,26 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** Administrative Functions ***/
     /********************************/
 
-    function setActive(bool active_) external {
+    function setActive(bool active_) external override {
         require(msg.sender == globals, "PM:SA:NOT_GLOBALS");
 
         active = active_;
     }
 
-    function setAllowedLender(address lender_, bool isValid_) external {
+    function setAllowedLender(address lender_, bool isValid_) external override {
         require(msg.sender == admin, "PM:SAL:NOT_ADMIN");
 
         isValidLender[lender_] = isValid_;
     }
 
-    function setCoverFee(uint256 fee_) external {
+    function setCoverFee(uint256 fee_) external override {
         require(msg.sender == admin, "PM:SCF:NOT_ADMIN");
 
         // TODO check globals for boundaries
         coverFee = fee_;
     }
 
-    function setLoanManager(address loanManager_, bool isValid_) external {
+    function setLoanManager(address loanManager_, bool isValid_) external override {
         require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
 
         isLoanManager[loanManager_] = isValid_;
@@ -80,32 +81,32 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         loanManagerList.push(loanManager_);  // TODO: Add removal functionality
     }
 
-    function setLiquidityCap(uint256 liquidityCap_) external {
+    function setLiquidityCap(uint256 liquidityCap_) external override {
         require(msg.sender == admin, "PM:SLC:NOT_ADMIN");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
     }
 
-    function setManagementFee(uint256 fee_) external {
+    function setManagementFee(uint256 fee_) external override {
         require(msg.sender == admin, "PM:SMF:NOT_ADMIN");
 
         // TODO check globals for boundaries
         managementFee = fee_;
     }
 
-    function setOpenToPublic() external {
+    function setOpenToPublic() external override {
         require(msg.sender == admin, "PM:SOTP:NOT_ADMIN");
 
         openToPublic = true;
     }
 
-    function setPoolCoverManager(address poolCoverManager_) external {
+    function setPoolCoverManager(address poolCoverManager_) external override {
         require(msg.sender == admin, "PM:SPCM:NOT_ADMIN");
 
         poolCoverManager = poolCoverManager_;
     }
 
-    function setWithdrawalManager(address withdrawalManager_) external {
+    function setWithdrawalManager(address withdrawalManager_) external override {
         require(msg.sender == admin, "PM:SWM:NOT_ADMIN");
 
         withdrawalManager = withdrawalManager_;
@@ -115,7 +116,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** Loan Functions ***/
     /**********************/
 
-    function claim(address loan_) external {
+    function claim(address loan_) external override {
         address loanManager_ = loanManagers[loan_];
 
         require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
@@ -142,7 +143,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         require(ERC20Helper.transfer(asset_, admin, managementPortion_ - mapleShare_), "PM:C:PAY_ADMIN_FAILED");
     }
 
-    function fund(uint256 principal_, address loan_, address loanManager_) external {
+    function fund(uint256 principal_, address loan_, address loanManager_) external override {
         require(msg.sender == admin,                 "PM:F:NOT_ADMIN");
         require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
         require(isLoanManager[loanManager_],         "PM:F:INVALID_LOAN_MANAGER");
@@ -161,7 +162,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*****************************/
 
     // TODO: Investigate all return variables that are currently being used.
-    function decreaseUnrealizedLosses(uint256 decrement_) external returns (uint256 remainingUnrealizedLosses_) {
+    function decreaseUnrealizedLosses(uint256 decrement_) external override returns (uint256 remainingUnrealizedLosses_) {
         // TODO: ACL
 
         unrealizedLosses            -= decrement_;
@@ -169,11 +170,11 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     }
 
     // TODO: ACL here and IM
-    function triggerCollateralLiquidation(address loan_, address auctioneer_) external {
+    function triggerCollateralLiquidation(address loan_, address auctioneer_) external override {
         unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_) {
+    function finishCollateralLiquidation(address loan_) external override returns (uint256 remainingLosses_) {
         uint256 decreasedUnrealizedLosses;
         ( decreasedUnrealizedLosses, remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
@@ -189,7 +190,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** Exit Functions ***/
     /**********************/
 
-    function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_) {
+    function redeem(uint256 shares_, address receiver_, address owner_) external override returns (uint256 assets_) {
         require(msg.sender == withdrawalManager, "PM:R:NOT_WM");
 
         return IPoolLike(pool).redeem(shares_, receiver_, owner_);
@@ -199,7 +200,7 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
     /*** View Functions ***/
     /**********************/
 
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view override returns (bool canCall_, string memory errorMessage_) {
         bool willRevert_;
 
         if (IGlobalsLike(globals).protocolPaused()) return (false, "PROTOCOL_PAUSED");
@@ -237,20 +238,20 @@ contract PoolManager is MapleProxiedInternals, PoolManagerStorage {
         canCall_ = !willRevert_;  // TODO: Don't love this, but returning `willRevert` seems counterintuitive here
     }
 
-    function factory() external view returns (address factory_) {
+    function factory() external view override returns (address factory_) {
         return _factory();
     }
 
-    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_) {
+    function getFees() external view override returns (uint256 coverFee_, uint256 managementFee_) {
         coverFee_      = coverFee;
         managementFee_ = managementFee;
     }
 
-    function implementation() external view returns (address implementation_) {
+    function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
 
-    function totalAssets() public view returns (uint256 totalAssets_) {
+    function totalAssets() public view override returns (uint256 totalAssets_) {
         totalAssets_ = IERC20Like(asset).balanceOf(pool);
 
         uint256 length = loanManagerList.length;
