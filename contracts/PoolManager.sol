@@ -151,7 +151,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         // TODO: Add check for loanManagers[loan_] == 0 + refinancing function.
         loanManagers[loan_] = loanManager_;
 
-        // TODO: This contract needs infinite allowance of asset from pool.
         require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");
 
         ILoanManagerLike(loanManager_).fund(loan_);
