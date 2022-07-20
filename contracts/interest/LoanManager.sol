@@ -133,7 +133,6 @@ contract LoanManager {
         }
     }
 
-    // TODO should this return the loanId?
     function fund(address loanAddress_) external {
         require(msg.sender == poolManager, "IM:F:NOT_ADMIN");
 
