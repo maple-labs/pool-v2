@@ -253,7 +253,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         uint256 length = loanManagerList.length;
 
         for (uint256 i = 0; i < length;) {
-            // TODO: How to check if unrecognized losses should be included?
             totalAssets_ += ILoanManagerLike(loanManagerList[i]).assetsUnderManagement();
             unchecked { i++; }
         }
