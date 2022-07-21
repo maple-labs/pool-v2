@@ -986,8 +986,8 @@ contract CanCallTests is PoolManagerBase {
 
         // Call can be performed again
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
-
         assertTrue(canCall_);
+        assertEq(errorMessage_, "");
     }
 
 }

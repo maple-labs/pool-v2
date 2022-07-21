@@ -31,6 +31,8 @@ contract PoolBase is TestUtils {
     address implementation;
     address initializer;
 
+    address user = address(new Address());
+
     function setUp() public virtual {
         globals = new MockGlobals(address(this));
         factory = new PoolManagerFactory(address(globals));
@@ -55,6 +57,8 @@ contract PoolBase is TestUtils {
 
         address mockPoolManager = address(new MockPoolManager());
         vm.etch(poolManager, mockPoolManager.code);
+
+        MockPoolManager(poolManager).__setCanCall(true, "");
     }
 
     // Returns an ERC-2612 `permit` digest for the `owner` to sign
@@ -144,6 +148,20 @@ contract DepositTests is PoolBase {
 
     uint256 DEPOSIT_AMOUNT = 1e18;
 
+    function test_deposit_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        uint256 depositAmount_ = 1_000e6;
+
+        address asset_ = IPool(pool).asset();
+        MockERC20(asset_).mint(user, depositAmount_);
+
+        vm.startPrank(user);
+        MockERC20(asset_).approve(address(pool), depositAmount_);
+        vm.expectRevert("TEST_MESSAGE");
+        IPool(pool).deposit(depositAmount_, user);
+    }
+
     function test_deposit_zeroReceiver() public {
         asset.mint(address(this),    DEPOSIT_AMOUNT);
         asset.approve(address(pool), DEPOSIT_AMOUNT);
@@ -214,6 +232,20 @@ contract DepositWithPermitTests is PoolBase {
         NOT_STAKER = vm.addr(NOT_STAKER_SK);
 
         vm.prank(POOL_DELEGATE);
+    }
+
+    function test_depositWithPermit_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+
+        address asset_ = IPool(pool).asset();
+        MockERC20(asset_).mint(STAKER, DEPOSIT_AMOUNT);
+
+        vm.startPrank(STAKER);
+        MockERC20(asset_).approve(address(pool), DEPOSIT_AMOUNT);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.depositWithPermit(DEPOSIT_AMOUNT, STAKER, DEADLINE, 17, r, s);
     }
 
     function test_depositWithPermit_zeroAddress() public {
@@ -327,6 +359,18 @@ contract MintTests is PoolBase {
 
     uint256 MINT_AMOUNT = 1e18;
 
+    function test_mint_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        address asset_ = IPool(pool).asset();
+        MockERC20(asset_).mint(user, MINT_AMOUNT);
+
+        vm.startPrank(user);
+        MockERC20(asset_).approve(address(pool), MINT_AMOUNT);
+        vm.expectRevert("TEST_MESSAGE");
+        IPool(pool).mint(MINT_AMOUNT, user);
+    }
+
     function test_mint_zeroReceiver() public {
         asset.mint(address(this),    MINT_AMOUNT);
         asset.approve(address(pool), MINT_AMOUNT);
@@ -396,6 +440,20 @@ contract MintWithPermitTests is PoolBase {
 
         STAKER     = vm.addr(STAKER_SK);
         NOT_STAKER = vm.addr(NOT_STAKER_SK);
+    }
+
+    function test_mintWithPermit_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MINT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+
+        address asset_ = IPool(pool).asset();
+        MockERC20(asset_).mint(STAKER, MINT_AMOUNT);
+
+        vm.startPrank(STAKER);
+        MockERC20(asset_).approve(address(pool), MINT_AMOUNT);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.mintWithPermit(MINT_AMOUNT, STAKER, 0, DEADLINE, 17, r, s);
     }
 
     function test_mintWithPermit_insufficientPermit() public {
@@ -517,7 +575,164 @@ contract MintWithPermitTests is PoolBase {
 
 contract RedeemTests is PoolBase {
 
-    // TODO: Should be tested in similar manner to mint.
+    uint256 depositAmount = 1_000e6;
+
+    function test_redeem_reentrancy() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+        asset.setReentrancy(address(pool));
+
+        vm.startPrank(address(poolManager));
+        vm.expectRevert("P:B:TRANSFER");
+        pool.redeem(depositAmount, user, user);
+
+        asset.setReentrancy(address(0));
+        pool.redeem(depositAmount, user, user);
+    }
+
+    function test_redeem_notManager() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        vm.expectRevert("P:R:NOT_MANAGER");
+        pool.redeem(depositAmount, user, user);
+    }
+
+    function test_redeem_zeroShares() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        vm.prank(address(poolManager));
+        vm.expectRevert("P:B:ZERO_SHARES");
+        pool.redeem(0, user, user);
+    }
+
+    function test_redeem_insufficientApprove() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount - 1);
+
+        vm.prank(address(poolManager));
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.redeem(depositAmount, user, user);
+    }
+
+    function test_redeem_insufficientAmount() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        vm.prank(address(poolManager));
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.redeem(depositAmount + 1, user, user);
+    }
+
+    function test_redeem_insufficientAmount_unrealizedLosses() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        MockPoolManager(address(poolManager)).__setUnrealizedLosses(200e6);
+
+        uint256 redeemAmount_ = pool.previewWithdraw(800e6);
+
+        assertEq(redeemAmount_, depositAmount);  // User must burn 100% of shares to get access to 800e6 tokens.
+
+        vm.prank(address(poolManager));
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.redeem(redeemAmount_ + 1, user, user);
+    }
+
+    function test_redeem_success_unrealizedLosses() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        // Add extra assets to the pool.
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        asset.mint(address(pool), 1000e6);
+
+        MockPoolManager(address(poolManager)).__setUnrealizedLosses(200e6);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        assertEq(pool.totalSupply(),                         1_000e6);
+        assertEq(pool.totalAssets(),                         2_000e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     1_800e6);
+        assertEq(pool.balanceOf(user),                       1_000e6);
+        assertEq(pool.allowance(user, address(poolManager)), 1_000e6);
+        assertEq(asset.balanceOf(user),                      0);
+
+        // First withdrawal - Effective exchange rate is 1.8 ((2000 - 200) / 1000)
+        vm.prank(address(poolManager));
+        uint256 withdrawAmount = pool.redeem(500e6, user, user);
+
+        assertEq(withdrawAmount, 900e6);  // 500 * ((2000 - 200) / 1000) = 500 * 1.8 = 900
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(1_100e6);  // 2000 - 900
+
+        assertEq(pool.totalSupply(),                         500e6);
+        assertEq(pool.totalAssets(),                         1_100e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     900e6);
+        assertEq(pool.balanceOf(user),                       500e6);
+        assertEq(pool.allowance(user, address(poolManager)), 500e6);
+        assertEq(asset.balanceOf(user),                      900e6);
+
+        // Second withdrawal - Effective exchange rate is still 1.8 ((1100 - 200) / 500)
+        vm.prank(address(poolManager));
+        withdrawAmount = pool.redeem(500e6, user, user);
+
+        assertEq(withdrawAmount, 900e6);  // 500 * ((1100 - 200) / 500) = 500 * 1.8 = 900
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(200e6);  // 1100 - 900
+
+        assertEq(pool.totalSupply(),                         0);
+        assertEq(pool.totalAssets(),                         200e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     0);
+        assertEq(pool.balanceOf(user),                       0);
+        assertEq(pool.allowance(user, address(poolManager)), 0);
+        assertEq(asset.balanceOf(user),                      1800e6);
+    }
+
+    function test_redeem_success() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        // Add extra assets to the pool.
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        asset.mint(address(pool), 1000e6);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        assertEq(pool.totalSupply(),                         1_000e6);
+        assertEq(pool.totalAssets(),                         2_000e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     2_000e6);
+        assertEq(pool.balanceOf(user),                       1_000e6);
+        assertEq(pool.allowance(user, address(poolManager)), 1_000e6);
+        assertEq(asset.balanceOf(user),                      0);
+
+        vm.prank(address(poolManager));
+        uint256 withdrawAmount = pool.redeem(500e6, user, user);  // Redeem half of tokens at 2:1
+
+        assertEq(withdrawAmount, 1000e6);
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(1_000e6);
+
+        assertEq(pool.totalSupply(),                         500e6);
+        assertEq(pool.totalAssets(),                         1_000e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     1_000e6);
+        assertEq(pool.balanceOf(user),                       500e6);
+        assertEq(pool.allowance(user, address(poolManager)), 500e6);
+        assertEq(asset.balanceOf(user),                      1_000e6);
+    }
 
 }
 
@@ -571,97 +786,75 @@ contract TransferFromTests is PoolBase {
 
 contract WithdrawTests is PoolBase {
 
-    address user;
+    uint256 depositAmount = 1_000e6;
 
-    function setUp() public override {
-        super.setUp();
-
-        user = address(new Address());
-    }
-
-    // TODO: Update reentrancy tests, these are the wrong failure messages.
     function test_withdraw_reentrancy() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
         asset.setReentrancy(address(pool));
 
         vm.startPrank(address(poolManager));
         vm.expectRevert("P:B:TRANSFER");
-        pool.withdraw(depositAmount_, user, user);
+        pool.withdraw(depositAmount, user, user);
         vm.stopPrank();
 
         asset.setReentrancy(address(0));
         vm.prank(address(poolManager));
-        pool.withdraw(depositAmount_, user, user);
+        pool.withdraw(depositAmount, user, user);
     }
 
     function test_withdraw_notManager() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
 
         vm.expectRevert("P:W:NOT_MANAGER");
-        pool.withdraw(depositAmount_, user, user);
+        pool.withdraw(depositAmount, user, user);
     }
 
     function test_withdraw_zeroShares() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
 
         vm.prank(address(poolManager));
         vm.expectRevert("P:B:ZERO_SHARES");
         pool.withdraw(0, user, user);
     }
 
-    function test_withdraw_badApprove() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
-
-        vm.prank(address(poolManager));
-        vm.expectRevert(ARITHMETIC_ERROR);
-        pool.withdraw(depositAmount_, user, user);
-    }
-
     function test_withdraw_insufficientApprove() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_ - 1);
+        pool.approve(address(poolManager), depositAmount - 1);
 
         vm.prank(address(poolManager));
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.withdraw(depositAmount_, user, user);
+        pool.withdraw(depositAmount, user, user);
     }
 
     function test_withdraw_insufficientAmount() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
 
         vm.prank(address(poolManager));
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.withdraw(depositAmount_ + 1, user, user);
+        pool.withdraw(depositAmount + 1, user, user);
     }
 
     function test_withdraw_insufficientAmount_unrealizedLosses() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
 
-        uint256 unrealizedLosses_ = depositAmount_ / 2;
+        uint256 unrealizedLosses_ = depositAmount / 2;
         MockPoolManager(address(poolManager)).__setUnrealizedLosses(unrealizedLosses_);
 
         uint256 withdrawAmount_ = unrealizedLosses_;
@@ -671,16 +864,65 @@ contract WithdrawTests is PoolBase {
         pool.withdraw(withdrawAmount_ + 1, user, user);
     }
 
+    function test_withdraw_success_unrealizedLosses() external {
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        // Add extra assets to the pool.
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        asset.mint(address(pool), 1000e6);
+
+        MockPoolManager(address(poolManager)).__setUnrealizedLosses(200e6);
+
+        vm.prank(user);
+        pool.approve(address(poolManager), depositAmount);
+
+        assertEq(pool.totalSupply(),                         1_000e6);
+        assertEq(pool.totalAssets(),                         2_000e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     1_800e6);
+        assertEq(pool.balanceOf(user),                       1_000e6);
+        assertEq(pool.allowance(user, address(poolManager)), 1_000e6);
+        assertEq(asset.balanceOf(user),                      0);
+
+        // First withdrawal - Effective exchange rate is 0.555 (1000 / (2000 - 200))
+        vm.prank(address(poolManager));
+        uint256 redeemAmount = pool.withdraw(900e6, user, user);
+
+        assertEq(redeemAmount, 500e6);
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(1_100e6);
+
+        assertEq(pool.totalSupply(),                         500e6);
+        assertEq(pool.totalAssets(),                         1_100e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     900e6);
+        assertEq(pool.balanceOf(user),                       500e6);
+        assertEq(pool.allowance(user, address(poolManager)), 500e6);
+        assertEq(asset.balanceOf(user),                      900e6);
+
+        // Second withdrawal - Effective exchange rate is 0.555 (500 / (1100 - 200))
+        vm.prank(address(poolManager));
+        redeemAmount = pool.withdraw(900e6, user, user);
+
+        assertEq(redeemAmount, 500e6);
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(200e6);
+
+        assertEq(pool.totalSupply(),                         0);
+        assertEq(pool.totalAssets(),                         200e6);
+        assertEq(pool.totalAssetsWithUnrealizedLosses(),     0);
+        assertEq(pool.balanceOf(user),                       0);
+        assertEq(pool.allowance(user, address(poolManager)), 0);
+        assertEq(asset.balanceOf(user),                      1800e6);
+    }
+
     function test_withdraw_success() external {
-        uint256 depositAmount_ = 1_000e6;
-        _deposit(address(pool), address(poolManager), user, depositAmount_);
+        _deposit(address(pool), address(poolManager), user, depositAmount);
 
         // Add extra assets to the pool.
         MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
         asset.mint(address(pool), 1000e6);
 
         vm.prank(user);
-        pool.approve(address(poolManager), depositAmount_);
+        pool.approve(address(poolManager), depositAmount);
 
         assertEq(pool.totalSupply(),                         1_000e6);
         assertEq(pool.totalAssets(),                         2_000e6);
@@ -691,6 +933,7 @@ contract WithdrawTests is PoolBase {
 
         vm.prank(address(poolManager));
         pool.withdraw(1_000e6, user, user);
+
         MockPoolManager(address(poolManager)).__setTotalAssets(1_000e6);
 
         assertEq(pool.totalSupply(),                         500e6);

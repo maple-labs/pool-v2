@@ -185,15 +185,15 @@ contract Pool is IPool, ERC20 {
     }
 
     function convertToAssets(uint256 shares_) public view virtual override returns (uint256 assets_) {
-        uint256 supply = totalSupply;  // Cache to stack.
+        uint256 supply_ = totalSupply;  // Cache to stack.
 
-        assets_ = supply == 0 ? shares_ : (shares_ * totalAssets()) / supply;
+        assets_ = supply_ == 0 ? shares_ : (shares_ * totalAssets()) / supply_;
     }
 
     function convertToShares(uint256 assets_) public view virtual override returns (uint256 shares_) {
-        uint256 supply = totalSupply;  // Cache to stack.
+        uint256 supply_ = totalSupply;  // Cache to stack.
 
-        shares_ = supply == 0 ? assets_ : (assets_ * supply) / totalAssets();
+        shares_ = supply_ == 0 ? assets_ : (assets_ * supply_) / totalAssets();
     }
 
     // TODO consider unrealized losses
@@ -205,28 +205,28 @@ contract Pool is IPool, ERC20 {
     }
 
     function previewMint(uint256 shares_) public view virtual override returns (uint256 assets_) {
-        uint256 supply = totalSupply;  // Cache to stack.
+        uint256 supply_ = totalSupply;  // Cache to stack.
 
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round UP if it’s calculating the amount of assets a user must provide, to be issued a given amount of shares.
-        assets_ = supply == 0 ? shares_ : _divRoundUp(shares_ * totalAssets(), supply);
+        assets_ = supply_ == 0 ? shares_ : _divRoundUp(shares_ * totalAssets(), supply_);
     }
 
     function previewRedeem(uint256 shares_) public view virtual override returns (uint256 assets_) {
-        uint256 supply = totalSupply;  // Cache to stack.
-
+        uint256 supply_ = totalSupply;  // Cache to stack.
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round DOWN if it’s calculating the amount of assets to send to a user, given amount of shares returned.
-        assets_ = supply == 0 ? shares_ : (shares_ * totalAssetsWithUnrealizedLosses()) / supply;
+
+        assets_ = supply_ == 0 ? shares_ : (shares_ * totalAssetsWithUnrealizedLosses()) / supply_;
     }
 
     // TODO: Add back unrealized losses
     function previewWithdraw(uint256 assets_) public view virtual override returns (uint256 shares_) {
-        uint256 supply = totalSupply;  // Cache to stack.
+        uint256 supply_ = totalSupply;  // Cache to stack.
 
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round UP if it’s calculating the amount of shares a user must return, to be sent a given amount of assets.
-        shares_ = supply == 0 ? assets_ : _divRoundUp(assets_ * supply, totalAssetsWithUnrealizedLosses());
+        shares_ = supply_ == 0 ? assets_ : _divRoundUp(assets_ * supply_, totalAssetsWithUnrealizedLosses());
     }
 
     function totalAssets() public view virtual override returns (uint256 totalManagedAssets_) {

@@ -254,10 +254,15 @@ contract MockPoolCoverManager {
  */
 contract MockPoolManager is PoolManagerStorage {
 
+    bool internal _canCall;
+
     uint256 public totalAssets;
 
+    string public errorMessage;
+
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
-        canCall_ = true;
+        canCall_      = _canCall;
+        errorMessage_ = errorMessage;
     }
 
     function getFees() external view returns (uint256 coverFee_, uint256 managementFee_) {
@@ -271,6 +276,11 @@ contract MockPoolManager is PoolManagerStorage {
 
     function setManagementFee(uint256 managementFee_) external {
         managementFee = managementFee_;
+    }
+
+    function __setCanCall(bool canCall_, string memory errorMessage_) external {
+        _canCall     = canCall_;
+        errorMessage = errorMessage_;
     }
 
     function __setTotalAssets(uint256 totalAssets_) external {
