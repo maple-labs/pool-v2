@@ -345,3 +345,13 @@ contract MockRevertingERC20 {
     }
 
 }
+
+contract MockMigrator {
+
+    address admin;
+
+    fallback() external {
+        admin = abi.decode(msg.data, (address));
+    }
+
+}

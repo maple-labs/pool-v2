@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import {
@@ -26,11 +27,21 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Migration Functions ***/
     /***************************/
 
-    // TODO: Add functions for upgrading: `setImplementation` and `upgrade`
-
     function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
+    }
+
+    function setImplementation(address implementation_) external override {
+        require(msg.sender == _factory(), "PM:SI:NOT_FACTORY");
+
+        _setImplementation(implementation_);
+    }
+
+    function upgrade(uint256 version_, bytes calldata arguments_) external override {
+        require(msg.sender == admin, "PM:U:NOT_ADMIN");
+
+        IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
     /************************************/
@@ -275,3 +286,5 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
 }
+
+// TODO: Add emission of events.

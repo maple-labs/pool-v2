@@ -9,6 +9,10 @@ interface IPoolManager {
 
     function migrate(address migrator_, bytes calldata arguments_) external;
 
+    function setImplementation(address implementation_) external;
+
+    function upgrade(uint256 version_, bytes calldata arguments_) external;
+
     /************************************/
     /*** Ownership Transfer Functions ***/
     /************************************/

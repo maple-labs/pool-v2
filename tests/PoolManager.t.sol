@@ -13,6 +13,7 @@ import {
     MockGlobals,
     MockLoan,
     MockLoanManager,
+    MockMigrator,
     MockPool,
     MockPoolCoverManager
 } from "./mocks/Mocks.sol";
@@ -53,6 +54,83 @@ contract PoolManagerBase is TestUtils {
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
         poolManager = PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
+    }
+
+}
+
+contract MigrateTests is PoolManagerBase {
+
+    address migrator = address(new MockMigrator());
+
+    function test_migrate_notFactory() external {
+        vm.expectRevert("PM:M:NOT_FACTORY");
+        poolManager.migrate(migrator, "");
+    }
+
+    function test_migrate_internalFailure() external {
+        vm.prank(poolManager.factory());
+        vm.expectRevert("PM:M:FAILED");
+        poolManager.migrate(migrator, "");
+    }
+
+    function test_migrate_success() external {
+        assertEq(poolManager.admin(), POOL_DELEGATE);
+
+        vm.prank(poolManager.factory());
+        poolManager.migrate(migrator, abi.encode(address(0)));
+
+        assertEq(poolManager.admin(), address(0));
+    }
+
+}
+
+contract SetImplementationTests is PoolManagerBase {
+
+    address newImplementation = address(new PoolManager());
+
+    function test_setImplementation_notFactory() external {
+        vm.expectRevert("PM:SI:NOT_FACTORY");
+        poolManager.setImplementation(newImplementation);
+    }
+
+    function test_setImplementation_success() external {
+        assertEq(poolManager.implementation(), implementation);
+
+        vm.prank(poolManager.factory());
+        poolManager.setImplementation(newImplementation);
+
+        assertEq(poolManager.implementation(), newImplementation);
+    }
+
+}
+
+contract UpgradeTests is PoolManagerBase {
+
+    address newImplementation = address(new PoolManager());
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.startPrank(GOVERNOR);
+        factory.registerImplementation(2, newImplementation, address(0));
+        factory.enableUpgradePath(1, 2, address(0));
+        vm.stopPrank();
+    }
+
+    function test_upgrade_notAdmin() external {
+        vm.expectRevert("PM:U:NOT_ADMIN");
+        poolManager.upgrade(2, "");
+    }
+
+    function test_upgrade_upgradeFailed() external {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("MPF:UI:FAILED");
+        poolManager.upgrade(2, "1");
+    }
+
+    function test_upgrade_success() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.upgrade(2, "");
     }
 
 }
@@ -908,7 +986,7 @@ contract CanCallTests is PoolManagerBase {
 
         // Call can be performed again
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
-        
+
         assertTrue(canCall_);
     }
 
