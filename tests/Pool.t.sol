@@ -85,6 +85,18 @@ contract PoolBase is TestUtils {
         MockPoolManager(poolManager_).__setTotalAssets(assetAmount_);
     }
 
+    function _setupPool(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_) internal {
+        // Mint the total amount of shares at a one to one exchange ratio.
+        if (totalSupply_ > 0) {
+            asset.mint(address(this), totalSupply_);
+            asset.approve(address(pool), totalSupply_);
+            pool.deposit(totalSupply_, address(this));
+        }
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(totalAssets_);
+        MockPoolManager(address(poolManager)).__setUnrealizedLosses(unrealizedLosses_);
+    }
+
 }
 
 contract ConstructorTests is PoolBase {
@@ -693,32 +705,462 @@ contract WithdrawTests is PoolBase {
 
 contract PreviewDepositTests is PoolBase {
 
-    function testFuzz_previewDeposit_success() public {
-        // TODO: Check conversion and rounding works correctly.
+    function test_previewDeposit_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewDeposit(0), 0);
+        assertEq(pool.previewDeposit(1), 1);
+        assertEq(pool.previewDeposit(2), 2);
+    }
+
+    function test_previewDeposit_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewDeposit(0);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewDeposit(1);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewDeposit(2);
+    }
+
+    function test_previewDeposit_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewDeposit(0), 0);
+        assertEq(pool.previewDeposit(1), 1);
+        assertEq(pool.previewDeposit(2), 2);
+    }
+
+    function test_previewDeposit_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewDeposit(0), 0);
+        assertEq(pool.previewDeposit(1), 1);
+        assertEq(pool.previewDeposit(2), 2);
+    }
+
+    function test_previewDeposit_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewDeposit(0), 0);
+        assertEq(pool.previewDeposit(1), 0);
+        assertEq(pool.previewDeposit(2), 1);
+    }
+
+    function test_previewDeposit_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewDeposit(0), 0);
+        assertEq(pool.previewDeposit(1), 2);
+        assertEq(pool.previewDeposit(2), 4);
+    }
+
+    function testFuzz_previewDeposit(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToDeposit_) public {
+        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
+        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
+        assetsToDeposit_ = constrictToRange(assetsToDeposit_, 0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+
+        if (totalSupply_ != 0 && totalAssets_ == 0) {
+            vm.expectRevert(ZERO_DIVISION);
+        }
+
+        uint256 sharesToMint_ = pool.previewDeposit(assetsToDeposit_);
+
+        if (totalSupply_ == 0) {
+            assertEq(sharesToMint_, assetsToDeposit_);
+        } else if (totalAssets_ != 0) {
+            assertEq(sharesToMint_, assetsToDeposit_ * pool.totalSupply() / pool.totalAssets());
+        }
     }
 
 }
 
 contract PreviewMintTests is PoolBase {
 
-    function testFuzz_previewMint_success() public {
-        // TODO: Check conversion and rounding works correctly.
+    function test_previewMint_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 1);
+        assertEq(pool.previewMint(2), 2);
+    }
+
+    function test_previewMint_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 0);
+        assertEq(pool.previewMint(2), 0);
+    }
+
+    function test_previewMint_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 1);
+        assertEq(pool.previewMint(2), 2);
+    }
+
+    function test_previewMint_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 1);
+        assertEq(pool.previewMint(2), 2);
+    }
+
+    function test_previewMint_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 2);
+        assertEq(pool.previewMint(2), 4);
+    }
+
+    function test_previewMint_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewMint(0), 0);
+        assertEq(pool.previewMint(1), 1);
+        assertEq(pool.previewMint(2), 1);
+    }
+
+    function testFuzz_previewMint(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToMint_) public {
+        totalSupply_  = constrictToRange(totalSupply_,  0, 1e30);
+        totalAssets_  = constrictToRange(totalAssets_,  0, 1e30);
+        sharesToMint_ = constrictToRange(sharesToMint_, 0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+
+        uint256 assetsToDeposit_ = pool.previewMint(sharesToMint_);
+
+        if (totalSupply_ == 0) {
+            assertEq(assetsToDeposit_, sharesToMint_);
+        } else {
+            assertEq(
+                assetsToDeposit_,
+                (sharesToMint_ * pool.totalAssets() / pool.totalSupply()) +
+                (sharesToMint_ * pool.totalAssets() % pool.totalSupply() == 0 ? 0 : 1)
+            );
+        }
     }
 
 }
 
 contract PreviewRedeemTests is PoolBase {
 
-    function testFuzz_previewRedeem_success() public {
-        // TODO: Check conversion and rounding works correctly.
+    function test_previewRedeem_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 1);
+        assertEq(pool.previewRedeem(2), 2);
+    }
+
+    function test_previewRedeem_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 0);
+        assertEq(pool.previewRedeem(2), 0);
+    }
+
+    function test_previewRedeem_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 1);
+        assertEq(pool.previewRedeem(2), 2);
+    }
+
+    function test_previewRedeem_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 1);
+        assertEq(pool.previewRedeem(2), 2);
+    }
+
+    function test_previewRedeem_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 2);
+        assertEq(pool.previewRedeem(2), 4);
+    }
+
+    function test_previewRedeem_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 0);
+        assertEq(pool.previewRedeem(2), 1);
+    }
+
+    function test_previewRedeem_unrealizedLosses() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 2, unrealizedLosses_: 1 });
+
+        assertEq(pool.previewRedeem(0), 0);
+        assertEq(pool.previewRedeem(1), 0);
+        assertEq(pool.previewRedeem(2), 1);
+    }
+
+    function testFuzz_previewRedeem(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 sharesToRedeem_) public {
+        totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
+        totalAssets_      = constrictToRange(totalAssets_,      0, 1e30);
+        unrealizedLosses_ = constrictToRange(unrealizedLosses_, 0, totalAssets_);
+        sharesToRedeem_   = constrictToRange(sharesToRedeem_,   0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: unrealizedLosses_ });
+
+        uint256 assetsToWithdraw_ = pool.previewRedeem(sharesToRedeem_);
+
+        if (totalSupply_ == 0) {
+            assertEq(assetsToWithdraw_, sharesToRedeem_);
+        } else {
+            assertEq(assetsToWithdraw_, sharesToRedeem_ * pool.totalAssetsWithUnrealizedLosses() / pool.totalSupply());
+        }
     }
 
 }
 
 contract PreviewWithdrawTests is PoolBase {
 
-    function testFuzz_previewWithdraw_success() public {
-        // TODO: Check conversion and rounding works correctly.
+    function test_previewWithdraw_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 1);
+        assertEq(pool.previewWithdraw(2), 2);
+    }
+
+    function test_previewWithdraw_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewWithdraw(0);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewWithdraw(1);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.previewWithdraw(2);
+    }
+
+    function test_previewWithdraw_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 1);
+        assertEq(pool.previewWithdraw(2), 2);
+    }
+
+    function test_previewWithdraw_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 1);
+        assertEq(pool.previewWithdraw(2), 2);
+    }
+
+    function test_previewWithdraw_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 1);
+        assertEq(pool.previewWithdraw(2), 1);
+    }
+
+    function test_previewWithdraw_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 2);
+        assertEq(pool.previewWithdraw(2), 4);
+    }
+
+    function test_previewWithdraw_unrealizedLosses() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 2, unrealizedLosses_: 1 });
+
+        assertEq(pool.previewWithdraw(0), 0);
+        assertEq(pool.previewWithdraw(1), 2);
+        assertEq(pool.previewWithdraw(2), 4);
+    }
+
+    function testFuzz_previewWithdraw(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 assetsToWithdraw_) public {
+        totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
+        totalAssets_      = constrictToRange(totalAssets_,      0, 1e30);
+        unrealizedLosses_ = constrictToRange(unrealizedLosses_, 0, totalAssets_);
+        assetsToWithdraw_ = constrictToRange(assetsToWithdraw_, 0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: unrealizedLosses_ });
+
+        if (totalSupply_ != 0 && totalAssets_ - unrealizedLosses_ == 0) {
+            vm.expectRevert(ZERO_DIVISION);
+        }
+
+        uint256 sharesToRedeem_ = pool.previewWithdraw(assetsToWithdraw_);
+
+        if (totalSupply_ == 0) {
+            assertEq(sharesToRedeem_, assetsToWithdraw_);
+        } else if (totalAssets_ - unrealizedLosses_ != 0) {
+            assertEq(
+                sharesToRedeem_,
+                (assetsToWithdraw_ * pool.totalSupply() / pool.totalAssetsWithUnrealizedLosses()) +
+                (assetsToWithdraw_ * pool.totalSupply() % pool.totalAssetsWithUnrealizedLosses() == 0 ? 0 : 1)
+            );
+        }
     }
 
 }
+
+contract ConvertToAssetsTests is PoolBase {
+
+    function test_convertToAssets_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 1);
+        assertEq(pool.convertToAssets(2), 2);
+    }
+
+    function test_convertToAssets_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 0);
+        assertEq(pool.convertToAssets(2), 0);
+    }
+
+    function test_convertToAssets_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 1);
+        assertEq(pool.convertToAssets(2), 2);
+    }
+
+    function test_convertToAssets_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 1);
+        assertEq(pool.convertToAssets(2), 2);
+    }
+
+    function test_convertToAssets_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 2);
+        assertEq(pool.convertToAssets(2), 4);
+    }
+
+    function test_convertToAssets_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToAssets(0), 0);
+        assertEq(pool.convertToAssets(1), 0);
+        assertEq(pool.convertToAssets(2), 1);
+    }
+
+    function testFuzz_convertToAssets(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToConvert_) public {
+        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
+        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
+        sharesToConvert_ = constrictToRange(sharesToConvert_, 0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+
+        uint256 assets_ = pool.convertToAssets(sharesToConvert_);
+
+        if (totalSupply_ == 0) {
+            assertEq(assets_, sharesToConvert_);
+        } else {
+            assertEq(assets_, sharesToConvert_ * pool.totalAssets() / pool.totalSupply());
+        }
+    }
+}
+
+contract ConvertToSharesTests is PoolBase {
+
+    function test_convertToShares_initialState() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToShares(0), 0);
+        assertEq(pool.convertToShares(1), 1);
+        assertEq(pool.convertToShares(2), 2);
+    }
+
+    function test_convertToShares_worthlessShares() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.convertToShares(0);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.convertToShares(1);
+
+        vm.expectRevert(ZERO_DIVISION);
+        pool.convertToShares(2);
+    }
+
+    function test_convertToShares_prematureYield() public {
+        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToShares(0), 0);
+        assertEq(pool.convertToShares(1), 1);
+        assertEq(pool.convertToShares(2), 2);
+    }
+
+    function test_convertToShares_initialExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToShares(0), 0);
+        assertEq(pool.convertToShares(1), 1);
+        assertEq(pool.convertToShares(2), 2);
+    }
+
+    function test_convertToShares_increasedExchangeRate() public {
+        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToShares(0), 0);
+        assertEq(pool.convertToShares(1), 0);
+        assertEq(pool.convertToShares(2), 1);
+    }
+
+    function test_convertToShares_decreasedExchangeRate() public {
+        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+
+        assertEq(pool.convertToShares(0), 0);
+        assertEq(pool.convertToShares(1), 2);
+        assertEq(pool.convertToShares(2), 4);
+    }
+
+    function testFuzz_convertToShares(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToConvert_) public {
+        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
+        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
+        assetsToConvert_ = constrictToRange(assetsToConvert_, 0, 1e30);
+
+        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+
+        if (totalSupply_ != 0 && totalAssets_ == 0) {
+            vm.expectRevert(ZERO_DIVISION);
+        }
+
+        uint256 shares_ = pool.convertToShares(assetsToConvert_);
+
+        if (totalSupply_ == 0) {
+            assertEq(shares_, assetsToConvert_);
+        } else if (totalAssets_ != 0) {
+            assertEq(shares_, assetsToConvert_ * pool.totalSupply() / pool.totalAssets());
+        }
+    }
+
+}
+
+// TODO: Add tests comparing results of preview functions with results of the actual operation.

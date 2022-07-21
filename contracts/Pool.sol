@@ -213,9 +213,11 @@ contract Pool is IPool, ERC20 {
     }
 
     function previewRedeem(uint256 shares_) public view virtual override returns (uint256 assets_) {
+        uint256 supply = totalSupply;  // Cache to stack.
+
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round DOWN if it’s calculating the amount of assets to send to a user, given amount of shares returned.
-        assets_ = convertToAssets(shares_);
+        assets_ = supply == 0 ? shares_ : (shares_ * totalAssetsWithUnrealizedLosses()) / supply;
     }
 
     // TODO: Add back unrealized losses
