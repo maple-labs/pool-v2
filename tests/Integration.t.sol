@@ -5,11 +5,10 @@ import { Address, TestUtils, console } from "../modules/contract-test-utils/cont
 
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { LoanManager } from "../contracts/interest/LoanManager.sol";
-
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
+import { LoanManager } from "../contracts/LoanManager.sol";
 import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 

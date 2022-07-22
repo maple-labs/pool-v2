@@ -15,7 +15,7 @@ import {
     MockPoolManager
 } from "./mocks/Mocks.sol";
 
-import { LoanManager } from "../contracts/interest/LoanManager.sol";
+import { LoanManager } from "../contracts/LoanManager.sol";
 import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 

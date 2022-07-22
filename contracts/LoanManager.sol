@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../../modules/contract-test-utils/contracts/log.sol";
-
-import { ERC20Helper } from "../../modules/erc20-helper/src/ERC20Helper.sol";
-import { Liquidator }  from "../../modules/liquidations/contracts/Liquidator.sol";
+import { ERC20Helper } from "./../modules/erc20-helper/src/ERC20Helper.sol";
+import { Liquidator }  from "./../modules/liquidations/contracts/Liquidator.sol";
 
 import {
     IERC20Like,
     ILoanLike,
     IPoolLike,
     IPoolManagerLike
-} from "../interfaces/Interfaces.sol";
+} from "./interfaces/Interfaces.sol";
 
 // TODO: Move out of interest folder
 contract LoanManager {

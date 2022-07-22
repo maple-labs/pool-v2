@@ -1,7 +1,7 @@
 // SDPX-License-Identifier: AGLP-3.0-only
 pragma solidity ^0.8.7;
 
-import { LoanManager } from "../../contracts/interest/LoanManager.sol";
+import { LoanManager } from "../../contracts/LoanManager.sol";
 
 contract LoanManagerHarness is LoanManager {
 
