@@ -5,6 +5,7 @@ import { IGlobalsLike }            from "../interfaces/Interfaces.sol";
 import { IPoolManagerInitializer } from "../interfaces/IPoolManagerInitializer.sol";
 
 import { Pool }               from "../Pool.sol";
+import { PoolDelegateCover }  from "../PoolDelegateCover.sol";
 import { PoolManagerStorage } from "./PoolManagerStorage.sol";
 
 contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
@@ -55,7 +56,8 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require(IGlobalsLike(globals_).isPoolDelegate(admin_),          "PMI:I:NOT_PD");
         require(IGlobalsLike(globals_).ownedPool(admin_) == address(0), "PMI:I:POOL_OWNER");
 
-        pool = address(new Pool(address(this), asset_, name_, symbol_));
+        pool              = address(new Pool(address(this), asset_, name_, symbol_));
+        poolDelegateCover = address(new PoolDelegateCover(address(this), asset));
 
         emit Initialized(globals_, admin_, asset_, address(pool));
     }

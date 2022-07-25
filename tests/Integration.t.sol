@@ -12,7 +12,27 @@ import { LoanManager } from "../contracts/LoanManager.sol";
 import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 
-import { MockAuctioneer, MockGlobals, MockLoan, MockLiquidationStrategy, MockPoolCoverManager } from "./mocks/Mocks.sol";
+import { MockAuctioneer, MockGlobals, MockLoan, MockLiquidationStrategy } from "./mocks/Mocks.sol";
+
+/* TODO: Need to update final accounting to reflect realized losses.
+    // 1m loan
+    // 100k collateral
+    // 200k cover
+    // TA:  1m
+    // TAL: 1m
+    // trigger: 1m unrealized loss
+    // TA:  1m
+    // TAL: 0
+    // finish step 1: 900k unrealized loss
+    // TA:  1m
+    // TAL: 100k (cash)
+    // finish step 2: 700k unrealized loss
+    // TA:  1m (outstanding principal)
+    // TAL: 300k (cash)
+    // finish step 3: Update final accounting
+    // TA:  300k
+    // TAL: 300k
+*/
 
 /// @dev Suite of tests that use PoolManagers, Pools, LoanManagers and Factories
 contract IntegrationTestBase is TestUtils {
@@ -29,7 +49,6 @@ contract IntegrationTestBase is TestUtils {
     MockERC20            fundsAsset;
     MockERC20            collateralAsset;
     MockGlobals          globals;
-    MockPoolCoverManager poolCover;
     Pool                 pool;
     PoolManager          poolManager;
     PoolManagerFactory   factory;
@@ -41,7 +60,6 @@ contract IntegrationTestBase is TestUtils {
         fundsAsset      = new MockERC20("Asset", "AT", 18);
         implementation  = address(new PoolManager());
         initializer     = address(new PoolManagerInitializer());
-        poolCover       = new MockPoolCoverManager();
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -54,7 +72,6 @@ contract IntegrationTestBase is TestUtils {
 
         vm.startPrank(PD);
         poolManager.setLoanManager(address(loanManager), true);
-        poolManager.setPoolCoverManager(address(poolCover));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setAllowedLender(LP, true);
         vm.stopPrank();
@@ -103,7 +120,6 @@ contract FeeDistributionTest is IntegrationTestBase {
     uint256 principalRequested = 1_000_000e18;
     uint256 managementFeeSplit = 0.30e18; // 30% to treasury
     uint256 managementFee      = 0.10e18;
-    uint256 coverFee           = 0.20e18;
 
     function setUp() public override {
         super.setUp();
@@ -111,7 +127,6 @@ contract FeeDistributionTest is IntegrationTestBase {
         globals.setManagementFeeSplit(address(pool), managementFeeSplit);
 
         vm.startPrank(PD);
-        poolManager.setCoverFee(coverFee);
         poolManager.setManagementFee(managementFee);
         vm.stopPrank();
     }
@@ -134,15 +149,13 @@ contract FeeDistributionTest is IntegrationTestBase {
         assertEq(fundsAsset.balanceOf(address(pool)),      0);
         assertEq(fundsAsset.balanceOf(address(TREASURY)),  0);
         assertEq(fundsAsset.balanceOf(address(PD)),        0);
-        assertEq(fundsAsset.balanceOf(address(poolCover)), 0);
 
         poolManager.claim(address(loan_));
 
         assertEq(fundsAsset.balanceOf(address(loan_)),     0);
-        assertEq(fundsAsset.balanceOf(address(pool)),      700e18); // 70% of the interest paid
+        assertEq(fundsAsset.balanceOf(address(pool)),      900e18); // 10% of the interest paid
         assertEq(fundsAsset.balanceOf(address(TREASURY)),  30e18);  // 30% of 100e18 (10% of interest paid)
         assertEq(fundsAsset.balanceOf(address(PD)),        70e18);  // 70% of 100e18 (10% of interest paid)
-        assertEq(fundsAsset.balanceOf(address(poolCover)), 200e18); // 20% of the interest paid
     }
 
 }
@@ -162,7 +175,6 @@ contract LoanManagerTest is TestUtils {
     MockERC20            fundsAsset;
     MockERC20            collateralAsset;
     MockGlobals          globals;
-    MockPoolCoverManager poolCoverManager;
     Pool                 pool;
     PoolManager          poolManager;
     PoolManagerFactory   poolManagerFactory;
@@ -198,12 +210,10 @@ contract LoanManagerTest is TestUtils {
         ));
 
         pool             = Pool(poolManager.pool());
-        poolCoverManager = new MockPoolCoverManager();
 
         loanManager = new LoanManager(address(pool), address(poolManager));
 
         poolManager.setLoanManager(address(loanManager), true);
-        poolManager.setPoolCoverManager(address(poolCoverManager));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setOpenToPublic();
     }

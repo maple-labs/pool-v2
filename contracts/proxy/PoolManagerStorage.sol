@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-abstract contract PoolManagerStorage {
+import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
+
+abstract contract PoolManagerStorage is IPoolManagerStorage {
 
     address public admin;
     address public pendingAdmin;
@@ -10,7 +12,7 @@ abstract contract PoolManagerStorage {
     address public globals;
     address public pool;
 
-    address public poolCoverManager;
+    address public poolDelegateCover;
     address public withdrawalManager;
 
     bool public active;
@@ -19,9 +21,7 @@ abstract contract PoolManagerStorage {
     // TODO: Should this be located somewhere else?
     uint256 public liquidityCap;
     uint256 public unrealizedLosses;
-
-    uint256 public coverFee;
-    uint256 public managementFee;
+    uint256 public override managementFee;
 
     mapping(address => address) public loanManagers;
 

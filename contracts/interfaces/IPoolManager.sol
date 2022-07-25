@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-interface IPoolManager {
+import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
+
+interface IPoolManager is IPoolManagerStorage {
 
     /***************************/
     /*** Migration Functions ***/
@@ -29,8 +31,6 @@ interface IPoolManager {
 
     function setAllowedLender(address lender_, bool isValid_) external;
 
-    function setCoverFee(uint256 fee_) external;
-
     function setLiquidityCap(uint256 liquidityCap_) external;
 
     function setLoanManager(address loanManager_, bool isValid_) external;
@@ -38,8 +38,6 @@ interface IPoolManager {
     function setManagementFee(uint256 fee_) external;
 
     function setOpenToPublic() external;
-
-    function setPoolCoverManager(address poolCoverManager_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 
@@ -67,6 +65,14 @@ interface IPoolManager {
 
     function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_);
 
+    /***********************/
+    /*** Cover Functions ***/
+    /***********************/
+
+    function depositCover(uint256 amount_) external;
+
+    function withdrawCover(uint256 amount_, address recipient_) external;
+
     /**********************/
     /*** View Functions ***/
     /**********************/
@@ -74,8 +80,6 @@ interface IPoolManager {
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
 
     function factory() external view returns (address factory_);
-
-    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_);
 
     function implementation() external view returns (address implementation_);
 

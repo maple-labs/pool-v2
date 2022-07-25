@@ -27,6 +27,11 @@ interface IGlobalsLike {
 
     function managementFeeSplit(address pool) external view returns (uint256 split_);
 
+    function maxCoverLiquidationPercent(address pool_) external view returns (uint256 maxCoverLiquidationPercent_);
+
+    // TODO: Update name to coverAmountRequired in separate PR
+    function minCoverAmount(address pool_) external view returns (uint256 minCoverAmount_);
+
     function mapleTreasury() external view returns (address mapleTreasury_);
 
     function ownedPool(address poolDelegate_) external view returns (address pool_);
@@ -37,13 +42,13 @@ interface IGlobalsLike {
 
 interface ILoanManagerLike {
 
-    function claim(address loan_) external returns (uint256 coverPortion_, uint256 managementPortion_);
+    function claim(address loan_) external returns (uint256 managementPortion_);
 
     function fund(address loan_) external;
 
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_);
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 decreasedUnrealizedLosses, uint256 remainingLosses);
+    function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_);
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
@@ -91,11 +96,9 @@ interface ILoanLike {
 
 }
 
-interface IPoolCoverManagerLike {
+interface IPoolDelegateCoverLike {
 
-    function allocateLiquidity() external;
-
-    function triggerCoverLiquidation(uint256 totalLiquidationAmount_) external returns (uint256[] memory liquidationAmounts_);
+    function moveFunds(uint256 amount_, address recipient_) external;
 
 }
 
@@ -121,15 +124,13 @@ interface IPoolManagerLike {
 
     function fund(uint256 princiaplAmount_, address loan_, address loanManager_) external;
 
-    function getFees() external view returns (uint256 coverFee_, uint256 managementFee_);
+    function managementFee() external view returns (uint256 managementFee_);
 
     function loanManager() external view returns (address loanManager_);
 
-    function poolCoverManager() external view returns (address poolCoverManager_);
+    function poolDelegateCover() external view returns (address poolDelegateCover_);
 
     function setLoanManager(address loanManager_, bool isValid_) external;
-
-    function setPoolCoverManager(address poolCoverManager_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 

@@ -4,6 +4,8 @@ pragma solidity 0.8.7;
 import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                   from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
+import { IPoolManager } from "../contracts/interfaces/IPoolManager.sol";
+
 import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
@@ -14,8 +16,7 @@ import {
     MockLoan,
     MockLoanManager,
     MockMigrator,
-    MockPool,
-    MockPoolCoverManager
+    MockPool
 } from "./mocks/Mocks.sol";
 
 import { PoolManagerHarness } from "./harnesses/PoolManagerHarness.sol";
@@ -27,7 +28,7 @@ contract PoolManagerBase is TestUtils {
 
     MockERC20          asset;
     MockGlobals        globals;
-    PoolManager        poolManager;
+    PoolManagerHarness poolManager;
     PoolManagerFactory factory;
 
     address implementation;
@@ -38,7 +39,7 @@ contract PoolManagerBase is TestUtils {
         factory = new PoolManagerFactory(address(globals));
         asset   = new MockERC20("Asset", "AT", 18);
 
-        implementation = address(new PoolManager());
+        implementation = address(new PoolManagerHarness());
         initializer    = address(new PoolManagerInitializer());
 
         globals.setValidPoolDelegate(POOL_DELEGATE, true);
@@ -53,7 +54,7 @@ contract PoolManagerBase is TestUtils {
 
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
-        poolManager = PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
+        poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
     }
 
 }
@@ -235,29 +236,6 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
     }
 }
 
-contract SetCoverFee_SetterTests is PoolManagerBase {
-
-    address NOT_POOL_DELEGATE = address(new Address());
-
-    uint256 newFee = uint256(0.1e18);
-
-    function test_setCoverFee_notAdmin() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SCF:NOT_ADMIN");
-        poolManager.setCoverFee(newFee);
-    }
-
-    function test_setCoverFee_success() external {
-        assertEq(poolManager.coverFee(), uint256(0));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setCoverFee(newFee);
-
-        assertEq(poolManager.coverFee(), newFee);
-    }
-
-}
-
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
@@ -329,16 +307,13 @@ contract ClaimTests is PoolManagerBase {
 
     MockERC20Pool        pool;
     MockLoanManager      loanManager;
-    MockPoolCoverManager coverManager;
 
-    uint256 coverPortion       = uint256(1e18);
     uint256 managementPortion  = uint256(10e18);
     uint256 managementFeeSplit = uint256(0.4e18);
 
     function setUp() public override {
         super.setUp();
 
-        coverManager = new MockPoolCoverManager();
         loanManager  = new MockLoanManager();
         pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
 
@@ -348,16 +323,11 @@ contract ClaimTests is PoolManagerBase {
 
         pool = MockERC20Pool(currentPool_);
 
-        // Set mock cover manager
-        vm.prank(POOL_DELEGATE);
-        poolManager.setPoolCoverManager(address(coverManager));
-
         // Configure globals
         globals.setManagementFeeSplit(address(pool), managementFeeSplit);
         globals.setTreasury(TREASURY);
 
         // Set fees on LoanManager
-        loanManager.__setCoverPortion(coverPortion);
         loanManager.__setManagementPortion(managementPortion);
 
         // Mint ERC20 to pool
@@ -389,32 +359,9 @@ contract ClaimTests is PoolManagerBase {
         poolManager.claim(newLoan);
     }
 
-    function test_claim_failWithZeroCoverManager() external {
-        // Mint a share in pool so totalSupply is not 0
-        pool.mint(address(new Address()), 1);
-
-        // Nullify existing manager
-        vm.prank(POOL_DELEGATE);
-        poolManager.setPoolCoverManager(address(0));
-
-        vm.expectRevert("PM:C:NO_COVER_MANAGER");
-        poolManager.claim(LOAN);
-    }
-
-    function test_claim_failWithFailedCoverPayment() external {
-        // Mint a share in pool so totalSupply is not 0
-        pool.mint(address(new Address()), 1);
-
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), coverPortion - 1);
-
-        vm.expectRevert("PM:C:PAY_COVER_FAILED");
-        poolManager.claim(LOAN);
-    }
-
     function test_claim_failWithTreasuryPayment() external {
         // Mint asset to the PoolManager
-        asset.mint(address(poolManager), coverPortion + (managementPortion * 4 / 10) - 1);  //  4/10 of managementPortion goes to treasury
+        asset.mint(address(poolManager), (managementPortion * 4 / 10) - 1);  //  4/10 of managementPortion goes to treasury
 
         // Mint a share in pool so totalSupply is not 0
         pool.mint(address(new Address()), 1);
@@ -425,7 +372,7 @@ contract ClaimTests is PoolManagerBase {
 
     function test_claim_failWithPDPayment() external {
         // Mint asset to the PoolManager
-        asset.mint(address(poolManager), coverPortion + managementPortion - 1);
+        asset.mint(address(poolManager), managementPortion - 1);
 
         // Mint a share in pool so totalSupply is not 0
         pool.mint(address(new Address()), 1);
@@ -434,22 +381,68 @@ contract ClaimTests is PoolManagerBase {
         poolManager.claim(LOAN);
     }
 
-    function test_claim_success() external {
+    function test_claim_success_insufficientCover() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+
         // Mint asset to the PoolManager
-        asset.mint(address(poolManager), coverPortion + managementPortion);
+        asset.mint(address(poolManager), managementPortion);
+
+        // Mint a share in pool so totalSupply is not 0, TODO: I think we can put this in setUp().
+        pool.mint(address(new Address()), 1);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE), 0);
+        assertEq(asset.balanceOf(TREASURY),      0);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        // Add 1 less than the required min cover to earn Pool Delegate fees.
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18 - 1);
+
+        poolManager.claim(LOAN);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE), 0);    // Insufficient cover, Pool Delegate forfeits their fees.
+        assertEq(asset.balanceOf(TREASURY),      4e18); // 100% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(address(pool)), 6e18); // Pool receives fees instead. Including this check in other claim_success tests to demonstrate that it should only change when there's insufficient cover.
+    }
+
+    function test_claim_success_sufficientCover() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), managementPortion);
 
         // Mint a share in pool so totalSupply is not 0
         pool.mint(address(new Address()), 1);
 
-        assertEq(asset.balanceOf(POOL_DELEGATE),         0);
-        assertEq(asset.balanceOf(TREASURY),              0);
-        assertEq(asset.balanceOf(address(coverManager)), 0);
+        assertEq(asset.balanceOf(POOL_DELEGATE), 0);
+        assertEq(asset.balanceOf(TREASURY),      0);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        // Add exact amount of cover required to earn Pool Delegate fees.
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         poolManager.claim(LOAN);
 
-        assertEq(asset.balanceOf(POOL_DELEGATE),         6e18); // 60% of 10e18 managementFeePortion
-        assertEq(asset.balanceOf(TREASURY),              4e18); // 40% of 10e18 managementFeePortion
-        assertEq(asset.balanceOf(address(coverManager)), coverPortion);
+        assertEq(asset.balanceOf(POOL_DELEGATE), 6e18); // 60% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(TREASURY),      4e18); // 40% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(address(pool)), 0);
+    }
+
+    function test_claim_success_noCoverRequired() external {
+        // Mint asset to the PoolManager
+        asset.mint(address(poolManager), managementPortion);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE), 0);
+        assertEq(asset.balanceOf(TREASURY),      0);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        poolManager.claim(LOAN);
+
+        assertEq(asset.balanceOf(POOL_DELEGATE), 6e18); // 60% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(TREASURY),      4e18); // 40% of 10e18 managementFeePortion
+        assertEq(asset.balanceOf(address(pool)), 0);
     }
 
 }
@@ -529,6 +522,47 @@ contract FundTests is PoolManagerBase {
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
+    function test_fund_insufficientCover() external {
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+
+        // Add 1 less than the required min cover to be able to fund new loans.
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18 - 1);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:F:INSUFFICIENT_COVER");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        asset.mint(poolManager.poolDelegateCover(), 1);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_fund_success_sufficientCover() external {
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), principalRequested);
+
+        // Mint a share in pool so totalSupply is not 0
+        pool.mint(address(new Address()), 1);
+
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        assertEq(poolManager.loanManagers(address(loan)), address(0));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
+
     function test_fund_success() external {
         // Mint ERC20 to pool
         asset.mint(address(poolManager.pool()), principalRequested);
@@ -542,6 +576,179 @@ contract FundTests is PoolManagerBase {
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
         assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
+
+}
+
+contract FinishCollateralLiquidation is PoolManagerBase {
+
+    address LOAN       = address(new Address());
+    address LP         = address(new Address());
+    address TREASURY   = address(new Address());
+    address AUCTIONEER = address(new Address());
+
+    address poolDelegateCover;
+
+    MockERC20Pool   pool;
+    MockLoanManager loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager  = new MockLoanManager();
+        pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+
+        // Replace the pool in the poolManager
+        address currentPool_ = poolManager.pool();
+        vm.etch(currentPool_, address(pool).code);
+
+        poolDelegateCover = poolManager.poolDelegateCover();
+
+        pool = MockERC20Pool(currentPool_);
+
+        // Configure globals
+        globals.setTreasury(TREASURY);
+
+        // Mint ERC20 to pool
+        asset.mint(address(poolManager.pool()), 1_000_000e18);
+
+        // Get past zero supply check
+        pool.mint(LP, 1);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setLoanManager(address(loanManager), true);
+        poolManager.fund(1_000_000e18, LOAN, address(loanManager));
+        vm.stopPrank();
+    }
+
+    function test_finishCollateralLiquidation_acl() external {
+        // TODO + all failure tests.
+    }
+
+    function test_finishCollateralLiquidation_success_noCover() external {
+        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+    }
+
+    function test_finishCollateralLiquidation_success_noRemainingLossAfterCollateralLiquidation() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(0);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+    }
+
+    function test_finishCollateralLiquidation_success_coverLeftOver() external {
+        globals.setMinCoverAmount(address(pool), 2_000e18);
+        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 2_000e18);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 3_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+    }
+
+    function test_finishCollateralLiquidation_success_noCoverLeftOver() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+    }
+
+    function test_finishCollateralLiquidation_success_fullCoverLiquidation_preexistingLoss() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        // There could be unrealizedLosses from a previous ongoing loan default.
+        poolManager.__setUnrealizedLosses(2_000e18);
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+        assertEq(poolManager.unrealizedLosses(),                2_000e18);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 5_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                2_000e18);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+    }
+
+    function test_finishCollateralLiquidation_success_exceedMaxCoverLiquidationPercentAmount() external {
+        globals.setMinCoverAmount(address(pool), 1_000e18);
+        globals.setMaxCoverLiquidationPercent(address(pool), 0.5e18);
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
+        poolManager.triggerCollateralLiquidation(LOAN, AUCTIONEER);
+
+        assertEq(poolManager.unrealizedLosses(), 3_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+
+        poolManager.finishCollateralLiquidation(LOAN);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 500e18);
     }
 
 }
@@ -986,8 +1193,130 @@ contract CanCallTests is PoolManagerBase {
 
         // Call can be performed again
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
+    }
+
+}
+
+contract DepositCoverTests is PoolManagerBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        asset.mint(POOL_DELEGATE, 1_000e18);
+    }
+
+    function test_depositCover_insufficientApproval() external {
+        vm.startPrank(POOL_DELEGATE);
+        asset.approve(address(poolManager), 1_000e18 - 1);
+
+        vm.expectRevert("PM:DC:TRANSFER_FAIL");
+        poolManager.depositCover(1_000e18);
+
+        asset.approve(address(poolManager), 1_000e18);
+        poolManager.depositCover(1_000e18);
+    }
+
+    function test_depositCover_success() external {
+        assertEq(asset.balanceOf(POOL_DELEGATE),                       1_000e18);
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()),     0);
+        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 0);
+
+        vm.startPrank(POOL_DELEGATE);
+
+        asset.approve(address(poolManager), 1_000e18);
+
+        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 1_000e18);
+
+        poolManager.depositCover(1_000e18);
+        assertEq(asset.balanceOf(POOL_DELEGATE),                       0);
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()),     1_000e18);
+        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 0);
+    }
+
+}
+
+contract WithdrawCoverTests is PoolManagerBase {
+
+    address pool;
+
+    function setUp() public override {
+        super.setUp();
+
+        pool = poolManager.pool();
+    }
+
+    function test_withdrawCover_notPoolDelegate() external {
+        globals.setMinCoverAmount(pool, 1_000e18);
+
+        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+
+        vm.expectRevert("PM:WC:NOT_ADMIN");
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
+    }
+
+    function test_withdrawCover_tryWithdrawBelowRequired() external {
+        globals.setMinCoverAmount(pool, 1_000e18);
+
+        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:WC:BELOW_MIN");
+        poolManager.withdrawCover(1_000e18 + 1, POOL_DELEGATE);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
+    }
+
+    function test_withdrawCover_noRequirement() external {
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        // Withdraw all cover, for example in the scenario that a pool closes.
+        vm.prank(POOL_DELEGATE);
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
+    }
+
+    function test_withdrawCover_withdrawMoreThanBalance() external {
+        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:WC:BELOW_MIN");
+        poolManager.withdrawCover(1_000e18 + 1, POOL_DELEGATE);
+    }
+
+    function test_withdrawCover_success() external {
+        globals.setMinCoverAmount(pool, 1_000e18);
+
+        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 2_000e18);
+        assertEq(asset.balanceOf(POOL_DELEGATE),                   0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_000e18);
+        assertEq(asset.balanceOf(POOL_DELEGATE),                   1_000e18);
+    }
+
+    function test_withdrawCover_success_zeroRecipient() external {
+        globals.setMinCoverAmount(pool, 1_000e18);
+
+        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 2_000e18);
+        assertEq(asset.balanceOf(POOL_DELEGATE),                   0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.withdrawCover(1_000e18, address(0));
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_000e18);
+        assertEq(asset.balanceOf(POOL_DELEGATE),                   1_000e18);
     }
 
 }

@@ -11,7 +11,6 @@ import {
     MockLiquidationStrategy,
     MockLoan,
     MockPool,
-    MockPoolCoverManager,
     MockPoolManager
 } from "./mocks/Mocks.sol";
 
@@ -27,8 +26,7 @@ contract LoanManagerBaseTest is TestUtils {
 
     uint256 constant START = 5_000_000;
 
-    uint256 coverFee      = 0.1e18;
-    uint256 managementFee = 0.2e18;
+    uint256 managementFee = 0.3e18;
 
     LoanManager     loanManager;
     MockERC20       asset;
@@ -54,8 +52,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     function setUp() public virtual override {
         super.setUp();
 
-        poolManager.setCoverFee(0.1e18);
-        poolManager.setManagementFee(0.2e18);
+        poolManager.setManagementFee(managementFee);
     }
 
     function _assertBalances(address loanAddress, uint256 loanBalance, uint256 poolBalance, uint256 poolManagerBalance) internal {
@@ -74,7 +71,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 incomingNetInterest_, uint256 startDate_, uint256 paymentDueDate_, , , ) = loanManager.loans(loanId);
+        ( , , uint256 incomingNetInterest_, uint256 startDate_, uint256 paymentDueDate_, ,  ) = loanManager.loans(loanId);
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(startDate_,           startDate);
@@ -1333,7 +1330,6 @@ contract FundLoanTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        poolManager.setCoverFee(coverFee);
         poolManager.setManagementFee(managementFee);
 
         loan = new MockLoan(collateralAsset, fundsAsset);
@@ -1354,7 +1350,6 @@ contract FundLoanTests is LoanManagerBaseTest {
             uint256 incomingNetInterest_,
             uint256 startDate_,
             uint256 paymentDueDate_,
-            uint256 coverFee_,
             uint256 managementFee_,
             address vehicle_
         ) = loanManager.loans(1);
@@ -1362,7 +1357,6 @@ contract FundLoanTests is LoanManagerBaseTest {
         assertEq(incomingNetInterest_, 0);
         assertEq(startDate_,           0);
         assertEq(paymentDueDate_,      0);
-        assertEq(coverFee_,            0);
         assertEq(managementFee_,       0);
         assertEq(vehicle_,             address(0));
 
@@ -1384,16 +1378,14 @@ contract FundLoanTests is LoanManagerBaseTest {
             incomingNetInterest_,
             startDate_,
             paymentDueDate_,
-            coverFee_,
             managementFee_,
             vehicle_
         ) = loanManager.loans(1);
 
         // Check loan information
-        assertEq(incomingNetInterest_, 0.7e18); // 1e18 of interest minus cover and management fees
+        assertEq(incomingNetInterest_, 0.7e18); // 1e18 of interest minus management fees
         assertEq(startDate_,           block.timestamp);
         assertEq(paymentDueDate_,      block.timestamp + 100);
-        assertEq(coverFee_,            coverFee);
         assertEq(managementFee_,       managementFee);
         assertEq(vehicle_,             address(loan));
 

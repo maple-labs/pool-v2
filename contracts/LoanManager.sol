@@ -43,11 +43,11 @@ contract LoanManager {
         uint256 incomingNetInterest;
         uint256 startDate;
         uint256 paymentDueDate;
-        uint256 coverFee;
-        uint256 managementFee;
+        uint256 managementFee;  // The management fee is snapshotted for each payment, to maintain correct pool accounting, in case the fee changes across payments.
         address vehicle;
     }
 
+    // TODO: This struct is multiple words, look into optimizing this.
     struct LiquidationInfo {
         uint256 principalToCover;
         address liquidator;
@@ -65,7 +65,7 @@ contract LoanManager {
 
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
 
-    function claim(address loanAddress_) external returns (uint256 coverPortion_, uint256 managementPortion_) {
+    function claim(address loanAddress_) external returns (uint256 managementPortion_) {
         // Update initial accounting
         // TODO: Think we need to update issuanceRate here
         accountedInterest = getAccruedInterest();
@@ -75,15 +75,17 @@ contract LoanManager {
         uint256 netInterestPaid = 0;
 
         // Claim loan and get principal and interest portion of claimable.
-        ( principalPaid, netInterestPaid, coverPortion_, managementPortion_ ) = _claimLoan(loanAddress_);
+        ( principalPaid, netInterestPaid, managementPortion_ ) = _claimLoan(loanAddress_);
 
         principalOut -= principalPaid;
 
         // Remove loan from sorted list and get relevant previous parameters.
         ( , , uint256 previousPaymentDueDate, uint256 previousRate ) = _removeLoan(loanAddress_);
 
+        uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
+
         // Get relevant next parameters.
-        ( , uint256 incomingNetInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(loanAddress_);
+        ( , uint256 incomingNetInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(loanAddress_, managementFee_);
 
         uint256 newRate = 0;
 
@@ -95,8 +97,6 @@ contract LoanManager {
             // but if the previous payment was late, then we should have been accruing the next payment from the moment the previous payment was due.
             uint256 nextStartDate = _minimumOf(block.timestamp, previousPaymentDueDate);
 
-            ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
-
             // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
             _addLoan(LoanInfo({
                 // Previous and next will be overriden within _addLoan function
@@ -105,7 +105,6 @@ contract LoanManager {
                 incomingNetInterest: incomingNetInterest,
                 startDate:           nextStartDate,
                 paymentDueDate:      nextPaymentDueDate,
-                coverFee:            coverFee_,
                 managementFee:       managementFee_,
                 vehicle:             loanAddress_
             }));
@@ -138,9 +137,9 @@ contract LoanManager {
 
         uint256 principal = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
 
-        ( , uint256 nextInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(loanAddress_);
+        uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
 
-        ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
+        ( , uint256 nextInterest, uint256 nextPaymentDueDate ) = _getNextPaymentOf(loanAddress_, managementFee_);
 
         _addLoan(LoanInfo({
             previous:            0,
@@ -148,7 +147,6 @@ contract LoanManager {
             incomingNetInterest: nextInterest,
             startDate:           block.timestamp,
             paymentDueDate:      nextPaymentDueDate,
-            coverFee:            coverFee_,
             managementFee:       managementFee_,
             vehicle:             loanAddress_
         }));
@@ -167,19 +165,21 @@ contract LoanManager {
     /*************************/
 
     // TODO: Investigate transferring funds directly into pool from liquidator instead of accumulating in IM
-    function finishCollateralLiquidation(address loan_) external returns (uint256 decreasedUnrealizedLosses_, uint256 remainingLosses_) {
+    // TODO: Decrement principalOut by the full principal balance of the loan at the time of the repossession (principalToCover).
+    // TODO: Rename principalToCover to indicate that it is the full principal balance of the loan at the time of the repossession.
+    // TODO: Revisit `recoveredFunds` logic, especially in the case of multiple simultaneous liquidations.
+    function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_) {
         require(!isLiquidationActive(loan_), "DH:FL:LIQ_STILL_ACTIVE");
 
-        uint256 recoveredFunds   = IERC20Like(fundsAsset).balanceOf(address(this));
-        uint256 principalToCover = liquidationInfo[loan_].principalToCover;
+        uint256 recoveredFunds_ = IERC20Like(fundsAsset).balanceOf(address(this));
 
-        // TODO decide on how the pool will handle the accounting
-        require(ERC20Helper.transfer(fundsAsset, pool, recoveredFunds));
-
-        decreasedUnrealizedLosses_ = recoveredFunds > principalToCover ? principalToCover : recoveredFunds;
-        remainingLosses_           = recoveredFunds > principalToCover ? 0                : principalToCover - recoveredFunds;
+        principalToCover_ = liquidationInfo[loan_].principalToCover;
+        remainingLosses_  = recoveredFunds_ > principalToCover_ ? 0 : principalToCover_ - recoveredFunds_;
 
         delete liquidationInfo[loan_];
+
+        // TODO decide on how the pool will handle the accounting
+        require(ERC20Helper.transfer(fundsAsset, pool, recoveredFunds_));
     }
 
     /// @dev Trigger Default on a loan
@@ -198,7 +198,16 @@ contract LoanManager {
         address collateralAsset = loan.collateralAsset();
 
         if (collateralAsset != fundsAsset && collateralAssetAmount != uint256(0)) {
-            liquidator = address(new Liquidator(address(this), collateralAsset, fundsAsset, auctioneer_, address(this), address(this)));
+            liquidator = address(
+                new Liquidator({
+                        owner_:           address(this),
+                        collateralAsset_: collateralAsset,
+                        fundsAsset_:      fundsAsset,
+                        auctioneer_:      auctioneer_,
+                        destination_:     address(this),
+                        globals_:         address(this)
+                })
+            );
 
             require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "DL:TD:CA_TRANSFER");
             require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "DL:TD:FA_TRANSFER");
@@ -244,7 +253,7 @@ contract LoanManager {
         loans[loanId_] = loan_;
     }
 
-    function _claimLoan(address loan_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 coverPortion_, uint256 managementPortion_) {
+    function _claimLoan(address loan_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 managementPortion_) {
         ILoanLike loan     = ILoanLike(loan_);
         principalPortion_  = principalOf[loan_] - loan.principal();
         interestPortion_   = loan.claimableFunds() - principalPortion_;
@@ -252,14 +261,11 @@ contract LoanManager {
 
         uint256 id_ = loanIdOf[loan_];
 
-        coverPortion_      = interestPortion_ * loans[id_].coverFee      / SCALED_ONE;
         managementPortion_ = interestPortion_ * loans[id_].managementFee / SCALED_ONE;
 
-        uint256 portionsSum_ = coverPortion_ + managementPortion_;
-
-        if (portionsSum_ != 0) {
-            loan.claimFunds(portionsSum_, address(poolManager));
-            interestPortion_ -= portionsSum_;
+        if (managementPortion_ != 0) {
+            loan.claimFunds(managementPortion_, address(poolManager));
+            interestPortion_ -= managementPortion_;
         }
 
         loan.claimFunds(loan.claimableFunds(), pool);
@@ -305,15 +311,13 @@ contract LoanManager {
         return _minimumOf(a_, b_);
     }
 
-    function _getNextPaymentOf(address loan_) internal view returns (uint256 nextPrincipal_, uint256 nextInterest_, uint256 nextPaymentDueDate_) {
+    function _getNextPaymentOf(address loan_, uint256 managementFee_) internal view returns (uint256 nextPrincipal_, uint256 nextInterest_, uint256 nextPaymentDueDate_) {
         nextPaymentDueDate_ = ILoanLike(loan_).nextPaymentDueDate();
         ( nextPrincipal_, nextInterest_ ) = nextPaymentDueDate_ == 0
             ? (0, 0)
             : ILoanLike(loan_).getNextPaymentBreakdown();
 
-        ( uint256 coverFee_, uint256 managementFee_ ) = IPoolManagerLike(poolManager).getFees();
-
-        nextInterest_ = nextInterest_ * (SCALED_ONE - (coverFee_ + managementFee_)) / SCALED_ONE;
+        nextInterest_ = nextInterest_ * (SCALED_ONE - managementFee_) / SCALED_ONE;
     }
 
     function _maximumOf(uint256 a_, uint256 b_) internal pure returns (uint256 maximum_) {

@@ -11,7 +11,7 @@ import {
     IERC20Like,
     IGlobalsLike,
     ILoanManagerLike,
-    IPoolCoverManagerLike,
+    IPoolDelegateCoverLike,
     IPoolLike
 } from "./interfaces/Interfaces.sol";
 
@@ -21,7 +21,7 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
 contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
 
-    uint256 constant HUNDRED_PERCENT = 1e18;
+    uint256 public constant HUNDRED_PERCENT = 1e18;
 
     /***************************/
     /*** Migration Functions ***/
@@ -77,13 +77,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         isValidLender[lender_] = isValid_;
     }
 
-    function setCoverFee(uint256 fee_) external override {
-        require(msg.sender == admin, "PM:SCF:NOT_ADMIN");
-
-        // TODO check globals for boundaries
-        coverFee = fee_;
-    }
-
     function setLoanManager(address loanManager_, bool isValid_) external override {
         require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
 
@@ -111,12 +104,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         openToPublic = true;
     }
 
-    function setPoolCoverManager(address poolCoverManager_) external override {
-        require(msg.sender == admin, "PM:SPCM:NOT_ADMIN");
-
-        poolCoverManager = poolCoverManager_;
-    }
-
     function setWithdrawalManager(address withdrawalManager_) external override {
         require(msg.sender == admin, "PM:SWM:NOT_ADMIN");
 
@@ -133,36 +120,43 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
         require(loanManager_ != address(0),          "PM:C:NO_LOAN_MANAGER");
 
-        ( uint256 coverPortion_, uint256 managementPortion_ ) = ILoanManagerLike(loanManager_).claim(loan_);
+        uint256 managementPortion_ = ILoanManagerLike(loanManager_).claim(loan_);
 
-        address coverManager_ = poolCoverManager;
-        address asset_        = asset;
-        address globals_      = globals;
+        address asset_   = asset;
+        address globals_ = globals;
+        address pool_    = pool;
 
-        // Send portion to cover.
-        require(coverManager_ != address(0),                                "PM:C:NO_COVER_MANAGER"); // TODO should we revert?
-        require(ERC20Helper.transfer(asset_, coverManager_, coverPortion_), "PM:C:PAY_COVER_FAILED");
-        IPoolCoverManagerLike(coverManager_).allocateLiquidity();
+        // TODO: Look into moving the fee logic into the LoanManager.
 
         // Split Management Fee.
-        uint256 mapleShare_ = managementPortion_ * IGlobalsLike(globals_).managementFeeSplit(pool) / HUNDRED_PERCENT;
+        uint256 mapleShare_ = managementPortion_ * IGlobalsLike(globals_).managementFeeSplit(pool_) / HUNDRED_PERCENT;
 
-        // Pay treasury.
         require(ERC20Helper.transfer(asset_, IGlobalsLike(globals_).mapleTreasury(), mapleShare_), "PM:C:PAY_TREASURY_FAILED");
 
-        // Pay Pool Delegate.
-        require(ERC20Helper.transfer(asset_, admin, managementPortion_ - mapleShare_), "PM:C:PAY_ADMIN_FAILED");
+        // If insufficient cover, pool delegate forfeits fees, and they are instead sent to the pool.
+        require(
+            ERC20Helper.transfer(
+                asset_,
+                _hasSufficientCover(globals_, pool_, asset_) ? admin : pool_,
+                managementPortion_ - mapleShare_
+            ),
+            "PM:C:PAY_ADMIN_FAILED"
+        );
     }
 
     function fund(uint256 principal_, address loan_, address loanManager_) external override {
-        require(msg.sender == admin,                 "PM:F:NOT_ADMIN");
-        require(IERC20Like(pool).totalSupply() != 0, "PM:F:ZERO_SUPPLY");
-        require(isLoanManager[loanManager_],         "PM:F:INVALID_LOAN_MANAGER");
+        address asset_ = asset;
+        address pool_  = pool;
+
+        require(msg.sender == admin,                         "PM:F:NOT_ADMIN");
+        require(IERC20Like(pool).totalSupply() != 0,         "PM:F:ZERO_SUPPLY");
+        require(isLoanManager[loanManager_],                 "PM:F:INVALID_LOAN_MANAGER");
+        require(_hasSufficientCover(globals, pool_, asset_), "PM:F:INSUFFICIENT_COVER");
 
         // TODO: Add check for loanManagers[loan_] == 0 + refinancing function.
         loanManagers[loan_] = loanManager_;
 
-        require(ERC20Helper.transferFrom(asset, pool, loan_, principal_), "P:F:TRANSFER_FAIL");
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "P:F:TRANSFER_FAIL");
 
         ILoanManagerLike(loanManager_).fund(loan_);
     }
@@ -181,14 +175,20 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
+    // TODO: ACL here and IM
+    // TODO: I think this liquidation flow needs business validation.
     function finishCollateralLiquidation(address loan_) external override {
-        ( uint256 decreasedUnrealizedLosses, uint256 remainingLosses ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
+        ( uint256 principalToCover_, uint256 remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
-        unrealizedLosses -= decreasedUnrealizedLosses;
+        unrealizedLosses -= principalToCover_;
 
-        // TODO: Dust threshold?
-        if (remainingLosses > 0) {
-            IPoolCoverManagerLike(poolCoverManager).triggerCoverLiquidation(remainingLosses);
+        uint256 coverBalance_ = IERC20Like(asset).balanceOf(poolDelegateCover);
+
+        if (coverBalance_ != 0 && remainingLosses_ != 0) {
+            uint256 maxLiquidationAmount_ = coverBalance_ * IGlobalsLike(globals).maxCoverLiquidationPercent(pool) / HUNDRED_PERCENT;
+            uint256 liquidationAmount_    = remainingLosses_ > maxLiquidationAmount_ ? maxLiquidationAmount_ : remainingLosses_ ;
+
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(liquidationAmount_, pool);
         }
     }
 
@@ -200,6 +200,27 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == withdrawalManager, "PM:R:NOT_WM");
 
         return IPoolLike(pool).redeem(shares_, receiver_, owner_);
+    }
+
+    /***********************/
+    /*** Cover Functions ***/
+    /***********************/
+
+    // TODO: implement deposit cover with permit
+    function depositCover(uint256 amount_) external override {
+        require(ERC20Helper.transferFrom(asset, msg.sender, poolDelegateCover, amount_), "PM:DC:TRANSFER_FAIL");
+    }
+
+    function withdrawCover(uint256 amount_, address recipient_) external override {
+        require(msg.sender == admin, "PM:WC:NOT_ADMIN");
+        require(
+            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IGlobalsLike(globals).minCoverAmount(pool)),
+            "PM:WC:BELOW_MIN"
+        );
+
+        recipient_ = recipient_ == address(0) ? msg.sender : recipient_;
+
+        IPoolDelegateCoverLike(poolDelegateCover).moveFunds(amount_, recipient_);
     }
 
     /**********************/
@@ -248,11 +269,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         return _factory();
     }
 
-    function getFees() external view override returns (uint256 coverFee_, uint256 managementFee_) {
-        coverFee_      = coverFee;
-        managementFee_ = managementFee;
-    }
-
     function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
@@ -283,6 +299,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function _formatErrorMessage(string memory errorPrefix_, string memory partialError_) internal pure returns (string memory errorMessage_) {
         errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
+    }
+
+    function _hasSufficientCover(address globals_, address pool_, address asset_) internal view returns (bool hasSufficientCover_) {
+        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IGlobalsLike(globals_).minCoverAmount(pool_);
     }
 
 }
