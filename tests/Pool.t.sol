@@ -12,18 +12,18 @@ import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.so
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
 import {
-    MockGlobals,
     MockReenteringERC20,
     MockRevertingERC20,
     MockPoolManager
 } from "./mocks/Mocks.sol";
 
-contract PoolBase is TestUtils {
+import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+
+contract PoolBase is TestUtils, GlobalsBootstrapper {
 
     address POOL_DELEGATE = address(new Address());
 
     MockReenteringERC20 asset;
-    MockGlobals         globals;
     Pool                pool;
     PoolManagerFactory  factory;
 
@@ -34,17 +34,19 @@ contract PoolBase is TestUtils {
     address user = address(new Address());
 
     function setUp() public virtual {
-        globals = new MockGlobals(address(this));
+        asset = new MockReenteringERC20();
+
+        _deployAndBootstrapGlobals(address(asset), POOL_DELEGATE);
+
         factory = new PoolManagerFactory(address(globals));
-        asset   = new MockReenteringERC20();
 
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
 
-        globals.setValidPoolDelegate(POOL_DELEGATE, true);
-
+        vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
+        vm.stopPrank();
 
         string memory poolName_   = "Pool";
         string memory poolSymbol_ = "POOL1";

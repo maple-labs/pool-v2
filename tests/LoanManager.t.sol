@@ -7,7 +7,6 @@ import { MockERC20 }                   from "../modules/erc20/contracts/test/moc
 
 import {
     MockAuctioneer,
-    MockGlobals,
     MockLiquidationStrategy,
     MockLoan,
     MockPool,

@@ -21,13 +21,13 @@ import {
 
 import { PoolManagerHarness } from "./harnesses/PoolManagerHarness.sol";
 
-contract PoolManagerBase is TestUtils {
+import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-    address GOVERNOR      = address(new Address());
+contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
+
     address POOL_DELEGATE = address(new Address());
 
     MockERC20          asset;
-    MockGlobals        globals;
     PoolManagerHarness poolManager;
     PoolManagerFactory factory;
 
@@ -35,14 +35,14 @@ contract PoolManagerBase is TestUtils {
     address initializer;
 
     function setUp() public virtual {
-        globals = new MockGlobals(GOVERNOR);
-        factory = new PoolManagerFactory(address(globals));
         asset   = new MockERC20("Asset", "AT", 18);
+
+        _deployAndBootstrapGlobals(address(asset), POOL_DELEGATE);
+
+        factory = new PoolManagerFactory(address(globals));
 
         implementation = address(new PoolManagerHarness());
         initializer    = address(new PoolManagerInitializer());
-
-        globals.setValidPoolDelegate(POOL_DELEGATE, true);
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -303,7 +303,6 @@ contract ClaimTests is PoolManagerBase {
 
     address LOAN     = address(new Address());
     address LP       = address(new Address());
-    address TREASURY = address(new Address());
 
     MockERC20Pool        pool;
     MockLoanManager      loanManager;
@@ -324,8 +323,7 @@ contract ClaimTests is PoolManagerBase {
         pool = MockERC20Pool(currentPool_);
 
         // Configure globals
-        globals.setManagementFeeSplit(address(pool), managementFeeSplit);
-        globals.setTreasury(TREASURY);
+        MockGlobals(globals).setManagementFeeSplit(address(pool), managementFeeSplit);
 
         // Set fees on LoanManager
         loanManager.__setManagementPortion(managementPortion);
@@ -382,7 +380,7 @@ contract ClaimTests is PoolManagerBase {
     }
 
     function test_claim_success_insufficientCover() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         // Mint asset to the PoolManager
         asset.mint(address(poolManager), managementPortion);
@@ -405,7 +403,7 @@ contract ClaimTests is PoolManagerBase {
     }
 
     function test_claim_success_sufficientCover() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         // Mint asset to the PoolManager
         asset.mint(address(poolManager), managementPortion);
@@ -529,7 +527,7 @@ contract FundTests is PoolManagerBase {
         // Mint a share in pool so totalSupply is not 0
         pool.mint(address(new Address()), 1);
 
-        globals.setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         // Add 1 less than the required min cover to be able to fund new loans.
         asset.mint(poolManager.poolDelegateCover(), 1_000e18 - 1);
@@ -551,7 +549,7 @@ contract FundTests is PoolManagerBase {
         // Mint a share in pool so totalSupply is not 0
         pool.mint(address(new Address()), 1);
 
-        globals.setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
@@ -639,7 +637,6 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     address LOAN       = address(new Address());
     address LP         = address(new Address());
-    address TREASURY   = address(new Address());
     address AUCTIONEER = address(new Address());
 
     address poolDelegateCover;
@@ -661,8 +658,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         pool = MockERC20Pool(currentPool_);
 
-        // Configure globals
-        globals.setTreasury(TREASURY);
+        _bootstrapGlobals(address(asset), POOL_DELEGATE);
 
         // Mint ERC20 to pool
         asset.mint(address(poolManager.pool()), 1_000_000e18);
@@ -696,7 +692,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_noCover() external {
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
         assertEq(poolManager.unrealizedLosses(),                0);
@@ -718,8 +714,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_noRemainingLossAfterCollateralLiquidation() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
@@ -742,8 +738,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_coverLeftOver() external {
-        globals.setMinCoverAmount(address(pool), 2_000e18);
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMinCoverAmount(address(pool), 2_000e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 2_000e18);
@@ -766,8 +762,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_noCoverLeftOver() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
@@ -790,8 +786,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_fullCoverLiquidation_preexistingLoss() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         // There could be unrealizedLosses from a previous ongoing loan default.
@@ -817,8 +813,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_exceedMaxCoverLiquidationPercentAmount() external {
-        globals.setMinCoverAmount(address(pool), 1_000e18);
-        globals.setMaxCoverLiquidationPercent(address(pool), 0.5e18);
+        MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), 0.5e18);
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(poolManager.unrealizedLosses(), 0);
@@ -1268,7 +1264,7 @@ contract CanCallTests is PoolManagerBase {
         assertTrue(canCall_);
 
         // Set protocol paused
-        globals.setProtocolPause(true);
+        MockGlobals(globals).setProtocolPause(true);
 
         // Call cannot be performed
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
@@ -1277,7 +1273,7 @@ contract CanCallTests is PoolManagerBase {
         assertEq(errorMessage_, "PROTOCOL_PAUSED");
 
         // Set protocol paused to false
-        globals.setProtocolPause(false);
+        MockGlobals(globals).setProtocolPause(false);
 
         // Call can be performed again
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
@@ -1337,7 +1333,7 @@ contract WithdrawCoverTests is PoolManagerBase {
     }
 
     function test_withdrawCover_notPoolDelegate() external {
-        globals.setMinCoverAmount(pool, 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(pool, 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
@@ -1349,7 +1345,7 @@ contract WithdrawCoverTests is PoolManagerBase {
     }
 
     function test_withdrawCover_tryWithdrawBelowRequired() external {
-        globals.setMinCoverAmount(pool, 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(pool, 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
@@ -1378,7 +1374,7 @@ contract WithdrawCoverTests is PoolManagerBase {
     }
 
     function test_withdrawCover_success() external {
-        globals.setMinCoverAmount(pool, 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(pool, 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
@@ -1393,7 +1389,7 @@ contract WithdrawCoverTests is PoolManagerBase {
     }
 
     function test_withdrawCover_success_zeroRecipient() external {
-        globals.setMinCoverAmount(pool, 1_000e18);
+        MockGlobals(globals).setMinCoverAmount(pool, 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 

@@ -23,6 +23,8 @@ interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
 
+    function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
+
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
 
     function managementFeeSplit(address pool) external view returns (uint256 split_);

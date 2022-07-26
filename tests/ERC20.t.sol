@@ -15,6 +15,7 @@ import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitialize
 
 import { ConstructablePoolManager, MockERC20Pool, MockGlobals } from "./mocks/Mocks.sol";
 
+// TODO: Investigate using GlobalsBootstrapper for this base, there's an inheritance issue, most likely due to a different version of TestUtils being used in ERC20 module
 contract Pool_ERC20TestBase {
 
     address POOL_DELEGATE = address(new Address());

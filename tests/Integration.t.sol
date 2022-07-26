@@ -34,13 +34,13 @@ import { MockAuctioneer, MockGlobals, MockLoan, MockLiquidationStrategy } from "
     // TAL: 300k
 */
 
-/// @dev Suite of tests that use PoolManagers, Pools, LoanManagers and Factories
-contract IntegrationTestBase is TestUtils {
+import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-    address GOVERNOR = address(new Address());
-    address LP       = address(new Address());
-    address PD       = address(new Address());
-    address TREASURY = address(new Address());
+/// @dev Suite of tests that use PoolManagers, Pools, LoanManagers and Factories
+contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
+
+    address LP = address(new Address());
+    address PD = address(new Address());
 
     address implementation;
     address initializer;
@@ -48,23 +48,23 @@ contract IntegrationTestBase is TestUtils {
     LoanManager          loanManager;
     MockERC20            fundsAsset;
     MockERC20            collateralAsset;
-    MockGlobals          globals;
     Pool                 pool;
     PoolManager          poolManager;
     PoolManagerFactory   factory;
 
     function setUp() public virtual {
-        collateralAsset = new MockERC20("COL", "COL", 18);
-        globals         = new MockGlobals(GOVERNOR);
-        factory         = new PoolManagerFactory(address(globals));
         fundsAsset      = new MockERC20("Asset", "AT", 18);
+        collateralAsset = new MockERC20("COL", "COL", 18);
+
+        _deployAndBootstrapGlobals(address(fundsAsset), PD);
+
+        factory         = new PoolManagerFactory(address(globals));
         implementation  = address(new PoolManager());
         initializer     = address(new PoolManagerInitializer());
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
-        globals.setValidPoolDelegate(PD, true);
         vm.stopPrank();
 
         ( poolManager, pool ) = _createManagerAndPool();
@@ -76,8 +76,6 @@ contract IntegrationTestBase is TestUtils {
         poolManager.setAllowedLender(LP, true);
         vm.stopPrank();
 
-        // Aditional Configuration
-        globals.setTreasury(TREASURY);
     }
 
     function _createManagerAndPool() internal returns (PoolManager poolManager_, Pool pool_) {
@@ -124,7 +122,7 @@ contract FeeDistributionTest is IntegrationTestBase {
     function setUp() public override {
         super.setUp();
 
-        globals.setManagementFeeSplit(address(pool), managementFeeSplit);
+        MockGlobals(globals).setManagementFeeSplit(address(pool), managementFeeSplit);
 
         vm.startPrank(PD);
         poolManager.setManagementFee(managementFee);
@@ -160,7 +158,7 @@ contract FeeDistributionTest is IntegrationTestBase {
 
 }
 
-contract LoanManagerTest is TestUtils {
+contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
     address LP       = address(new Address());
     address BORROWER = address(new Address());
@@ -174,29 +172,29 @@ contract LoanManagerTest is TestUtils {
     MockAuctioneer       auctioneer;
     MockERC20            fundsAsset;
     MockERC20            collateralAsset;
-    MockGlobals          globals;
     Pool                 pool;
     PoolManager          poolManager;
     PoolManagerFactory   poolManagerFactory;
 
     function setUp() public virtual {
-        collateralAsset   = new MockERC20("MockCollateral", "MC", 18);
-        fundsAsset        = new MockERC20("MockToken",      "MT", 18);
+        collateralAsset = new MockERC20("MockCollateral", "MC", 18);
+        fundsAsset      = new MockERC20("MockToken",      "MT", 18);
+
+        _deployAndBootstrapGlobals(address(fundsAsset), address(this));
 
         collateralPrice = 2;  // $2
 
         auctioneer = new MockAuctioneer(collateralPrice * 1e8, 1e8);  // Worth $2
 
-        globals            = new MockGlobals(address(this));
         poolManagerFactory = new PoolManagerFactory(address(globals));
 
         implementation = address(new PoolManager());
         initializer    = address(new PoolManagerInitializer());
 
-        globals.setValidPoolDelegate(address(this), true);
-
+        vm.startPrank(GOVERNOR);
         poolManagerFactory.registerImplementation(1, implementation, initializer);
         poolManagerFactory.setDefaultVersion(1);
+        vm.stopPrank();
 
         poolManager = PoolManager(poolManagerFactory.createInstance(
             PoolManagerInitializer(initializer).encodeArguments(

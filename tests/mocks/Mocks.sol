@@ -64,13 +64,15 @@ contract MockGlobals {
 
     bool public protocolPaused;
 
+    mapping(address => bool) public isPoolAsset;
+    mapping(address => bool) public isPoolDelegate;
+
     mapping(address => uint256) public managementFeeSplit;
     mapping(address => uint256) public maxCoverLiquidationPercent;
     mapping(address => uint256) public minCoverAmount;
 
     mapping(address => address) public ownedPool;
 
-    mapping(address => bool) public isPoolDelegate;
 
     constructor (address governor_) {
         governor = governor_;
@@ -104,6 +106,10 @@ contract MockGlobals {
 
     function setTreasury(address treasury_) external {
         mapleTreasury = treasury_;
+    }
+
+    function setValidPoolAsset(address poolAsset_, bool isValid_) external {
+        isPoolAsset[poolAsset_] = isValid_;
     }
 
     function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
