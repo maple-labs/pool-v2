@@ -66,6 +66,8 @@ contract LoanManager {
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
 
     function claim(address loanAddress_) external returns (uint256 managementPortion_) {
+        require(msg.sender == poolManager, "LM:C:NOT_POOL_MANAGER");
+
         // Update initial accounting
         // TODO: Think we need to update issuanceRate here
         accountedInterest = getAccruedInterest();
@@ -131,7 +133,7 @@ contract LoanManager {
     }
 
     function fund(address loanAddress_) external {
-        require(msg.sender == poolManager, "IM:F:NOT_ADMIN");
+        require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
 
         ILoanLike(loanAddress_).fundLoan(address(this));
 
@@ -169,7 +171,8 @@ contract LoanManager {
     // TODO: Rename principalToCover to indicate that it is the full principal balance of the loan at the time of the repossession.
     // TODO: Revisit `recoveredFunds` logic, especially in the case of multiple simultaneous liquidations.
     function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_) {
-        require(!isLiquidationActive(loan_), "DH:FL:LIQ_STILL_ACTIVE");
+        require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
+        require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
 
         uint256 recoveredFunds_ = IERC20Like(fundsAsset).balanceOf(address(this));
 
@@ -182,14 +185,13 @@ contract LoanManager {
         require(ERC20Helper.transfer(fundsAsset, pool, recoveredFunds_));
     }
 
-    /// @dev Trigger Default on a loan
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_) {
-        // TODO: Add ACL
+        require(msg.sender == poolManager, "LM:TCL:NOT_POOL_MANAGER");
 
         // TODO: The loan is not able to handle defaults while there are claimable funds
         ILoanLike loan = ILoanLike(loan_);
 
-        require(loan.claimableFunds() == uint256(0), "DH:TCL:NEED_TO_CLAIM");
+        require(loan.claimableFunds() == uint256(0), "LM:TCL:NEED_TO_CLAIM");
 
         uint256 principal = loan.principal();
 
@@ -209,8 +211,8 @@ contract LoanManager {
                 })
             );
 
-            require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "DL:TD:CA_TRANSFER");
-            require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "DL:TD:FA_TRANSFER");
+            require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "LM:TD:CA_TRANSFER");
+            require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "LM:TD:FA_TRANSFER");
         }
 
         increasedUnrealizedLosses_ = principal;  // TODO: Should this be principal + accrued interest?

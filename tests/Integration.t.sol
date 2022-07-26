@@ -209,7 +209,7 @@ contract LoanManagerTest is TestUtils {
             keccak256(abi.encode(address(this)))
         ));
 
-        pool             = Pool(poolManager.pool());
+        pool = Pool(poolManager.pool());
 
         loanManager = new LoanManager(address(pool), address(poolManager));
 
@@ -260,7 +260,7 @@ contract LoanManagerTest is TestUtils {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
         assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
 
-        loanManager.finishCollateralLiquidation(address(loan));
+        poolManager.finishCollateralLiquidation(address(loan));
 
         assertEq(fundsAsset.balanceOf(address(pool)), principalRequested / collateralPrice);
         assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);
@@ -303,7 +303,7 @@ contract LoanManagerTest is TestUtils {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
         assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
 
-        loanManager.finishCollateralLiquidation(address(loan));
+        poolManager.finishCollateralLiquidation(address(loan));
 
         assertEq(fundsAsset.balanceOf(address(pool)), principalRequested);
         assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);
@@ -346,7 +346,7 @@ contract LoanManagerTest is TestUtils {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
         assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
 
-        loanManager.finishCollateralLiquidation(address(loan));
+        poolManager.finishCollateralLiquidation(address(loan));
 
         assertEq(fundsAsset.balanceOf(address(pool)), principalRequested * collateralPrice);
         assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);

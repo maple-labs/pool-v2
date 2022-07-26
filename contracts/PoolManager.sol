@@ -170,14 +170,15 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         unrealizedLosses -= decrement_;
     }
 
-    // TODO: ACL here and IM
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external override {
+        // TODO: Update rest of storage variable and error messages to say pool delegate instead of admin.
+        require(msg.sender == admin, "PM:TCL:NOT_POOL_DELEGATE");
         unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
-    // TODO: ACL here and IM
     // TODO: I think this liquidation flow needs business validation.
     function finishCollateralLiquidation(address loan_) external override {
+        require(msg.sender == admin, "PM:FCL:NOT_POOL_DELEGATE");
         ( uint256 principalToCover_, uint256 remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
         unrealizedLosses -= principalToCover_;
