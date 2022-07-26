@@ -168,7 +168,7 @@ contract MockLoan {
         MockERC20(fundsAsset).transfer(destination_, amount_);
     }
 
-    function fundLoan(address , uint256 ) external returns (uint256 fundsLent_){
+    function fundLoan(address) external returns (uint256 fundsLent_) {
         // Do nothing
     }
 

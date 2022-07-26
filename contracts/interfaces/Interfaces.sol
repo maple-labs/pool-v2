@@ -70,7 +70,7 @@ interface ILoanLike {
 
     function fundsAsset() external view returns (address asset_);
 
-    function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
+    function fundLoan(address lender_) external returns (uint256 fundsLent_);
 
     function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 

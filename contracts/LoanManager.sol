@@ -133,7 +133,7 @@ contract LoanManager {
     function fund(address loanAddress_) external {
         require(msg.sender == poolManager, "IM:F:NOT_ADMIN");
 
-        ILoanLike(loanAddress_).fundLoan(address(this), 0);
+        ILoanLike(loanAddress_).fundLoan(address(this));
 
         uint256 principal = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
 

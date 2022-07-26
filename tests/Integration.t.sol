@@ -89,7 +89,7 @@ contract IntegrationTestBase is TestUtils {
         pool_        = Pool(poolManager_.pool());
     }
 
-    function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan){
+    function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan) {
         loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         loan.__setPrincipalRequested(principalRequested_);
@@ -365,7 +365,7 @@ contract LoanManagerTest is TestUtils {
         vm.stopPrank();
     }
 
-    function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan){
+    function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan) {
         loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         loan.__setPrincipalRequested(principalRequested_);
