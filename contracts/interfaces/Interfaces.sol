@@ -23,6 +23,8 @@ interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
 
+    function isBorrower(address account_) external view returns (bool isBorrower_);
+
     function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
 
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
@@ -63,6 +65,8 @@ interface ILiquidatorLike {
 }
 
 interface ILoanLike {
+
+    function borrower() external view returns (address borrower_);
 
     function claimableFunds() external view returns (uint256 claimableFunds_);
 

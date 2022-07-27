@@ -10,6 +10,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 import {
     IERC20Like,
     IGlobalsLike,
+    ILoanLike,
     ILoanManagerLike,
     IPoolDelegateCoverLike,
     IPoolLike
@@ -148,10 +149,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address asset_ = asset;
         address pool_  = pool;
 
-        require(msg.sender == admin,                         "PM:F:NOT_ADMIN");
-        require(IERC20Like(pool).totalSupply() != 0,         "PM:F:ZERO_SUPPLY");
-        require(isLoanManager[loanManager_],                 "PM:F:INVALID_LOAN_MANAGER");
-        require(_hasSufficientCover(globals, pool_, asset_), "PM:F:INSUFFICIENT_COVER");
+        require(msg.sender == admin,                                           "PM:F:NOT_ADMIN");
+        require(isLoanManager[loanManager_],                                   "PM:F:INVALID_LOAN_MANAGER");
+        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
+        require(IERC20Like(pool).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:F:INSUFFICIENT_COVER");
 
         // TODO: Add check for loanManagers[loan_] == 0 + refinancing function.
         loanManagers[loan_] = loanManager_;

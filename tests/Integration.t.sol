@@ -39,8 +39,9 @@ import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 /// @dev Suite of tests that use PoolManagers, Pools, LoanManagers and Factories
 contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
 
-    address LP = address(new Address());
-    address PD = address(new Address());
+    address BORROWER = address(new Address());
+    address LP       = address(new Address());
+    address PD       = address(new Address());
 
     address implementation;
     address initializer;
@@ -57,6 +58,8 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
         collateralAsset = new MockERC20("COL", "COL", 18);
 
         _deployAndBootstrapGlobals(address(fundsAsset), PD);
+
+        MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         factory         = new PoolManagerFactory(address(globals));
         implementation  = address(new PoolManager());
@@ -89,6 +92,8 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
 
     function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan) {
         loan = new MockLoan(address(collateralAsset), address(fundsAsset));
+
+        loan.__setBorrower(BORROWER);
 
         loan.__setPrincipalRequested(principalRequested_);
         loan.__setCollateralRequired(collateralRequired_);
@@ -181,6 +186,8 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         fundsAsset      = new MockERC20("MockToken",      "MT", 18);
 
         _deployAndBootstrapGlobals(address(fundsAsset), address(this));
+
+        MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         collateralPrice = 2;  // $2
 
@@ -365,6 +372,8 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
     function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan) {
         loan = new MockLoan(address(collateralAsset), address(fundsAsset));
+
+        loan.__setBorrower(BORROWER);
 
         loan.__setPrincipalRequested(principalRequested_);
         loan.__setCollateralRequired(collateralRequired_);

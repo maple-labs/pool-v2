@@ -64,6 +64,7 @@ contract MockGlobals {
 
     bool public protocolPaused;
 
+    mapping(address => bool) public isBorrower;
     mapping(address => bool) public isPoolAsset;
     mapping(address => bool) public isPoolDelegate;
 
@@ -108,6 +109,10 @@ contract MockGlobals {
         mapleTreasury = treasury_;
     }
 
+    function setValidBorrower(address borrower_, bool isValid_) external {
+        isBorrower[borrower_] = isValid_;
+    }
+
     function setValidPoolAsset(address poolAsset_, bool isValid_) external {
         isPoolAsset[poolAsset_] = isValid_;
     }
@@ -147,6 +152,7 @@ contract MockLiquidationStrategy {
 
 contract MockLoan {
 
+    address public borrower;
     address public collateralAsset;
     address public fundsAsset;
 
@@ -186,6 +192,10 @@ contract MockLoan {
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         collateralRepossessed_ = collateral;
         MockERC20(collateralAsset).transfer(destination_, collateral);
+    }
+
+    function __setBorrower(address borrower_) external {
+        borrower = borrower_;
     }
 
     function __setCollateral(uint256 collateral_) external {
