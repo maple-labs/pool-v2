@@ -582,7 +582,6 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
 
     address LOAN       = address(new Address());
     address LP         = address(new Address());
-    address TREASURY   = address(new Address());
     address AUCTIONEER = address(new Address());
 
     address poolDelegateCover;
@@ -604,9 +603,6 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
 
         pool = MockERC20Pool(currentPool_);
 
-        // Configure globals
-        globals.setTreasury(TREASURY);
-
         // Mint ERC20 to pool
         asset.mint(address(poolManager.pool()), 1_000_000e18);
 
@@ -620,7 +616,7 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
     }
 
     function test_triggerCollateralLiquidation_notPoolDelegate() external {
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
@@ -673,7 +669,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_notPoolDelegate() external {
-        globals.setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
