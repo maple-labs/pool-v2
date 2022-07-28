@@ -40,7 +40,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
-        require(msg.sender == admin, "PM:U:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:U:NOT_PD");
 
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
@@ -49,17 +49,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Ownership Transfer Functions ***/
     /************************************/
 
-    function acceptPendingAdmin() external override {
-        require(msg.sender == pendingAdmin, "PM:APA:NOT_PENDING_ADMIN");
+    function acceptPendingPoolDelegate() external override {
+        require(msg.sender == pendingPoolDelegate, "PM:APA:NOT_PENDING_PD");
 
-        admin        = pendingAdmin;
-        pendingAdmin = address(0);
+        poolDelegate        = pendingPoolDelegate;
+        pendingPoolDelegate = address(0);
     }
 
-    function setPendingAdmin(address pendingAdmin_) external override {
-        require(msg.sender == admin, "PM:SPA:NOT_ADMIN");
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external override {
+        require(msg.sender == poolDelegate, "PM:SPA:NOT_PD");
 
-        pendingAdmin = pendingAdmin_;
+        pendingPoolDelegate = pendingPoolDelegate_;
     }
 
     /********************************/
@@ -73,13 +73,13 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setAllowedLender(address lender_, bool isValid_) external override {
-        require(msg.sender == admin, "PM:SAL:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SAL:NOT_PD");
 
         isValidLender[lender_] = isValid_;
     }
 
     function setLoanManager(address loanManager_, bool isValid_) external override {
-        require(msg.sender == admin, "PM:SIM:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SIM:NOT_PD");
 
         isLoanManager[loanManager_] = isValid_;
 
@@ -87,26 +87,26 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external override {
-        require(msg.sender == admin, "PM:SLC:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
     }
 
     function setManagementFee(uint256 fee_) external override {
-        require(msg.sender == admin, "PM:SMF:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SMF:NOT_PD");
 
         // TODO check globals for boundaries
         managementFee = fee_;
     }
 
     function setOpenToPublic() external override {
-        require(msg.sender == admin, "PM:SOTP:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SOTP:NOT_PD");
 
         openToPublic = true;
     }
 
     function setWithdrawalManager(address withdrawalManager_) external override {
-        require(msg.sender == admin, "PM:SWM:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:SWM:NOT_PD");
 
         withdrawalManager = withdrawalManager_;
     }
@@ -138,10 +138,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(
             ERC20Helper.transfer(
                 asset_,
-                _hasSufficientCover(globals_, pool_, asset_) ? admin : pool_,
+                _hasSufficientCover(globals_, pool_, asset_) ? poolDelegate : pool_,
                 managementPortion_ - mapleShare_
             ),
-            "PM:C:PAY_ADMIN_FAILED"
+            "PM:C:PAY_PD_FAILED"
         );
     }
 
@@ -149,7 +149,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address asset_ = asset;
         address pool_  = pool;
 
-        require(msg.sender == admin,                                           "PM:F:NOT_ADMIN");
+        require(msg.sender == poolDelegate,                                           "PM:F:NOT_PD");
         require(isLoanManager[loanManager_],                                   "PM:F:INVALID_LOAN_MANAGER");
         require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
         require(IERC20Like(pool).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
@@ -173,14 +173,13 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external override {
-        // TODO: Update rest of storage variable and error messages to say pool delegate instead of admin.
-        require(msg.sender == admin, "PM:TCL:NOT_POOL_DELEGATE");
+        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
         unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_, auctioneer_);
     }
 
     // TODO: I think this liquidation flow needs business validation.
     function finishCollateralLiquidation(address loan_) external override {
-        require(msg.sender == admin, "PM:FCL:NOT_POOL_DELEGATE");
+        require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
         ( uint256 principalToCover_, uint256 remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
         unrealizedLosses -= principalToCover_;
@@ -215,7 +214,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function withdrawCover(uint256 amount_, address recipient_) external override {
-        require(msg.sender == admin, "PM:WC:NOT_ADMIN");
+        require(msg.sender == poolDelegate, "PM:WC:NOT_PD");
         require(
             amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IGlobalsLike(globals).minCoverAmount(pool)),
             "PM:WC:BELOW_MIN"

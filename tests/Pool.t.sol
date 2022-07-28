@@ -122,26 +122,26 @@ contract ConstructorTests is PoolBase {
         address asset = address(new MockRevertingERC20("Asset", "AT", 18));
         MockRevertingERC20(asset).__setIsRevertingDecimals(true);
 
-        address admin = address(new Address());
+        address poolDelegate = address(new Address());
 
         vm.expectRevert("ERC20:D:REVERT");
-        new Pool(admin, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, "Pool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(admin, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, "Pool", "POOL1");
     }
 
     function test_constructor_invalidApproval() public {
         address asset = address(new MockRevertingERC20("Asset", "AT", 18));
         MockRevertingERC20(asset).__setIsRevertingApprove(true);
 
-        address admin = address(new Address());
+        address poolDelegate = address(new Address());
 
         vm.expectRevert("ERC20:A:REVERT");
-        new Pool(admin, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, "Pool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(admin, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, "Pool", "POOL1");
     }
 
 }

@@ -5,8 +5,8 @@ import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
 
 abstract contract PoolManagerStorage is IPoolManagerStorage {
 
-    address public admin;
-    address public pendingAdmin;
+    address public poolDelegate;
+    address public pendingPoolDelegate;
 
     address public asset;
     address public globals;

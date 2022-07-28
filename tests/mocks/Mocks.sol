@@ -14,10 +14,10 @@ import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol
 
 contract ConstructablePoolManager is PoolManager {
 
-    constructor(address globals_, address admin_, address asset_) {
-        require((globals = globals_) != address(0), "PMI:I:ZERO_GLOBALS");
-        require((admin = admin_)     != address(0), "PMI:I:ZERO_ADMIN");
-        require((asset = asset_)     != address(0), "PMI:I:ZERO_ASSET");
+    constructor(address globals_, address poolDelegate_, address asset_) {
+        require((globals = globals_)           != address(0), "PMI:I:ZERO_GLOBALS");
+        require((poolDelegate = poolDelegate_) != address(0), "PMI:I:ZERO_PD");
+        require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
 
         pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));
     }
@@ -386,10 +386,10 @@ contract MockRevertingERC20 {
 
 contract MockMigrator {
 
-    address admin;
+    address poolDelegate;
 
     fallback() external {
-        admin = abi.decode(msg.data, (address));
+        poolDelegate = abi.decode(msg.data, (address));
     }
 
 }

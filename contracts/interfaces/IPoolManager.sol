@@ -19,9 +19,9 @@ interface IPoolManager is IPoolManagerStorage {
     /*** Ownership Transfer Functions ***/
     /************************************/
 
-    function acceptPendingAdmin() external;
+    function acceptPendingPoolDelegate() external;
 
-    function setPendingAdmin(address pendingAdmin_) external;
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external;
 
     /********************************/
     /*** Administrative Functions ***/
