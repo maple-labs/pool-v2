@@ -1,62 +1,40 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { ERC20Helper } from "./../modules/erc20-helper/src/ERC20Helper.sol";
-import { Liquidator }  from "./../modules/liquidations/contracts/Liquidator.sol";
+import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { Liquidator }            from "../modules/liquidations/contracts/Liquidator.sol";
+import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import {
-    IERC20Like,
-    ILoanLike,
-    IPoolLike,
-    IPoolManagerLike
-} from "./interfaces/Interfaces.sol";
+import { ILoanManager }                            from "./interfaces/ILoanManager.sol";
+import { IERC20Like, ILoanLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
 
-// TODO: Move out of interest folder
-contract LoanManager {
+import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
+
+contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
     uint256 constant PRECISION  = 1e30;
     uint256 constant SCALED_ONE = 1e18;
 
-    address public fundsAsset;
-    address public liquidator;
-    address public pool;
-    address public poolManager;
+    /***************************/
+    /*** Migration Functions ***/
+    /***************************/
 
-    uint256 public accountedInterest;
-    uint256 public issuanceRate;
-    uint256 public lastUpdated;
-    uint256 public loanCounter;
-    uint256 public loanWithEarliestPaymentDueDate;
-    uint256 public principalOut;
-    uint256 public vestingPeriodFinish;
-
-    mapping(address => uint256) public principalOf;
-    mapping(address => uint256) public loanIdOf;  // TODO: This is here to satisfy the suboptimal Pool interface. Can we remove this now?
-
-    mapping(uint256 => LoanInfo)        public loans;
-    mapping(address => LiquidationInfo) public liquidationInfo; // Mapping from address -> liquidation details
-
-    // TODO: Can this struct be optimized?
-    struct LoanInfo {
-        uint256 previous;
-        uint256 next;
-        uint256 incomingNetInterest;
-        uint256 startDate;
-        uint256 paymentDueDate;
-        uint256 managementFee;  // The management fee is snapshotted for each payment, to maintain correct pool accounting, in case the fee changes across payments.
-        address vehicle;
+    function migrate(address migrator_, bytes calldata arguments_) external {
+        require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_), "LM:M:FAILED");
     }
 
-    // TODO: This struct is multiple words, look into optimizing this.
-    struct LiquidationInfo {
-        uint256 principalToCover;
-        address liquidator;
+    function setImplementation(address implementation_) external {
+        require(msg.sender == _factory(), "LM:SI:NOT_FACTORY");
+
+        _setImplementation(implementation_);
     }
 
-    constructor(address pool_, address poolManager_) {
-        fundsAsset  = IPoolLike(pool_).asset();
-        pool        = pool_;
-        poolManager = poolManager_;
+    function upgrade(uint256 version_, bytes calldata arguments_) external {
+        require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:U:NOT_PD");
+
+        IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
     /**************************/
@@ -342,6 +320,10 @@ contract LoanManager {
         return principalOut + accountedInterest + accruedInterest;
     }
 
+    function factory() external view returns (address factory_) {
+        return _factory();
+    }
+
     function getAccruedInterest() public view returns (uint256 accruedInterest_) {
         uint256 issuanceRate_ = issuanceRate;
 
@@ -355,6 +337,10 @@ contract LoanManager {
             : block.timestamp - lastUpdated_;
 
         accruedInterest_ = issuanceRate_ * vestingTimePassed / PRECISION;
+    }
+
+    function implementation() external view returns (address implementation_) {
+        return _implementation();
     }
 
     function isLiquidationActive(address loan_) public view returns (bool isActive_) {
@@ -371,5 +357,7 @@ contract LoanManager {
     function protocolPaused() external view returns (bool protocolPaused_) {
         return false;
     }
+
+    // TODO: Add event emission.
 
 }

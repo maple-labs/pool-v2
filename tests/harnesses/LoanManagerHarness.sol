@@ -5,8 +5,6 @@ import { LoanManager } from "../../contracts/LoanManager.sol";
 
 contract LoanManagerHarness is LoanManager {
 
-    constructor(address pool_, address poolManager_) LoanManager(pool_, poolManager_) { }
-
     function addLoan(LoanInfo memory loan_) external returns (uint256 loanId_) {
         loanId_ = _addLoan(loan_);
     }

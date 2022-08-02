@@ -5,10 +5,16 @@ pragma solidity 0.8.7;
 import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                   from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
+import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.sol";
+import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
+
+import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
 import {
     MockAuctioneer,
+    MockGlobals,
     MockLiquidationStrategy,
     MockLoan,
+    MockLoanManagerMigrator,
     MockPool,
     MockPoolManager
 } from "./mocks/Mocks.sol";
@@ -25,25 +31,117 @@ contract LoanManagerBaseTest is TestUtils {
 
     uint256 constant START = 5_000_000;
 
+    address governor       = address(new Address());
+    address implementation = address(new LoanManagerHarness());
+    address initializer    = address(new LoanManagerInitializer());
+
     uint256 managementFee = 0.3e18;
 
-    LoanManager     loanManager;
     MockERC20       asset;
+    MockGlobals     globals;
     MockPool        pool;
     MockPoolManager poolManager;
 
+    LoanManagerFactory factory;
+    LoanManagerHarness loanManager;
 
     function setUp() public virtual {
         asset       = new MockERC20("MockERC20", "MOCK", 18);
-        pool        = new MockPool();
+        globals     = new MockGlobals(governor);
         poolManager = new MockPoolManager();
+        pool        = new MockPool();
 
-        pool.setAsset(address(asset));
+        pool.__setAsset(address(asset));
+        pool.__setManager(address(poolManager));
 
-        loanManager = new LoanManager(address(pool), address(poolManager));
+        vm.startPrank(governor);
+        factory = new LoanManagerFactory(address(globals));
+        factory.registerImplementation(1, implementation, initializer);
+        factory.setDefaultVersion(1);
+        vm.stopPrank();
+
+        bytes memory arguments = LoanManagerInitializer(initializer).encodeArguments(address(pool));
+        loanManager = LoanManagerHarness(LoanManagerFactory(factory).createInstance(arguments, ""));
 
         vm.warp(START);
     }
+}
+
+contract MigrateTests is LoanManagerBaseTest {
+
+    address migrator = address(new MockLoanManagerMigrator());
+
+    function test_migrate_notFactory() external {
+        vm.expectRevert("LM:M:NOT_FACTORY");
+        loanManager.migrate(migrator, "");
+    }
+
+    function test_migrate_internalFailure() external {
+        vm.prank(loanManager.factory());
+        vm.expectRevert("LM:M:FAILED");
+        loanManager.migrate(migrator, "");
+    }
+
+    function test_migrate_success() external {
+        assertEq(loanManager.fundsAsset(), address(asset));
+
+        vm.prank(loanManager.factory());
+        loanManager.migrate(migrator, abi.encode(address(0)));
+
+        assertEq(loanManager.fundsAsset(), address(0));
+    }
+
+}
+
+contract SetImplementationTests is LoanManagerBaseTest {
+
+    address newImplementation = address(new LoanManagerHarness());
+
+    function test_setImplementation_notFactory() external {
+        vm.expectRevert("LM:SI:NOT_FACTORY");
+        loanManager.setImplementation(newImplementation);
+    }
+
+    function test_setImplementation_success() external {
+        assertEq(loanManager.implementation(), implementation);
+
+        vm.prank(loanManager.factory());
+        loanManager.setImplementation(newImplementation);
+
+        assertEq(loanManager.implementation(), newImplementation);
+    }
+
+}
+
+contract UpgradeTests is LoanManagerBaseTest {
+
+    address newImplementation = address(new LoanManagerHarness());
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.startPrank(governor);
+        factory.registerImplementation(2, newImplementation, address(0));
+        factory.enableUpgradePath(1, 2, address(0));
+        vm.stopPrank();
+    }
+
+    function test_upgrade_notPoolDelegate() external {
+        vm.expectRevert("LM:U:NOT_PD");
+        loanManager.upgrade(2, "");
+    }
+
+    function test_upgrade_upgradeFailed() external {
+        vm.prank(poolManager.poolDelegate());
+        vm.expectRevert("MPF:UI:FAILED");
+        loanManager.upgrade(2, "1");
+    }
+
+    function test_upgrade_success() external {
+        vm.prank(poolManager.poolDelegate());
+        loanManager.upgrade(2, "");
+    }
+
 }
 
 contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
@@ -1535,17 +1633,15 @@ contract FundLoanTests is LoanManagerBaseTest {
 
 }
 
-contract LoanManagerSortingTests is TestUtils {
-
-    LoanManagerHarness loanManager;
+contract LoanManagerSortingTests is LoanManagerBaseTest {
 
     LoanManagerHarness.LoanInfo earliestLoan;
     LoanManagerHarness.LoanInfo latestLoan;
     LoanManagerHarness.LoanInfo medianLoan;
     LoanManagerHarness.LoanInfo synchronizedLoan;
 
-    function setUp() public {
-        loanManager = new LoanManagerHarness(address(new MockPool()), address(0));
+    function setUp() public override {
+        super.setUp();
 
         earliestLoan.vehicle     = address(new Address());
         medianLoan.vehicle       = address(new Address());

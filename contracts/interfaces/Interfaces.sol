@@ -124,6 +124,8 @@ interface IPoolLike {
 
 interface IPoolManagerLike {
 
+    function poolDelegate() external view returns (address poolDelegate_);
+
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
 
     function claim(address loan_) external;

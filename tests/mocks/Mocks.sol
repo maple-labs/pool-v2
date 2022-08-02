@@ -273,12 +273,27 @@ contract MockLoanManager {
 
 }
 
+contract MockLoanManagerMigrator {
+
+    address fundsAsset;
+
+    fallback() external {
+        fundsAsset = abi.decode(msg.data, (address));
+    }
+
+}
+
 contract MockPool {
 
     address public asset;
+    address public manager;
 
-    function setAsset(address asset_) external {
+    function __setAsset(address asset_) external {
         asset = asset_;
+    }
+
+    function __setManager(address manager_) external {
+        manager = manager_;
     }
 
     function redeem(uint256, address, address) external pure returns (uint256) { }

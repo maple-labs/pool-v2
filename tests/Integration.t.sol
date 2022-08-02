@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
-
+import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.sol";
+import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
@@ -43,35 +44,41 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
     address LP       = address(new Address());
     address PD       = address(new Address());
 
-    address implementation;
-    address initializer;
+    address loanManagerImplementation = address(new LoanManager());
+    address loanManagerInitializer    = address(new LoanManagerInitializer());
 
-    LoanManager          loanManager;
-    MockERC20            fundsAsset;
-    MockERC20            collateralAsset;
-    Pool                 pool;
-    PoolManager          poolManager;
-    PoolManagerFactory   factory;
+    address poolManagerImplementation = address(new PoolManager());
+    address poolManagerInitializer    = address(new PoolManagerInitializer());
+
+    MockERC20 collateralAsset;
+    MockERC20 fundsAsset;
+
+    LoanManager        loanManager;
+    LoanManagerFactory loanManagerFactory;
+
+    Pool               pool;
+    PoolManager        poolManager;
+    PoolManagerFactory poolManagerFactory;
 
     function setUp() public virtual {
-        fundsAsset      = new MockERC20("Asset", "AT", 18);
         collateralAsset = new MockERC20("COL", "COL", 18);
+        fundsAsset      = new MockERC20("Asset", "AT", 18);
 
         _deployAndBootstrapGlobals(address(fundsAsset), PD);
 
-        MockGlobals(globals).setValidBorrower(BORROWER, true);
-
-        factory         = new PoolManagerFactory(address(globals));
-        implementation  = address(new PoolManager());
-        initializer     = address(new PoolManagerInitializer());
-
         vm.startPrank(GOVERNOR);
-        factory.registerImplementation(1, implementation, initializer);
-        factory.setDefaultVersion(1);
+        poolManagerFactory = new PoolManagerFactory(address(globals));
+        poolManagerFactory.registerImplementation(1, poolManagerImplementation, poolManagerInitializer);
+        poolManagerFactory.setDefaultVersion(1);
         vm.stopPrank();
 
-        ( poolManager, pool ) = _createManagerAndPool();
-        loanManager = new LoanManager(address(pool), address(poolManager));
+        vm.startPrank(GOVERNOR);
+        loanManagerFactory = new LoanManagerFactory(address(globals));
+        loanManagerFactory.registerImplementation(1, loanManagerImplementation, loanManagerInitializer);
+        loanManagerFactory.setDefaultVersion(1);
+        vm.stopPrank();
+
+        ( pool, poolManager, loanManager ) = _createPoolAndManagers();
 
         vm.startPrank(PD);
         poolManager.addLoanManager(address(loanManager));
@@ -81,13 +88,15 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
 
     }
 
-    function _createManagerAndPool() internal returns (PoolManager poolManager_, Pool pool_) {
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), PD, address(fundsAsset), "Pool", "Pool");
-
-        address poolManagerAddress = PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+    function _createPoolAndManagers() internal returns (Pool pool_, PoolManager poolManager_, LoanManager loanManager_) {
+        bytes memory arguments = PoolManagerInitializer(poolManagerInitializer).encodeArguments(address(globals), PD, address(fundsAsset), "Pool", "Pool");
+        address poolManagerAddress = PoolManagerFactory(poolManagerFactory).createInstance(arguments, "");
 
         poolManager_ = PoolManager(poolManagerAddress);
         pool_        = Pool(poolManager_.pool());
+
+        arguments    = LoanManagerInitializer(loanManagerInitializer).encodeArguments(address(pool_));
+        loanManager_ = LoanManager(LoanManagerFactory(loanManagerFactory).createInstance(arguments, ""));
     }
 
     function _createFundAndDrawdownLoan(uint256 principalRequested_, uint256 collateralRequired_) internal returns (MockLoan loan) {
@@ -128,6 +137,7 @@ contract FeeDistributionTest is IntegrationTestBase {
         super.setUp();
 
         MockGlobals(globals).setManagementFeeSplit(address(pool), managementFeeSplit);
+        MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         vm.startPrank(PD);
         poolManager.setManagementFee(managementFee);
@@ -168,18 +178,24 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
     address LP       = address(new Address());
     address BORROWER = address(new Address());
 
-    address implementation;
-    address initializer;
+    address loanManagerImplementation = address(new LoanManager());
+    address loanManagerInitializer    = address(new LoanManagerInitializer());
+
+    address poolManagerImplementation = address(new PoolManager());
+    address poolManagerInitializer    = address(new PoolManagerInitializer());
 
     uint256 collateralPrice;
 
-    LoanManager          loanManager;
-    MockAuctioneer       auctioneer;
-    MockERC20            fundsAsset;
-    MockERC20            collateralAsset;
-    Pool                 pool;
-    PoolManager          poolManager;
-    PoolManagerFactory   poolManagerFactory;
+    MockAuctioneer auctioneer;
+    MockERC20      fundsAsset;
+    MockERC20      collateralAsset;
+
+    LoanManager        loanManager;
+    LoanManagerFactory loanManagerFactory;
+
+    Pool               pool;
+    PoolManager        poolManager;
+    PoolManagerFactory poolManagerFactory;
 
     function setUp() public virtual {
         collateralAsset = new MockERC20("MockCollateral", "MC", 18);
@@ -193,18 +209,18 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
         auctioneer = new MockAuctioneer(collateralPrice * 1e8, 1e8);  // Worth $2
 
-        poolManagerFactory = new PoolManagerFactory(address(globals));
-
-        implementation = address(new PoolManager());
-        initializer    = address(new PoolManagerInitializer());
-
         vm.startPrank(GOVERNOR);
-        poolManagerFactory.registerImplementation(1, implementation, initializer);
+        poolManagerFactory = new PoolManagerFactory(address(globals));
+        poolManagerFactory.registerImplementation(1, poolManagerImplementation, poolManagerInitializer);
         poolManagerFactory.setDefaultVersion(1);
+
+        loanManagerFactory = new LoanManagerFactory(address(globals));
+        loanManagerFactory.registerImplementation(1, loanManagerImplementation, loanManagerInitializer);
+        loanManagerFactory.setDefaultVersion(1);
         vm.stopPrank();
 
         poolManager = PoolManager(poolManagerFactory.createInstance(
-            PoolManagerInitializer(initializer).encodeArguments(
+            PoolManagerInitializer(poolManagerInitializer).encodeArguments(
                 address(globals),
                 address(this),
                 address(fundsAsset),
@@ -216,7 +232,12 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
         pool = Pool(poolManager.pool());
 
-        loanManager = new LoanManager(address(pool), address(poolManager));
+        loanManager = LoanManager(LoanManagerFactory(loanManagerFactory).createInstance(
+            LoanManagerInitializer(loanManagerInitializer).encodeArguments(
+                address(pool)
+            ),
+            keccak256(abi.encode(address(this)))
+        ));
 
         poolManager.addLoanManager(address(loanManager));
         poolManager.setLiquidityCap(type(uint256).max);
