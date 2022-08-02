@@ -55,8 +55,6 @@ interface IPoolManager is IPoolManagerStorage {
     /*** Liquidation Functions ***/
     /*****************************/
 
-    function decreaseUnrealizedLosses(uint256 decrement_) external;
-
     function finishCollateralLiquidation(address loan_) external;
 
     function triggerCollateralLiquidation(address loan_, address auctioneer_) external;

@@ -138,6 +138,8 @@ interface IPoolManagerLike {
 
     function addLoanManager(address loanManager_) external;
 
+    function removeLoanManager(address loanManager_) external;
+
     function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);

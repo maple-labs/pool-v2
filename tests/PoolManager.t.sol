@@ -89,6 +89,13 @@ contract SetImplementationTests is PoolManagerBase {
 
     address newImplementation = address(new PoolManager());
 
+    function test_setImplementation_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setImplementation(newImplementation);
+    }
+
     function test_setImplementation_notFactory() external {
         vm.expectRevert("PM:SI:NOT_FACTORY");
         poolManager.setImplementation(newImplementation);
@@ -116,6 +123,14 @@ contract UpgradeTests is PoolManagerBase {
         factory.registerImplementation(2, newImplementation, address(0));
         factory.enableUpgradePath(1, 2, address(0));
         vm.stopPrank();
+    }
+
+    function test_upgrade_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.upgrade(2, "");
     }
 
     function test_upgrade_notPoolDelegate() external {
@@ -147,6 +162,14 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
+    function test_acceptPendingPoolDelegate_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(SET_ADDRESS);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.acceptPendingPoolDelegate();
+    }
+
     function test_acceptPendingPoolDelegate_notPendingPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:APA:NOT_PENDING_PD");
@@ -171,6 +194,14 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
     address NOT_POOL_DELEGATE = address(new Address());
     address SET_ADDRESS       = address(new Address());
 
+    function test_setPendingPoolDelegate_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+    }
+
     function test_setPendingPoolDelegate_notPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SPA:NOT_PD");
@@ -189,6 +220,14 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
 }
 
 contract SetActive_SetterTests is PoolManagerBase {
+
+    function test_setActive_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(address(globals));
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setActive(true);
+    }
 
     function test_setActive_notGovernor() external {
         assertTrue(!poolManager.active());
@@ -213,6 +252,14 @@ contract SetActive_SetterTests is PoolManagerBase {
 }
 
 contract SetAllowedLender_SetterTests is PoolManagerBase {
+
+    function test_setAllowedLender_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(address(globals));
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setAllowedLender(address(this), true);
+    }
 
     function test_setAllowedLender_notPoolDelegate() external {
         assertTrue(!poolManager.active());
@@ -240,6 +287,14 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
 
+    function test_setLiquidityCap_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setLiquidityCap(1000);
+    }
+
     function test_setLiquidityCap_notPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SLC:NOT_PD");
@@ -263,6 +318,14 @@ contract SetManagementFee_SetterTests is PoolManagerBase {
 
     uint256 newFee = uint256(0.1e18);
 
+    function test_setManagementFee_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setManagementFee(newFee);
+    }
+
     function test_setManagementFee_notPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SMF:NOT_PD");
@@ -281,6 +344,14 @@ contract SetManagementFee_SetterTests is PoolManagerBase {
 }
 
 contract SetOpenToPublic_SetterTests is PoolManagerBase {
+
+    function test_setOpenToPublic_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setOpenToPublic();
+    }
 
     function test_setOpenToPublic_notPoolDelegate() external {
         assertTrue(!poolManager.active());
@@ -345,6 +416,13 @@ contract ClaimTests is PoolManagerBase {
         poolManager.addLoanManager(address(loanManager));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
+    }
+
+    function test_claim_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.claim(loan);
     }
 
     function test_claim_failWithZeroSupply() external {
@@ -475,8 +553,14 @@ contract FundTests is PoolManagerBase {
         poolManager.addLoanManager(address(loanManager));
     }
 
-    function test_fund_notPoolDelegate() external {
+    function test_fund_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
 
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_fund_notPoolDelegate() external {
         vm.expectRevert("PM:F:NOT_PD");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
@@ -603,6 +687,14 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
         vm.stopPrank();
     }
 
+    function test_triggerCollateralLiquidation_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+    }
+
     function test_triggerCollateralLiquidation_notPoolDelegate() external {
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
 
@@ -659,6 +751,13 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         poolManager.addLoanManager(address(loanManager));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
+    }
+
+    function test_finishCollateralLiquidation_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.finishCollateralLiquidation(loan);
     }
 
     function test_finishCollateralLiquidation_notPoolDelegate() external {
@@ -830,15 +929,27 @@ contract RedeemTests is PoolManagerBase {
 
     address WITHDRAWAL_MANAGER = address(new Address());
 
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+    }
+
+    function test_redeem_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(WITHDRAWAL_MANAGER);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.redeem(0, address(0), address(0));
+    }
+
     function test_redeem_notWithdrawalManager() external {
         vm.expectRevert("PM:R:NOT_WM");
         poolManager.redeem(0, address(0), address(0));
     }
 
     function test_redeem_success() external {
-        vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
-
         vm.etch(poolManager.pool(), address(new MockPool()).code);
         vm.prank(WITHDRAWAL_MANAGER);
         poolManager.redeem(0, address(0), address(0));
@@ -850,6 +961,14 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
 
     address LOAN_MANAGER      = address(new Address());
     address NOT_POOL_DELEGATE = address(new Address());
+
+    function test_addLoanManager_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.addLoanManager(LOAN_MANAGER);
+    }
 
     function test_addLoanManager_notPD() external {
         vm.prank(NOT_POOL_DELEGATE);
@@ -898,6 +1017,14 @@ contract RemoveLoanManager_SetterTests is PoolManagerBase {
         poolManager.addLoanManager(LOAN_MANAGER_2);
         poolManager.addLoanManager(LOAN_MANAGER_3);
         vm.stopPrank();
+    }
+
+    function test_addLoanManager_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.removeLoanManager(LOAN_MANAGER_1);
     }
 
     function test_removeLoanManager_notPD() external {
@@ -981,6 +1108,14 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
 
     address WITHDRAWAL_MANAGER = address(new Address());
     address NOT_POOL_DELEGATE  = address(new Address());
+
+    function test_setWithdrawalManager_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+    }
 
     function test_setWithdrawalManager_notPD() external {
         vm.prank(NOT_POOL_DELEGATE);
@@ -1385,6 +1520,13 @@ contract DepositCoverTests is PoolManagerBase {
         asset.mint(POOL_DELEGATE, 1_000e18);
     }
 
+    function test_depositCover_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.depositCover(1_000e18);
+    }
+
     function test_depositCover_insufficientApproval() external {
         vm.startPrank(POOL_DELEGATE);
         asset.approve(address(poolManager), 1_000e18 - 1);
@@ -1423,6 +1565,14 @@ contract WithdrawCoverTests is PoolManagerBase {
         super.setUp();
 
         pool = poolManager.pool();
+    }
+
+    function test_withdrawCover_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
     }
 
     function test_withdrawCover_notPoolDelegate() external {
