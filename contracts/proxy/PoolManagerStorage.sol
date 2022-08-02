@@ -28,6 +28,6 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
     mapping(address => bool) public isLoanManager;
     mapping(address => bool) public isValidLender;
 
-    address[] loanManagerList;
+    address[] public loanManagerList;
 
 }

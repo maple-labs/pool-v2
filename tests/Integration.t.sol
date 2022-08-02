@@ -74,7 +74,7 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
         loanManager = new LoanManager(address(pool), address(poolManager));
 
         vm.startPrank(PD);
-        poolManager.setLoanManager(address(loanManager), true);
+        poolManager.addLoanManager(address(loanManager));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setAllowedLender(LP, true);
         vm.stopPrank();
@@ -218,7 +218,7 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
         loanManager = new LoanManager(address(pool), address(poolManager));
 
-        poolManager.setLoanManager(address(loanManager), true);
+        poolManager.addLoanManager(address(loanManager));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setOpenToPublic();
     }

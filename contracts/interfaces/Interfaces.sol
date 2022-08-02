@@ -136,7 +136,7 @@ interface IPoolManagerLike {
 
     function poolDelegateCover() external view returns (address poolDelegateCover_);
 
-    function setLoanManager(address loanManager_, bool isValid_) external;
+    function addLoanManager(address loanManager_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 

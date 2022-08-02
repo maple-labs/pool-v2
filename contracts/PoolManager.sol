@@ -66,6 +66,29 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Administrative Functions ***/
     /********************************/
 
+    function addLoanManager(address loanManager_) external override {
+        require(msg.sender == poolDelegate,          "PM:ALM:NOT_PD");
+        require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");
+
+        isLoanManager[loanManager_] = true;
+
+        loanManagerList.push(loanManager_);
+    }
+
+    function removeLoanManager(address loanManager_) external override {
+        require(msg.sender == poolDelegate, "PM:RLM:NOT_PD");
+
+        isLoanManager[loanManager_] = false;
+
+        // Find loan manager index
+        uint256 i = 0;
+        while (loanManagerList[i] != loanManager_) i++;
+
+        // Move last element to index of removed loan manager and pop last element.
+        loanManagerList[i] = loanManagerList[loanManagerList.length - 1];
+        loanManagerList.pop();
+    }
+
     function setActive(bool active_) external override {
         require(msg.sender == globals, "PM:SA:NOT_GLOBALS");
 
@@ -76,14 +99,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate, "PM:SAL:NOT_PD");
 
         isValidLender[lender_] = isValid_;
-    }
-
-    function setLoanManager(address loanManager_, bool isValid_) external override {
-        require(msg.sender == poolDelegate, "PM:SIM:NOT_PD");
-
-        isLoanManager[loanManager_] = isValid_;
-
-        loanManagerList.push(loanManager_);  // TODO: Add removal functionality
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external override {
