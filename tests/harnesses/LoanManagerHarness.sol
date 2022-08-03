@@ -9,8 +9,8 @@ contract LoanManagerHarness is LoanManager {
         loanId_ = _addLoan(loan_);
     }
 
-    function removeLoan(address vehicle_) external returns (uint256 payment_, uint256 startDate_, uint256 paymentDueDate_, uint256 issuanceRate_) {
-        ( payment_, startDate_, paymentDueDate_, issuanceRate_ ) = _removeLoan(vehicle_);
+    function deleteLoan(address vehicle_) external returns (uint256 loanAccruedInterest_, uint256 paymentDueDate_, uint256 issuanceRate_) {
+        ( loanAccruedInterest_, paymentDueDate_, issuanceRate_ ) = _deleteLoan(vehicle_);
     }
 
     function loan(uint256 loanId_) external view returns (LoanInfo memory loan_) {

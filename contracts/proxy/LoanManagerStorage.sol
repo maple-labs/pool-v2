@@ -28,6 +28,7 @@ abstract contract LoanManagerStorage {
         uint256 previous;
         uint256 next;
         uint256 incomingNetInterest;
+        uint256 issuanceRate;
         uint256 startDate;
         uint256 paymentDueDate;
         uint256 managementFee;
