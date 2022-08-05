@@ -14,7 +14,7 @@ echo Using profile: $FOUNDRY_PROFILE
 
 if [ -z "$test" ];
 then
-    forge test --match-path "tests/*";
+    forge test --match-path "tests/*" --no-match-test "invariant";
 else
-    forge test --match "$test";
+    forge test --match "$test" --no-match-test "invariant";
 fi
