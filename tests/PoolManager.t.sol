@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }                   from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { IPoolManager } from "../contracts/interfaces/IPoolManager.sol";
 
@@ -692,7 +692,7 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
     }
 
     function test_triggerCollateralLiquidation_notPoolDelegate() external {
@@ -701,19 +701,19 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
         vm.expectRevert("PM:TCL:NOT_PD");
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
     }
 
 }
 
 contract FinishCollateralLiquidation is PoolManagerBase {
 
-    address BORROWER   = address(new Address());
-    address LP         = address(new Address());
-    address AUCTIONEER = address(new Address());
+    address BORROWER = address(new Address());
+    address LP       = address(new Address());
+    address LOAN     = address(new Address());
 
     address loan;
     address poolDelegateCover;
@@ -766,7 +766,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -786,9 +786,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(),                0);
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -810,9 +809,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(),                0);
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -834,9 +832,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(),                0);
 
         loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 
@@ -858,9 +855,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(),                0);
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -885,9 +881,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(),                2_000e18);
 
         loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 5_000e18);
 
@@ -908,9 +903,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         assertEq(poolManager.unrealizedLosses(), 0);
 
         loanManager.__setTriggerCollateralLiquidationReturn(3_000e18);
-
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerCollateralLiquidation(loan, AUCTIONEER);
+        poolManager.triggerCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 

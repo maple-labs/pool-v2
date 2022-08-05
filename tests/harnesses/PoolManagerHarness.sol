@@ -5,7 +5,7 @@ import { PoolManager } from "../../contracts/PoolManager.sol";
 
 contract PoolManagerHarness is PoolManager {
 
-    function setLoanManagerForLoan(address loan_, address loanManager_) external {
+    function __setLoanManagerForLoan(address loan_, address loanManager_) external {
         loanManagers[loan_] = loanManager_;
     }
 

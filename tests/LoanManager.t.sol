@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }                   from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.sol";
 import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
 
 import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
 import {
-    MockAuctioneer,
     MockGlobals,
     MockLiquidationStrategy,
     MockLoan,
@@ -278,8 +277,6 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
-
-        auctioneer = address(new MockAuctioneer(0.5e18, 1e18));
     }
 
     function test_finishCollateralLiquidation_notManager() public {
@@ -287,7 +284,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(nextPaymentDueDate);
 
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan), auctioneer);
+        loanManager.triggerCollateralLiquidation(address(loan));
 
         vm.expectRevert("LM:FCL:NOT_POOL_MANAGER");
         loanManager.finishCollateralLiquidation(address(loan));
@@ -2089,8 +2086,6 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
-
-        auctioneer = address(new MockAuctioneer(0.5e18, 1e18));
     }
 
     function test_triggerCollateralLiquidation_notManager() public {
@@ -2099,10 +2094,10 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(nextPaymentDueDate);
 
         vm.expectRevert("LM:TCL:NOT_POOL_MANAGER");
-        loanManager.triggerCollateralLiquidation(address(loan), auctioneer);
+        loanManager.triggerCollateralLiquidation(address(loan));
 
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan), auctioneer);
+        loanManager.triggerCollateralLiquidation(address(loan));
     }
 
 }

@@ -3,6 +3,40 @@ pragma solidity 0.8.7;
 
 interface IPoolManagerStorage {
 
+    function poolDelegate() external view returns (address poolDelegate_);
+
+    function pendingPoolDelegate() external view returns (address pendingPoolDelegate_);
+
+    function admin() external view returns (address admin_);
+
+    function pendingAdmin() external view returns (address pendingAdmin_);
+
+    function asset() external view returns (address asset_);
+
+    function globals() external view returns (address globals_);
+
+    function pool() external view returns (address pool_);
+
+    function poolDelegateCover() external view returns (address poolDelegateCover_);
+
+    function withdrawalManager() external view returns (address withdrawalManager_);
+
+    function active() external view returns (bool active_);
+
+    function openToPublic() external view returns (bool openToPublic_);
+
+    function liquidityCap() external view returns (uint256 liquidityCap_);
+
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
     function managementFee() external view returns (uint256 managementFee_);
+
+    function loanManagers(address loan_) external view returns (address loanManager_);
+
+    function isLoanManager(address loan_) external view returns (bool isLoanManager_);
+
+    function isValidLender(address lender) external view returns (bool isValidLender_);
+
+    function loanManagerList(uint256 index_) external view returns (address loanManager_);
 
 }

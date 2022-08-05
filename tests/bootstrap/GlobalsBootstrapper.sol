@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, console, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 
 import { MockGlobals } from "../mocks/Mocks.sol";
 

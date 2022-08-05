@@ -8,15 +8,36 @@ import { Liquidator }            from "../modules/liquidations/contracts/Liquida
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { ILoanManager }                            from "./interfaces/ILoanManager.sol";
-import { IERC20Like, ILoanLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
+import { ILoanManager } from "./interfaces/ILoanManager.sol";
+import {
+    IERC20Like,
+    IGlobalsLike,
+    ILoanLike,
+    IPoolLike,
+    IPoolManagerLike
+} from "./interfaces/Interfaces.sol";
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
+    /**
+     * @dev   Emitted when `setAllowedSlippage` is called.
+     * @param collateralAsset_  Address of a collateral asset.
+     * @param newSlippage_      New value for `allowedSlippage`.
+     */
+    event AllowedSlippageSet(address collateralAsset_, uint256 newSlippage_);
+
+    /**
+     * @dev   Emitted when `setMinRatio` is called.
+     * @param collateralAsset_ Address of a collateral asset.
+     * @param newMinRatio_     New value for `minRatio`.
+     */
+    event MinRatioSet(address collateralAsset_, uint256 newMinRatio_);
+
     uint256 constant PRECISION  = 1e30;
     uint256 constant SCALED_ONE = 1e18;
+    uint256 constant ONE_HUNDRED_PERCENT_BASIS = 10_000;
 
     /***************************/
     /*** Migration Functions ***/
@@ -184,7 +205,19 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(ERC20Helper.transfer(fundsAsset, pool, recoveredFunds_));
     }
 
-    function triggerCollateralLiquidation(address loan_, address auctioneer_) external returns (uint256 increasedUnrealizedLosses_) {
+    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external {
+        require(msg.sender == poolManager,                     "LM:SAS:NOT_POOL_MANAGER");
+        require(allowedSlippage_ <= ONE_HUNDRED_PERCENT_BASIS, "LM:SAS:INVALID_SLIPPAGE");
+        emit AllowedSlippageSet(collateralAsset_, allowedSlippageFor[collateralAsset_] = allowedSlippage_);
+    }
+
+    function setMinRatio(address collateralAsset_, uint256 minRatio_) external {
+        require(msg.sender == poolManager, "LM:SMR:NOT_POOL_MANAGER");
+        emit MinRatioSet(collateralAsset_, minRatioFor[collateralAsset_] = minRatio_);
+    }
+
+    /// @dev Trigger Default on a loan
+    function triggerCollateralLiquidation(address loan_) external returns (uint256 increasedUnrealizedLosses_) {
         require(msg.sender == poolManager, "LM:TCL:NOT_POOL_MANAGER");
 
         // TODO: The loan is not able to handle defaults while there are claimable funds
@@ -204,9 +237,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                         owner_:           address(this),
                         collateralAsset_: collateralAsset,
                         fundsAsset_:      fundsAsset,
-                        auctioneer_:      auctioneer_,
+                        auctioneer_:      address(this),
                         destination_:     address(this),
-                        globals_:         address(this)
+                        globals_:         IPoolManagerLike(poolManager).globals()
                 })
             );
 
@@ -219,7 +252,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         liquidationInfo[loan_] = LiquidationInfo(principal, liquidator);
 
         // TODO: Remove issuance rate from loan, but it's dependant on how the IM does that
-        // TODO: Incorporate real auctioneer and globals, currently using address(this) for all 3 liquidator actors.
     }
 
     /**************************/
@@ -391,6 +423,26 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     function implementation() external view returns (address implementation_) {
         return _implementation();
+    }
+
+    function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) public view returns (uint256 returnAmount_) {
+        address globals = IPoolManagerLike(poolManager).globals();
+
+        uint8 collateralAssetDecimals = IERC20Like(collateralAsset_).decimals();
+
+        uint256 oracleAmount =
+            swapAmount_
+                * IGlobalsLike(globals).getLatestPrice(collateralAsset_)              // Convert from `fromAsset` value.
+                * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())           // Convert to `toAsset` decimal precision.
+                * (ONE_HUNDRED_PERCENT_BASIS - allowedSlippageFor[collateralAsset_])  // Multiply by allowed slippage basis points
+                / IGlobalsLike(globals).getLatestPrice(fundsAsset)                    // Convert to `toAsset` value.
+                / uint256(10) ** uint256(collateralAssetDecimals)                     // Convert from `fromAsset` decimal precision.
+                / ONE_HUNDRED_PERCENT_BASIS;                                          // Divide basis points for slippage.
+
+        // TODO: Document precision of minRatioFor is decimal representation of min ratio in fundsAsset decimal precision.
+        uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / (uint256(10) ** collateralAssetDecimals);
+
+        return oracleAmount > minRatioAmount ? oracleAmount : minRatioAmount;
     }
 
     function isLiquidationActive(address loan_) public view returns (bool isActive_) {

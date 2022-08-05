@@ -13,7 +13,7 @@ import { LoanManager } from "../contracts/LoanManager.sol";
 import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 
-import { MockAuctioneer, MockGlobals, MockLoan, MockLiquidationStrategy } from "./mocks/Mocks.sol";
+import { MockGlobals, MockLoan, MockLiquidationStrategy } from "./mocks/Mocks.sol";
 
 /* TODO: Need to update final accounting to reflect realized losses.
     // 1m loan
@@ -184,15 +184,16 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
     address poolManagerImplementation = address(new PoolManager());
     address poolManagerInitializer    = address(new PoolManagerInitializer());
 
-    uint256 collateralPrice;
+    uint256 COLLATERAL_PRICE = 2;
+    uint256 FUNDS_PRICE      = 1;
 
-    MockAuctioneer auctioneer;
-    MockERC20      fundsAsset;
-    MockERC20      collateralAsset;
+    address implementation;
+    address initializer;
 
     LoanManager        loanManager;
     LoanManagerFactory loanManagerFactory;
-
+    MockERC20          fundsAsset;
+    MockERC20          collateralAsset;
     Pool               pool;
     PoolManager        poolManager;
     PoolManagerFactory poolManagerFactory;
@@ -203,11 +204,12 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
 
         _deployAndBootstrapGlobals(address(fundsAsset), address(this));
 
+        poolManagerFactory = new PoolManagerFactory(address(globals));
+
+        implementation = address(new PoolManager());
+        initializer    = address(new PoolManagerInitializer());
+
         MockGlobals(globals).setValidBorrower(BORROWER, true);
-
-        collateralPrice = 2;  // $2
-
-        auctioneer = new MockAuctioneer(collateralPrice * 1e8, 1e8);  // Worth $2
 
         vm.startPrank(GOVERNOR);
         poolManagerFactory = new PoolManagerFactory(address(globals));
@@ -242,16 +244,16 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         poolManager.addLoanManager(address(loanManager));
         poolManager.setLiquidityCap(type(uint256).max);
         poolManager.setOpenToPublic();
+
+        MockGlobals(globals).setLatestPrice(address(fundsAsset),      FUNDS_PRICE);
+        MockGlobals(globals).setLatestPrice(address(collateralAsset), COLLATERAL_PRICE);
     }
 
-    // TODO
-    // function test_unrealizedLosses() external { }
-
-    // TODO: Add auctioneer to this repo
+    // TODO: function test_unrealizedLosses() external { }
 
     function test_liquidation_shortfall() external {
         uint256 principalRequested = 1_000_000_000e18;
-        uint256 collateralRequired = principalRequested / collateralPrice / 2;  // 50% collateralized
+        uint256 collateralRequired = principalRequested / COLLATERAL_PRICE / 2;  // 50% collateralized
 
         _mintAndDeposit(principalRequested);
 
@@ -260,12 +262,13 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         uint256 principalToCover = loan.principal();
 
         // NOTE: This is only possible because of MockLoan not using grace period logic.
-        poolManager.triggerCollateralLiquidation(address(loan), address(auctioneer));
+        poolManager.triggerCollateralLiquidation(address(loan));
 
-        (uint256 principal, address liquidator) = loanManager.liquidationInfo(address(loan));
+        (uint256 principal, address liquidator ) = loanManager.liquidationInfo(address(loan));
 
         assertEq(principal, principalToCover);
-        assertEq(auctioneer.getExpectedAmount(collateralRequired), collateralRequired * collateralPrice);
+
+        assertEq(loanManager.getExpectedAmount(address(collateralAsset), collateralRequired), collateralRequired * COLLATERAL_PRICE);
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
@@ -275,26 +278,26 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
 
         // Perform Liquidation -- LoanManager acts as Auctioneer
-        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(auctioneer));
+        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(loanManager));
 
-        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset));
+        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset), address(loan));
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
         assertEq(collateralAsset.balanceOf(address(liquidator)),  0);
         assertEq(fundsAsset.balanceOf(address(loan)),             0);
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * COLLATERAL_PRICE);
 
         poolManager.finishCollateralLiquidation(address(loan));
 
-        assertEq(fundsAsset.balanceOf(address(pool)), principalRequested / collateralPrice);
-        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(pool)), principalRequested / COLLATERAL_PRICE);
+        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * COLLATERAL_PRICE);
     }
 
     function test_liquidation_equalToPrincipal() external {
         uint256 principalRequested = 1_000_000e18;
-        uint256 collateralRequired = principalRequested / collateralPrice;
+        uint256 collateralRequired = principalRequested / COLLATERAL_PRICE;
 
         _mintAndDeposit(principalRequested);
 
@@ -303,12 +306,13 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         uint256 principalToCover = loan.principal();
 
         // NOTE: This is only possible because of MockLoan not using grace period logic.
-        poolManager.triggerCollateralLiquidation(address(loan), address(auctioneer));
+        poolManager.triggerCollateralLiquidation(address(loan));
 
-        (uint256 principal, address liquidator) = loanManager.liquidationInfo(address(loan));
+        (uint256 principal, address liquidator ) = loanManager.liquidationInfo(address(loan));
 
         assertEq(principal, principalToCover);
-        assertEq(auctioneer.getExpectedAmount(collateralRequired), collateralRequired * collateralPrice);
+
+        assertEq(loanManager.getExpectedAmount(address(collateralAsset), collateralRequired), collateralRequired * COLLATERAL_PRICE);
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
@@ -318,21 +322,21 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
 
         // Perform Liquidation -- LoanManager acts as Auctioneer
-        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(auctioneer));
+        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(loanManager));
 
-        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset));
+        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset), address(loan));
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
         assertEq(collateralAsset.balanceOf(address(liquidator)),  0);
         assertEq(fundsAsset.balanceOf(address(loan)),             0);
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * COLLATERAL_PRICE);
 
         poolManager.finishCollateralLiquidation(address(loan));
 
         assertEq(fundsAsset.balanceOf(address(pool)), principalRequested);
-        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * COLLATERAL_PRICE);
     }
 
     function test_liquidation_greaterThanPrincipal() external {
@@ -346,12 +350,13 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         uint256 principalToCover = loan.principal();
 
         // NOTE: This is only possible because of MockLoan not using grace period logic.
-        poolManager.triggerCollateralLiquidation(address(loan), address(auctioneer));
+        poolManager.triggerCollateralLiquidation(address(loan));
 
-        (uint256 principal, address liquidator) = loanManager.liquidationInfo(address(loan));
+        (uint256 principal, address liquidator ) = loanManager.liquidationInfo(address(loan));
 
         assertEq(principal, principalToCover);
-        assertEq(auctioneer.getExpectedAmount(collateralRequired), collateralRequired * collateralPrice);
+
+        assertEq(loanManager.getExpectedAmount(address(collateralAsset), collateralRequired), collateralRequired * COLLATERAL_PRICE);
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
@@ -361,21 +366,21 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
 
         // Perform Liquidation -- LoanManager acts as Auctioneer
-        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(auctioneer));
+        MockLiquidationStrategy mockLiquidationStrategy = new MockLiquidationStrategy(address(loanManager));
 
-        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset));
+        mockLiquidationStrategy.flashBorrowLiquidation(liquidator, collateralRequired, address(collateralAsset), address(fundsAsset), address(loan));
 
         assertEq(collateralAsset.balanceOf(address(loan)),        0);
         assertEq(collateralAsset.balanceOf(address(loanManager)), 0);
         assertEq(collateralAsset.balanceOf(address(liquidator)),  0);
         assertEq(fundsAsset.balanceOf(address(loan)),             0);
         assertEq(fundsAsset.balanceOf(address(liquidator)),       0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(loanManager)),      collateralRequired * COLLATERAL_PRICE);
 
         poolManager.finishCollateralLiquidation(address(loan));
 
-        assertEq(fundsAsset.balanceOf(address(pool)), principalRequested * collateralPrice);
-        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * collateralPrice);
+        assertEq(fundsAsset.balanceOf(address(pool)), principalRequested * COLLATERAL_PRICE);
+        assertEq(fundsAsset.balanceOf(address(pool)), collateralRequired * COLLATERAL_PRICE);
     }
 
     /************************/

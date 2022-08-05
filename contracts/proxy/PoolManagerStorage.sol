@@ -5,29 +5,31 @@ import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
 
 abstract contract PoolManagerStorage is IPoolManagerStorage {
 
-    address public poolDelegate;
-    address public pendingPoolDelegate;
+    address public override poolDelegate;
+    address public override pendingPoolDelegate;
+    address public override admin;
+    address public override pendingAdmin;
 
-    address public asset;
-    address public globals;
-    address public pool;
+    address public override asset;
+    address public override globals;
+    address public override pool;
 
-    address public poolDelegateCover;
-    address public withdrawalManager;
+    address public override poolDelegateCover;
+    address public override withdrawalManager;
 
-    bool public active;
-    bool public openToPublic;
+    bool public override active;
+    bool public override openToPublic;
 
     // TODO: Should this be located somewhere else?
-    uint256 public liquidityCap;
-    uint256 public unrealizedLosses;
+    uint256 public override liquidityCap;
+    uint256 public override unrealizedLosses;
     uint256 public override managementFee;
 
-    mapping(address => address) public loanManagers;
+    mapping(address => address) public override loanManagers;
 
-    mapping(address => bool) public isLoanManager;
-    mapping(address => bool) public isValidLender;
+    mapping(address => bool) public override isLoanManager;
+    mapping(address => bool) public override isValidLender;
 
-    address[] public loanManagerList;
+    address[] public override loanManagerList;
 
 }

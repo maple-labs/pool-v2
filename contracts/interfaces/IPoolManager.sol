@@ -57,7 +57,7 @@ interface IPoolManager is IPoolManagerStorage {
 
     function finishCollateralLiquidation(address loan_) external;
 
-    function triggerCollateralLiquidation(address loan_, address auctioneer_) external;
+    function triggerCollateralLiquidation(address loan_) external;
 
     /**********************/
     /*** Exit Functions ***/

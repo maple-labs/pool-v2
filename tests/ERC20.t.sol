@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
 import { ERC20 }           from "../modules/erc20/contracts/ERC20.sol";
 import { ERC20User }       from "../modules/erc20/contracts/test/accounts/ERC20User.sol";

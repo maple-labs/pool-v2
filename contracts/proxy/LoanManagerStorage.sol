@@ -18,6 +18,8 @@ abstract contract LoanManagerStorage {
 
     mapping(address => uint256) public loanIdOf;
     mapping(address => uint256) public principalOf;
+    mapping(address => uint256) public allowedSlippageFor;
+    mapping(address => uint256) public minRatioFor;
 
     mapping(address => LiquidationInfo) public liquidationInfo;
 

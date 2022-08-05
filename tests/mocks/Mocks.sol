@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IAuctioneerLike, ILiquidatorLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
+import { IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
 
 import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";
+
+interface ILiquidatorLike {
+
+    function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 expectedAmount_);
+
+    function liquidatePortion(uint256 swapAmount_, uint256 maxReturnAmount_, bytes calldata data_) external;
+
+}
 
 contract ConstructablePoolManager is PoolManager {
 
@@ -20,22 +28,6 @@ contract ConstructablePoolManager is PoolManager {
         require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
 
         pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));
-    }
-
-}
-
-contract MockAuctioneer {
-
-    uint256 internal immutable MULTIPLIER;
-    uint256 internal immutable DIVISOR;
-
-    constructor(uint256 multiplier_, uint256 divisor_) {
-        MULTIPLIER = multiplier_;
-        DIVISOR    = divisor_;
-    }
-
-    function getExpectedAmount(uint256 swapAmount_) external view returns (uint256 expectedAmount_) {
-        expectedAmount_ = swapAmount_ * MULTIPLIER / DIVISOR;
     }
 
 }
@@ -68,6 +60,7 @@ contract MockGlobals {
     mapping(address => bool) public isPoolAsset;
     mapping(address => bool) public isPoolDelegate;
 
+    mapping(address => uint256) public getLatestPrice;
     mapping(address => uint256) public managementFeeSplit;
     mapping(address => uint256) public maxCoverLiquidationPercent;
     mapping(address => uint256) public minCoverAmount;
@@ -85,6 +78,10 @@ contract MockGlobals {
 
     function setManagementFeeSplit(address pool_, uint256 split_) external {
         managementFeeSplit[pool_] = split_;
+    }
+
+    function setLatestPrice(address asset_, uint256 latestPrice_) external {
+        getLatestPrice[asset_] = latestPrice_;
     }
 
     function setMaxCoverLiquidationPercent(address pool_, uint256 maxCoverLiquidationPercent_) external {
@@ -131,8 +128,8 @@ contract MockLiquidationStrategy {
         auctioneer = auctioneer_;
     }
 
-    function flashBorrowLiquidation(address lender_, uint256 swapAmount_, address collateralAsset_, address fundsAsset_) external {
-        uint256 repaymentAmount = IAuctioneerLike(auctioneer).getExpectedAmount(swapAmount_);
+    function flashBorrowLiquidation(address lender_, uint256 swapAmount_, address collateralAsset_, address fundsAsset_, address source_) external {
+        uint256 repaymentAmount = ILiquidatorLike(lender_).getExpectedAmount(swapAmount_);
 
         MockERC20(fundsAsset_).approve(lender_, repaymentAmount);
 
@@ -249,7 +246,7 @@ contract MockLoanManager {
         managementPortion_ = managementPortion;
     }
 
-    function triggerCollateralLiquidation(address, address) external returns (uint256 increasedUnrealizedLosses_) {
+    function triggerCollateralLiquidation(address) external returns (uint256 increasedUnrealizedLosses_) {
         increasedUnrealizedLosses_ = _principalToCover;
     }
 
@@ -301,7 +298,7 @@ contract MockPool {
 }
 
 /**
- *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout, since this contract is used to etch over the real PoolManager implmentation in tests,
+ *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout, since this contract is used to etch over the real PoolManager implementation in tests,
  *       and is therefore used as the implementation contract for the PoolManager proxy. By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
  */
 contract MockPoolManager is PoolManagerStorage {
