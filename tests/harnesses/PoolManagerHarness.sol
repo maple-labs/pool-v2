@@ -9,6 +9,10 @@ contract PoolManagerHarness is PoolManager {
         loanManagers[loan_] = loanManager_;
     }
 
+    function __setConfigured(bool _configured) external {
+        configured = _configured;
+    }
+
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
         unrealizedLosses = unrealizedLosses_;
     }

@@ -59,6 +59,8 @@ contract LoanManagerBaseTest is TestUtils {
         factory.setDefaultVersion(1);
         vm.stopPrank();
 
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+
         bytes memory arguments = LoanManagerInitializer(initializer).encodeArguments(address(pool));
         loanManager = LoanManagerHarness(LoanManagerFactory(factory).createInstance(arguments, ""));
 

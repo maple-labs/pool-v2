@@ -79,6 +79,19 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Administrative Functions ***/
     /********************************/
 
+    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external override {
+        require(!configured,                                      "PM:CO:ALREADY_CONFIGURED");
+        require(IGlobalsLike(globals).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
+
+        configured                  = true;
+        isLoanManager[loanManager_] = true;
+        withdrawalManager           = withdrawalManager_;
+        liquidityCap                = liquidityCap_;
+        managementFee               = managementFee_;
+
+        loanManagerList.push(loanManager_);
+    }
+
     function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
         require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");

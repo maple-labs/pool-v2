@@ -37,6 +37,8 @@ contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
         vm.stopPrank();
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
     }
 
 }
@@ -74,6 +76,17 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 }
 
 contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
+
+    function test_createInstance_notPoolDeployer() external {
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), PD, address(asset), "Pool", "P2");
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), false);
+        vm.expectRevert("PMF:CI:NOT_DEPLOYER");
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+    }
 
     function test_createInstance_failWithZeroAddressPoolDelegate() external {
         address ZERO_PD = address(0);

@@ -34,6 +34,17 @@ contract LoanManagerFactoryBase is TestUtils {
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
         vm.stopPrank();
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+    }
+
+    function test_createInstance_notPoolDeployer() external {
+        MockGlobals(globals).setValidPoolDeployer(address(this), false);
+        vm.expectRevert("LMF:CI:NOT_DEPLOYER");
+        LoanManager(factory.createInstance(abi.encode(address(pool)), "SALT"));
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+        LoanManager(factory.createInstance(abi.encode(address(pool)), "SALT"));
     }
 
     function testFail_createInstance_notPool() external {

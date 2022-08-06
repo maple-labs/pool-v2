@@ -89,6 +89,8 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
     }
 
     function _createPoolAndManagers() internal returns (Pool pool_, PoolManager poolManager_, LoanManager loanManager_) {
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+
         bytes memory arguments = PoolManagerInitializer(poolManagerInitializer).encodeArguments(address(globals), PD, address(fundsAsset), "Pool", "Pool");
         address poolManagerAddress = PoolManagerFactory(poolManagerFactory).createInstance(arguments, "");
 
@@ -220,6 +222,8 @@ contract LoanManagerTest is TestUtils, GlobalsBootstrapper {
         loanManagerFactory.registerImplementation(1, loanManagerImplementation, loanManagerInitializer);
         loanManagerFactory.setDefaultVersion(1);
         vm.stopPrank();
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
         poolManager = PoolManager(poolManagerFactory.createInstance(
             PoolManagerInitializer(poolManagerInitializer).encodeArguments(

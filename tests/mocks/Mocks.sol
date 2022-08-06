@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-
-import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils, console } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MapleProxiedInternals }       from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
+import { MockERC20 }                   from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
@@ -30,6 +30,19 @@ contract ConstructablePoolManager is PoolManager {
         pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));
     }
 
+}
+
+contract MockProxied is MapleProxiedInternals {
+
+    function factory() external view returns (address factory_) {
+        return _factory();
+    }
+
+    function implementation() external view returns (address implementation_) {
+        return _implementation();
+    }
+
+    function migrate(address migrator_, bytes calldata arguments_) external {}
 }
 
 contract MockERC20Pool is Pool {
@@ -59,6 +72,7 @@ contract MockGlobals {
     mapping(address => bool) public isBorrower;
     mapping(address => bool) public isPoolAsset;
     mapping(address => bool) public isPoolDelegate;
+    mapping(address => bool) public isPoolDeployer;
 
     mapping(address => uint256) public getLatestPrice;
     mapping(address => uint256) public managementFeeSplit;
@@ -108,6 +122,10 @@ contract MockGlobals {
 
     function setValidBorrower(address borrower_, bool isValid_) external {
         isBorrower[borrower_] = isValid_;
+    }
+
+    function setValidPoolDeployer(address poolDeployer_, bool isValid_) external {
+        isPoolDeployer[poolDeployer_] = isValid_;
     }
 
     function setValidPoolAsset(address poolAsset_, bool isValid_) external {
@@ -301,7 +319,7 @@ contract MockPool {
  *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout, since this contract is used to etch over the real PoolManager implementation in tests,
  *       and is therefore used as the implementation contract for the PoolManager proxy. By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
  */
-contract MockPoolManager is PoolManagerStorage {
+contract MockPoolManager is PoolManagerStorage, MockProxied {
 
     bool internal _canCall;
 
@@ -312,6 +330,10 @@ contract MockPoolManager is PoolManagerStorage {
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;
         errorMessage_ = errorMessage;
+    }
+
+    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external {
+        // Do nothing.
     }
 
     function setManagementFee(uint256 managementFee_) external {
@@ -396,7 +418,7 @@ contract MockRevertingERC20 {
 
 }
 
-contract MockMigrator {
+contract MockPoolManagerMigrator {
 
     address poolDelegate;
 
@@ -404,4 +426,59 @@ contract MockMigrator {
         poolDelegate = abi.decode(msg.data, (address));
     }
 
+}
+
+abstract contract MockMigrator {
+
+    fallback() external {
+        // Do nothing.
+    }
+}
+
+contract MockPoolManagerInitializer is MockMigrator {
+
+    function encodeArguments(address globals_, address owner_, address asset_, string memory name_, string memory symbol_) external pure
+        returns (bytes memory encodedArguments_) {
+
+        encodedArguments_ = new bytes(0);
+    }
+
+    function decodeArguments(bytes calldata encodedArguments_) external pure
+        returns (address globals_, address owner_, address asset_, string memory name_, string memory symbol_) {
+        // Do nothing.
+    }
+}
+
+contract MockLoanManagerInitializer is MockMigrator {
+    function encodeArguments(address pool_) external pure returns (bytes memory calldata_) {
+        calldata_ = new bytes(0);
+    }
+
+    function decodeArguments(bytes calldata calldata_) public pure returns (address pool_) {
+        // Do nothing.
+    }
+}
+
+contract MockWithdrawalManagerInitializer is MockMigrator {
+
+    function encodeArguments(
+        address asset_,
+        address pool_,
+        uint256 cycleStart_,
+        uint256 withdrawalWindowDuration_,
+        uint256 cycleDuration_
+    ) external pure returns (bytes memory encodedArguments_) {
+        encodedArguments_ = new bytes(0);
+    }
+
+    function decodeArguments(bytes calldata encodedArguments_)
+        external pure returns (
+            address asset_,
+            address pool_,
+            uint256 cycleStart_,
+            uint256 withdrawalWindowDuration_,
+            uint256 cycleDuration_
+        ) {
+        // Do nothing.
+    }
 }

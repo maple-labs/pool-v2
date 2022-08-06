@@ -18,6 +18,7 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
     address public override withdrawalManager;
 
     bool public override active;
+    bool public override configured;
     bool public override openToPublic;
 
     // TODO: Should this be located somewhere else?

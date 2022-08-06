@@ -27,6 +27,8 @@ interface IPoolManager is IPoolManagerStorage {
     /*** Administrative Functions ***/
     /********************************/
 
+    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external;
+
     function addLoanManager(address loanManager_) external;
 
     function removeLoanManager(address loanManager_) external;

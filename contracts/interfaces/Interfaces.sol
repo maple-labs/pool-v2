@@ -27,6 +27,8 @@ interface IGlobalsLike {
 
     function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
 
+    function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
+
     function managementFeeSplit(address pool) external view returns (uint256 split_);
 
     function maxCoverLiquidationPercent(address pool_) external view returns (uint256 maxCoverLiquidationPercent_);
@@ -53,6 +55,14 @@ interface ILoanManagerLike {
     function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_);
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+
+}
+
+interface ILoanManagerInitializerLike {
+
+    function encodeArguments(address pool_) external pure returns (bytes memory calldata_);
+
+    function decodeArguments(bytes calldata calldata_) external pure returns (address pool_);
 
 }
 
@@ -147,5 +157,26 @@ interface IPoolManagerLike {
     function totalAssets() external view returns (uint256 totalAssets_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface IWithdrawalManagerInitializerLike {
+
+    function encodeArguments(
+        address asset_,
+        address pool_,
+        uint256 cycleStart_,
+        uint256 withdrawalWindowDuration_,
+        uint256 cycleDuration_
+    ) external pure returns (bytes memory encodedArguments_);
+
+    function decodeArguments(bytes calldata encodedArguments_)
+        external pure returns (
+            address asset_,
+            address pool_,
+            uint256 cycleStart_,
+            uint256 withdrawalWindowDuration_,
+            uint256 cycleDuration_
+        );
 
 }

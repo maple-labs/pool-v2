@@ -15,7 +15,7 @@ import {
     MockGlobals,
     MockLoan,
     MockLoanManager,
-    MockMigrator,
+    MockPoolManagerMigrator,
     MockPool
 } from "./mocks/Mocks.sol";
 
@@ -52,6 +52,8 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
         string memory poolName_   = "Pool";
         string memory poolSymbol_ = "POOL1";
 
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
+
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
         poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
@@ -59,9 +61,54 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
 }
 
+contract ConfigureTests is PoolManagerBase {
+    address loanManager       = address(new Address());
+    address withdrawalManager = address(new Address());
+
+    uint256 liquidityCap  = 1_000_000e18;
+    uint256 managementFee = 0.1e18;
+
+    function test_configure_notDeployer() public {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:CO:NOT_DEPLOYER");
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+    }
+
+    function test_configure_alreadyConfigured() public {
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:CO:ALREADY_CONFIGURED");
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+
+        poolManager.__setConfigured(false);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+    }
+
+    function test_configure_success() public {
+        assertTrue(!poolManager.configured());
+        assertTrue(!poolManager.isLoanManager(loanManager));
+
+        assertEq(poolManager.withdrawalManager(), address(0));
+        assertEq(poolManager.liquidityCap(),      uint256(0));
+        assertEq(poolManager.managementFee(),     uint256(0));
+
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+
+        assertTrue(poolManager.configured());
+        assertTrue(poolManager.isLoanManager(loanManager));
+
+        assertEq(poolManager.withdrawalManager(), withdrawalManager);
+        assertEq(poolManager.liquidityCap(),      liquidityCap);
+        assertEq(poolManager.managementFee(),     managementFee);
+        assertEq(poolManager.loanManagerList(0),  loanManager);
+    }
+}
+
 contract MigrateTests is PoolManagerBase {
 
-    address migrator = address(new MockMigrator());
+    address migrator = address(new MockPoolManagerMigrator());
 
     function test_migrate_notFactory() external {
         vm.expectRevert("PM:M:NOT_FACTORY");

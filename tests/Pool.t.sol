@@ -12,6 +12,7 @@ import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.so
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
 import {
+    MockGlobals,
     MockReenteringERC20,
     MockRevertingERC20,
     MockPoolManager
@@ -50,6 +51,8 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
         string memory poolName_   = "Pool";
         string memory poolSymbol_ = "POOL1";
+
+        MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
