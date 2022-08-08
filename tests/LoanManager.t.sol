@@ -2982,7 +2982,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     /**********************/
 
     function test_addLoan_single() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -2995,7 +2995,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_ascendingPair() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3006,7 +3006,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3024,7 +3024,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_descendingPair() external {
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3035,7 +3035,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
@@ -3053,7 +3053,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_synchronizedPair() external {
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3064,7 +3064,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(synchronizedLoan);
+        loanManager.addLoanToList(synchronizedLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3082,7 +3082,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_toHead() external {
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3093,7 +3093,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3109,7 +3109,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 3);
@@ -3132,7 +3132,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_toMiddle() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3143,7 +3143,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3159,7 +3159,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3182,7 +3182,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_addLoan_toTail() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3193,7 +3193,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3209,7 +3209,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3236,16 +3236,16 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     /*************************/
 
     // TODO: Add test back
-    // TODO: Add deleteLoan coverage
+    // TODO: Add recognizeLoanPayment coverage
     function skiptest_removeLoan_invalidAddress() external {
         address nonExistingVehicle = address(new Address());
 
         vm.expectRevert(ZERO_DIVISION);
-        loanManager.deleteLoan(nonExistingVehicle);
+        loanManager.recognizeLoanPayment(nonExistingVehicle);
     }
 
     function test_removeLoan_single() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3256,7 +3256,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.deleteLoan(earliestLoan.vehicle);
+        loanManager.recognizeLoanPayment(earliestLoan.vehicle);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
@@ -3269,7 +3269,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_removeLoan_pair() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3280,7 +3280,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3296,7 +3296,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.deleteLoan(earliestLoan.vehicle);
+        loanManager.recognizeLoanPayment(earliestLoan.vehicle);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
@@ -3313,7 +3313,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_removeLoan_earliestDueDate() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3324,7 +3324,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3340,7 +3340,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3361,7 +3361,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(3).next,     0);
         assertEq(loanManager.loan(3).previous, 2);
 
-        loanManager.deleteLoan(earliestLoan.vehicle);
+        loanManager.recognizeLoanPayment(earliestLoan.vehicle);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
@@ -3384,7 +3384,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_removeLoan_medianDueDate() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3395,7 +3395,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3411,7 +3411,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3432,7 +3432,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(3).next,     0);
         assertEq(loanManager.loan(3).previous, 2);
 
-        loanManager.deleteLoan(medianLoan.vehicle);
+        loanManager.recognizeLoanPayment(medianLoan.vehicle);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3455,7 +3455,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     function test_removeLoan_latestDueDate() external {
-        loanManager.addLoan(earliestLoan);
+        loanManager.addLoanToList(earliestLoan);
 
         assertEq(loanManager.loanCounter(),                    1);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3466,7 +3466,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(1).next,     0);
         assertEq(loanManager.loan(1).previous, 0);
 
-        loanManager.addLoan(medianLoan);
+        loanManager.addLoanToList(medianLoan);
 
         assertEq(loanManager.loanCounter(),                    2);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3482,7 +3482,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(2).next,     0);
         assertEq(loanManager.loan(2).previous, 1);
 
-        loanManager.addLoan(latestLoan);
+        loanManager.addLoanToList(latestLoan);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
@@ -3503,7 +3503,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(3).next,     0);
         assertEq(loanManager.loan(3).previous, 2);
 
-        loanManager.deleteLoan(latestLoan.vehicle);
+        loanManager.recognizeLoanPayment(latestLoan.vehicle);
 
         assertEq(loanManager.loanCounter(),                    3);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);

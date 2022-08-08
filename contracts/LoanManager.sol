@@ -66,76 +66,49 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
     // TODO: Does this handle the situation where there is nothing to claim?
+    // TODO: Does this handle the situation where there is nothing to claim?
 
     function claim(address loanAddress_) external returns (uint256 managementPortion_) {
         require(msg.sender == poolManager, "LM:C:NOT_POOL_MANAGER");
 
         _advanceLoanAccounting();
 
-        uint256 netInterestPaid_ = 0;
+        // Claim loan and move funds into pool and to PM.
+        managementPortion_ = _claimLoan(loanAddress_);
 
-        // TODO: Remove scope block
-        {
-            uint256 principalPaid_ = 0;
-
-            // Claim loan and get principal and interest portion of claimable.
-            ( principalPaid_, netInterestPaid_, managementPortion_ ) = _claimLoan(loanAddress_);
-
-            principalOut -= principalPaid_;
-        }
-
-        // Remove loan from sorted list and get relevant previous parameters.
-        ( uint256 loanAccruedInterest_, uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _deleteLoan(loanAddress_);
+        // Finalized the previous payment into the pool accounting.
+        ( uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _recognizeLoanPayment(loanAddress_);
 
         uint256 newRate_ = 0;
 
-        // TODO: Remove scope block
-        {
-            uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
+        uint256 nextPaymentDueDate_ = ILoanLike(loanAddress_).nextPaymentDueDate();
 
-            // Get relevant next parameters.
-            ( , uint256 incomingNetInterest_, uint256 refinanceInterest_, uint256 nextPaymentDueDate_ ) = _getNextPaymentOf(loanAddress_, managementFee_);
+        // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
+        // In other words, if the previous payment was early, then the next payment will start accruing from now,
+        // but if the previous payment was late, then we should have been accruing the next payment
+        // from the moment the previous payment was due.
+        uint256 nextStartDate_ = _min(block.timestamp, previousPaymentDueDate_);
 
-            // If there is a next payment for this loan.
-            if (nextPaymentDueDate_ != 0) {
-
-                // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
-                // In other words, if the previous payment was early, then the next payment will start accruing from now,
-                // but if the previous payment was late, then we should have been accruing the next payment
-                // from the moment the previous payment was due.
-                uint256 nextStartDate_ = _min(block.timestamp, previousPaymentDueDate_);
-
-                newRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - nextStartDate_);
-
-                // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-                _addLoan(LoanInfo({
-                    // Previous and next will be overriden within _addLoan function
-                    previous:            0,
-                    next:                0,
-                    incomingNetInterest: incomingNetInterest_,
-                    refinanceInterest:   refinanceInterest_,
-                    issuanceRate:        newRate_,
-                    startDate:           nextStartDate_,
-                    paymentDueDate:      nextPaymentDueDate_,
-                    managementFee:       managementFee_,
-                    vehicle:             loanAddress_
-                }));
-            }
+        // If there is a next payment for this loan.
+        if (nextPaymentDueDate_ != 0) {
+            newRate_ = _queueNextLoanPayment(loanAddress_, nextStartDate_, nextPaymentDueDate_);
         }
 
         // The new vesting period finish is the maximum of the current earliest, if it does not exist set to
         // current timestamp to end vesting.
+        // TODO: We should try and remove this, VPF should never be explicitly set to BT.
         vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
         issuanceRate = issuanceRate + newRate_ - previousRate_;
 
-        // If the amount of interest claimed is greater than the amount accounted for, set to zero.
-        // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
-        accountedInterest -= loanAccruedInterest_;
-
-        // If there is a new rate, and the next payment should have already been accruing, then accrue and account for it.
+        /*
+           If there is a new rate (meaning there is a new payment queued), and the block.timestamp is past the previousPaymentDueDate,
+           then the previous payment has been claimed late, and we are late to apply the new issuance rate, because it should have started at previousPaymentDueDate.
+           Since the new issuance rate is late to be applied, we have some unaccounted interest. We catch up the accounted interest by doing a discrete update of the missing interest,
+           starting from when the new rate should have been applied, to when the new rate is actually applied.
+        */
         if (newRate_ != 0 && block.timestamp > previousPaymentDueDate_) {
             accountedInterest += (block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION;
         }
@@ -144,33 +117,16 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function fund(address loanAddress_) external {
         require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
 
+        _advanceLoanAccounting();
+
         ILoanLike(loanAddress_).fundLoan(address(this));
 
-        uint256 principal = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
+        uint256 principal_ = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
+        uint256 newRate_   = _queueNextLoanPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate());
 
-        uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
-
-        ( , uint256 incomingNetInterest_, , uint256 nextPaymentDueDate ) = _getNextPaymentOf(loanAddress_, managementFee_);
-
-        uint256 loanIssuanceRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate - block.timestamp);
-
-        _addLoan(LoanInfo({
-            previous:            0,
-            next:                0,
-            incomingNetInterest: incomingNetInterest_,
-            refinanceInterest:   0,
-            startDate:           block.timestamp,
-            paymentDueDate:      nextPaymentDueDate,
-            issuanceRate:        (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate - block.timestamp),
-            managementFee:       managementFee_,
-            vehicle:             loanAddress_
-        }));
-
-        principalOut        += principal;
-        accountedInterest   += getAccruedInterest();
-        issuanceRate        += loanIssuanceRate_;
-        vestingPeriodFinish  = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
-        lastUpdated          = block.timestamp;
+        principalOut        += principal_;
+        issuanceRate        += newRate_;
+        vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
     }
 
     /*************************/
@@ -225,12 +181,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (collateralAsset != fundsAsset && collateralAssetAmount != uint256(0)) {
             liquidator = address(
                 new Liquidator({
-                        owner_:           address(this),
-                        collateralAsset_: collateralAsset,
-                        fundsAsset_:      fundsAsset,
-                        auctioneer_:      address(this),
-                        destination_:     address(this),
-                        globals_:         IPoolManagerLike(poolManager).globals()
+                    owner_:           address(this),
+                    collateralAsset_: collateralAsset,
+                    fundsAsset_:      fundsAsset,
+                    auctioneer_:      address(this),
+                    destination_:     address(this),
+                    globals_:         IPoolManagerLike(poolManager).globals()
                 })
             );
 
@@ -261,40 +217,22 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _advanceLoanAccounting();
 
         // Remove loan from sorted list and get relevant previous parameters.
-        ( uint256 loanAccruedInterest_, uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _deleteLoan(loan_);
+        ( , uint256 previousRate_ ) = _recognizeLoanPayment(loan_);
 
-        {
-            uint256 previousPrincipal = ILoanLike(loan_).principal();
+        uint256 previousPrincipal = ILoanLike(loan_).principal();
 
-            // Perform the refinancing, updating the loan state.
-            ILoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
+        // Perform the refinancing, updating the loan state.
+        ILoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
 
-            uint256 principal_ = principalOf[loan_] = ILoanLike(loan_).principal();
+        uint256 principal_ = principalOf[loan_] = ILoanLike(loan_).principal();
 
-            if (principal_ > previousPrincipal) {
-                principalOut += principal_ - previousPrincipal;
-            } else {
-                principalOut -= previousPrincipal - principal_;
-            }
+        if (principal_ > previousPrincipal) {
+            principalOut += principal_ - previousPrincipal;
+        } else {
+            principalOut -= previousPrincipal - principal_;
         }
 
-        uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
-
-        ( , uint256 incomingNetInterest_, uint256 refinanceInterest_, uint256 nextPaymentDueDate_ ) = _getNextPaymentOf(loan_, managementFee_);
-
-        uint256 newRate = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - block.timestamp);
-
-        _addLoan(LoanInfo({
-            previous:            0,
-            next:                0,
-            incomingNetInterest: incomingNetInterest_,
-            refinanceInterest:   refinanceInterest_,
-            issuanceRate:        newRate,
-            startDate:           block.timestamp,
-            paymentDueDate:      nextPaymentDueDate_,
-            managementFee:       managementFee_,
-            vehicle:             loan_
-        }));
+        uint256 newRate_ = _queueNextLoanPayment(loan_, block.timestamp, ILoanLike(loan_).nextPaymentDueDate());
 
         // The new vesting period finish is the maximum of the current earliest, if it does not exist set to
         // current timestamp to end vesting.
@@ -302,53 +240,52 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
-        issuanceRate = issuanceRate + newRate - previousRate_;
-
-        // Update the accounted interest to reflect what is present in the loan.
-        accountedInterest = accountedInterest + refinanceInterest_ - loanAccruedInterest_;
+        issuanceRate = issuanceRate + newRate_ - previousRate_;
     }
 
     /**************************/
     /*** Internal Functions ***/
     /**************************/
 
-    function _accrueCurrentInterest() internal {
+    // TODO: Gas optimize
+    function _advanceLoanAccounting() internal {
+
+        // If no vesting period finish, do not advance previous loan accounting.
+        if (vestingPeriodFinish != 0) {
+            uint256 loanId_ = loanWithEarliestPaymentDueDate;
+
+            // Advance loans in previous domains to "catch up" to current state.
+            while (loans[loanId_].paymentDueDate == vestingPeriodFinish && block.timestamp > vestingPeriodFinish) {
+                LoanInfo memory loan_ = loans[loanId_];
+
+                // Remove the loan from the linked list so the next loan can be used as the shortest timestamp.
+                // NOTE: This keeps the loan accounting info intact so it can be accounted for when the payment is claimed.
+                _removeLoanFromList(loan_.previous, loan_.next, loanId_);
+
+                // Remove issuanceRate as it is deducted from global issuanceRate.
+                loans[loanId_].issuanceRate = 0;
+
+                // Update accounting between timestamps and set last updated to the vestingPeriodFinish.
+                // Reduce the issuanceRate for the loan.
+                accountedInterest += (vestingPeriodFinish - lastUpdated) * issuanceRate / PRECISION;
+                issuanceRate      -= loan_.issuanceRate;
+                lastUpdated        = vestingPeriodFinish;
+
+                // Update the new VPF by using the updated linked list.
+                vestingPeriodFinish = _min(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);  // TODO: Revisit
+
+                // If the end of the list has been reached, exit the loop.
+                if ((loanId_ = loans[loanId_].next) == 0) break;
+            }
+        }
+
+        // Accrue interest to the current timestamp.
         accountedInterest += getAccruedInterest();
         lastUpdated        = block.timestamp;
     }
 
-    // TODO: Gas optimize
-    function _advanceLoanAccounting() internal {
-        uint256 loanId_ = loanWithEarliestPaymentDueDate;
-
-        while (loans[loanId_].paymentDueDate == vestingPeriodFinish && block.timestamp > vestingPeriodFinish) {
-            LoanInfo memory loan_ = loans[loanId_];
-
-            // Remove the loan from the linked list so the next loan can be used as the shortest timestamp.
-            // NOTE: This keeps the loan accounting info intact so it can be accounted for when the payment is claimed.
-            _removeLoanFromList(loan_.previous, loan_.next, loanId_);
-
-            // Remove issuanceRate as it is deducted from global issuanceRate.
-            loans[loanId_].issuanceRate = 0;
-
-            // Update accounting between timestamps and set last updated to the vestingPeriodFinish.
-            // Reduce the issuanceRate for the loan.
-            accountedInterest += (vestingPeriodFinish - lastUpdated) * issuanceRate / PRECISION;
-            issuanceRate      -= loan_.issuanceRate;
-            lastUpdated        = vestingPeriodFinish;
-
-            // Update the new VPF by using the updated linked list.
-            vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);  // TODO: Revisit
-
-            loanId_ = loans[loanId_].next;
-        }
-
-        // Accrue interest to the current timestamp.
-        _accrueCurrentInterest();
-    }
-
     // TODO Passing Memory due to stack too deep error. Investigate if efficiency is lost here
-    function _addLoan(LoanInfo memory loan_) internal returns (uint256 loanId_) {
+    function _addLoanToList(LoanInfo memory loan_) internal returns (uint256 loanId_) {
         loanId_ = loanIdOf[loan_.vehicle] = ++loanCounter;
 
         uint256 current = 0;
@@ -375,16 +312,22 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         loans[loanId_] = loan_;
     }
 
-    function _claimLoan(address loan_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 managementPortion_) {
+    // TODO: Change return vars after managment fees are properly implemented.
+    function _claimLoan(address loan_) internal returns (uint256 managementPortion_) {
         ILoanLike loan = ILoanLike(loan_);
 
         uint256 claimable_ = loan.claimableFunds();
 
-        if (claimable_ == uint256(0)) return (uint256(0), uint256(0), uint256(0));
+        require(claimable_ != 0, "LM:ANT:NO_CLAIMABLE_FUNDS");
 
-        principalPortion_  = principalOf[loan_] - loan.principal();
-        interestPortion_   = claimable_ - principalPortion_;
-        principalOf[loan_] = loan.principal();
+        uint256 currentPrincipal_ = loan.principal();
+        uint256 principalPortion_ = principalOf[loan_] - currentPrincipal_;
+        uint256 interestPortion_  = claimable_ - principalPortion_;
+
+        principalOf[loan_] = currentPrincipal_;
+
+        // Decrement principal claimed.
+        principalOut -= principalPortion_;
 
         uint256 id_ = loanIdOf[loan_];
 
@@ -392,33 +335,65 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         if (managementPortion_ != 0) {
             loan.claimFunds(managementPortion_, address(poolManager));
-            interestPortion_ -= managementPortion_;
         }
 
         loan.claimFunds(loan.claimableFunds(), pool);
     }
 
-    function _deleteLoan(address loan_) internal returns (uint256 loanAccruedInterest_, uint256 paymentDueDate_, uint256 issuanceRate_) {
+    // TODO: Rename function to indicate that it can happen on refinance as well.
+    function _recognizeLoanPayment(address loan_) internal returns (uint256 paymentDueDate_, uint256 issuanceRate_) {
         uint256 loanId_ = loanIdOf[loan_];
 
-        LoanInfo memory loan = loans[loanId_];
+        LoanInfo memory loanInfo_ = loans[loanId_];
 
-        _removeLoanFromList(loan.previous, loan.next, loanId_);
+        _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
 
-        issuanceRate_   = loan.issuanceRate;
-        paymentDueDate_ = loan.paymentDueDate;
+        issuanceRate_   = loanInfo_.issuanceRate;
+        paymentDueDate_ = loanInfo_.paymentDueDate;
 
-        // If the loan is early, calculate accrued interest from issuance, else use total interest.
-        loanAccruedInterest_ =
-            block.timestamp < paymentDueDate_
-                ? (block.timestamp - loan.startDate) * issuanceRate_ / PRECISION
-                : loan.incomingNetInterest;
+        // If the amount of interest claimed is greater than the amount accounted for, set to zero.
+        // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
+        accountedInterest -= _getLoanAccruedInterest(loanInfo_);
 
-        // Add any interest owed prior to a refinance.
-        loanAccruedInterest_ += loan.refinanceInterest;
-
+        // Loan Info is deleted, because the payment has been fully recognized in the pool accounting, and will never be used again.
         delete loanIdOf[loan_];
         delete loans[loanId_];
+    }
+
+    function _queueNextLoanPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
+        uint256 managementFee_ = IPoolManagerLike(poolManager).managementFee();
+
+        ( , uint256 incomingNetInterest_, uint256 refinanceInterest_ ) = _getNextPaymentOf(loan_, managementFee_);
+
+        newRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
+
+        // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
+        _addLoanToList(LoanInfo({
+            // Previous and next will be overriden within _addLoan function
+            previous:            0,
+            next:                0,
+            incomingNetInterest: incomingNetInterest_,
+            refinanceInterest:   refinanceInterest_,
+            issuanceRate:        newRate_,
+            startDate:           startDate_,
+            paymentDueDate:      nextPaymentDueDate_,
+            managementFee:       managementFee_,
+            vehicle:             loan_
+        }));
+
+        // Update the accounted interest to reflect what is present in the loan.
+        accountedInterest += refinanceInterest_;
+    }
+
+    function _getLoanAccruedInterest(LoanInfo memory loan_) internal view returns (uint256 loanAccruedInterest_) {
+        // If the loan is early, calculate accrued interest from issuance, else use total interest.
+        loanAccruedInterest_ =
+            block.timestamp < loan_.paymentDueDate
+                ? (block.timestamp - loan_.startDate) * loan_.issuanceRate / PRECISION
+                : loan_.incomingNetInterest;
+
+        // Add any interest owed prior to a refinance.
+        loanAccruedInterest_ += loan_.refinanceInterest;
     }
 
     function _removeLoanFromList(uint256 previous_, uint256 next_, uint256 loanId_) internal {
@@ -438,19 +413,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     // TODO: Should we refactor the loan to return the refinance interest?
     function _getNextPaymentOf(
         address loan_,
-        uint256 managementFee_
+        uint256 managementFee_  // This is passed in to prevent multiple external calls to get the management fee.
     )
         internal view returns (
             uint256 nextPrincipal_,
             uint256 nextInterest_,
-            uint256 refinanceInterest_,
-            uint256 nextPaymentDueDate_
+            uint256 refinanceInterest_
         )
     {
-        nextPaymentDueDate_ = ILoanLike(loan_).nextPaymentDueDate();
-
-        if (nextPaymentDueDate_ == uint256(0)) return (uint256(0), uint256(0), uint256(0), uint256(0));
-
         ( nextPrincipal_, nextInterest_ ) = ILoanLike(loan_).getNextPaymentBreakdown();
 
         // Calculate net refinance interest.
