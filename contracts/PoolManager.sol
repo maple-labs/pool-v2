@@ -62,6 +62,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Ownership Transfer Functions ***/
     /************************************/
 
+    // TODO: Add PD transfer check
     function acceptPendingPoolDelegate() external override whenProtocolNotPaused {
         require(msg.sender == pendingPoolDelegate, "PM:APA:NOT_PENDING_PD");
 
@@ -324,7 +325,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             ( willRevert_, errorMessage_ ) = _canTransfer(recipient_, "P:TF:");
         }
 
-        canCall_ = !willRevert_;  // TODO: Don't love this, but returning `willRevert` seems counterintuitive here
+        canCall_ = !willRevert_;
     }
 
     function factory() external view override returns (address factory_) {

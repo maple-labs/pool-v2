@@ -21,7 +21,6 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
     bool public override configured;
     bool public override openToPublic;
 
-    // TODO: Should this be located somewhere else?
     uint256 public override liquidityCap;
     uint256 public override managementFee;
     uint256 public override unrealizedLosses;

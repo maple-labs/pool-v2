@@ -7,8 +7,6 @@ import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IPoolManagerLike } from "./interfaces/Interfaces.sol";
 import { IERC20, IPool }    from "./interfaces/IPool.sol";
 
-// TODO: Revisit function order
-
 contract Pool is IPool, ERC20 {
 
     address public override asset;    // Underlying ERC-20 asset handled by the ERC-4626 contract.
@@ -220,7 +218,6 @@ contract Pool is IPool, ERC20 {
         assets_ = totalSupply_ == 0 ? shares_ : (shares_ * totalAssetsWithUnrealizedLosses()) / totalSupply_;
     }
 
-    // TODO: Add back unrealized losses
     function previewWithdraw(uint256 assets_) public view virtual override returns (uint256 shares_) {
         uint256 totalSupply_ = totalSupply;
 

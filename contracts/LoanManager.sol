@@ -118,7 +118,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
-    // TODO: Does this handle the situation where there is nothing to claim?
 
     function claim(address loanAddress_) external returns (uint256 managementPortion_) {
         require(msg.sender == poolManager, "LM:C:NOT_POOL_MANAGER");
@@ -238,8 +237,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         increasedUnrealizedLosses_ = principal;  // TODO: Should this be principal + accrued interest?
 
         liquidationInfo[loan_] = LiquidationInfo(principal, liquidator);
-
-        // TODO: Remove issuance rate from loan, but it's dependant on how the IM does that
     }
 
     /***************************************/
@@ -418,7 +415,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** View Functions ***/
     /**********************/
 
-    // TODO: Add bool flag for optionally including unrecognized losses.
     function assetsUnderManagement() public view virtual returns (uint256 assetsUnderManagement_) {
         // TODO: Figure out better approach for this
         uint256 accruedInterest = lastUpdated == block.timestamp ? 0 : getAccruedInterest();
