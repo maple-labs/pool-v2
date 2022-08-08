@@ -162,15 +162,17 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     function _assertLoanInfo(
         address loanAddress,
         uint256 incomingNetInterest,
+        uint256 refinanceInterest,
         uint256 principalOf_loan,
         uint256 startDate,
         uint256 paymentDueDate
     )
         internal
     {
-        ( , , uint256 incomingNetInterest_, , uint256 startDate_, uint256 paymentDueDate_, , ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
+        ( , , uint256 incomingNetInterest_, uint256 refinanceInterest_, , uint256 startDate_, uint256 paymentDueDate_, , ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
+        assertEq(refinanceInterest_,   refinanceInterest);
         assertEq(startDate_,           startDate);
         assertEq(paymentDueDate_,      paymentDueDate);
 
@@ -342,6 +344,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -372,6 +375,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -417,6 +421,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -447,6 +452,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
@@ -492,6 +498,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -522,6 +529,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -568,6 +576,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -598,6 +607,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -644,6 +654,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -674,6 +685,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
@@ -720,6 +732,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -750,6 +763,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -818,6 +832,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -848,6 +863,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -896,6 +912,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -926,6 +943,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
@@ -974,6 +992,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1004,6 +1023,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1052,6 +1072,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1082,6 +1103,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1130,6 +1152,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1160,6 +1183,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1209,6 +1233,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1239,6 +1264,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
@@ -1288,6 +1314,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1318,6 +1345,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1367,6 +1395,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1397,6 +1426,7 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1455,10 +1485,10 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         /**
          *  Loan 1
-         *    Start date:    0
+         *    Start date:    0sec
          *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
          *  Loan 2
-         *    Start date:    6_000
+         *    Start date:    6_000sec
          *    Issuance rate: 0.01e30 (125 * 0.8 / 10_000)
          */
     }
@@ -1471,41 +1501,41 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 6_000  * 0.008 = 48 (Accounted during loan2 funding)
-         *    First  payment net interest accrued:   4_000  * 0.008 = 32
+         *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First  payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000 * 0.01 = 40
+         *    First payment net interest accrued: 4_000sec * 0.01 = 40
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000 * 0.008 = 80
-         *    Second payment net interest accounted: 0      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
+         *    Second payment net interest accounted: 0sec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 4_000 * 0.01 = 40
+         *    First payment net interest accounted: 4_000sec * 0.01 = 40
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + 48 + (32 + 40) + 0  = 1_000_120
-         *  Resulting total assets: 2_000_000 + 40 + 0         + 80 = 1_000_120
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (32 + 40) + 48 + 0  = 1_000_120
+         *  Resulting total assets: 2_000_000 + 0         + 40 + 80 = 1_000_120
          *
          *  ***********************************
          *  *** Loan 2 Payment (t = 16_000) ***
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 6_000 * 0.008 = 48
+         *    Second payment net interest accrued: 6_000sec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest accounted: 4_000  * 0.01 = 40 (Accounted during loan1 payment)
-         *    First  payment net interest accrued:   6_000  * 0.01 = 60
-         *    Second payment net interest accrued:   0      * 0.01 = 0
+         *    First  payment net interest accounted: 4_000sec * 0.01 = 40 (Accounted during loan1 payment)
+         *    First  payment net interest accrued:   6_000sec * 0.01 = 60
+         *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000 * 0.008 = 48
+         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000 * 0.01 = 100
-         *    Second payment net interest accounted: 0      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + 40 + (48 + 60) + 80  = 1_000_228
-         *  Resulting total assets: 2_000_000 + 48 + 0         + 180 = 1_000_228
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (48 + 60) + 40 + 80  = 1_000_228
+         *  Resulting total assets: 2_000_000 + 0         + 48 + 180 = 1_000_228
          */
 
         /**********************/
@@ -1524,6 +1554,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1554,6 +1585,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1594,6 +1626,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
@@ -1624,6 +1657,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
@@ -1656,41 +1690,41 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 6_000 * 0.008 = 48 (Accounted during loan2 funding)
-         *    First  payment net interest accrued:   2_000 * 0.008 = 16
+         *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First  payment net interest accrued:   2_000sec * 0.008 = 16
          *  Loan 2:
-         *    First payment net interest accrued: 2_000 * 0.01 = 20
+         *    First payment net interest accrued: 2_000sec * 0.01 = 20
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000 * 0.008 = 80
-         *    Second payment net interest accounted: 0      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
+         *    Second payment net interest accounted: 0sec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 2_000 * 0.01 = 20
+         *    First payment net interest accounted: 2_000sec * 0.01 = 20
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + 48 + (16 + 20) + 0  = 2_000_084
-         *  Resulting total assets: 2_000_000 + 20 + 0         + 80 = 2_000_100
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (16 + 20) + 48 + 0  = 2_000_084
+         *  Resulting total assets: 2_000_000 + 0         + 20 + 80 = 2_000_100
          *
          *  ***********************************
          *  *** Loan 2 Payment (t = 16_000) ***
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 8_000 * (80/12_000) = 53
+         *    Second payment net interest accrued: 8_000sec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest accounted: 2_000 * 0.01 = 20 (Accounted during loan1 payment)
-         *    First  payment net interest accrued:   8_000 * 0.01 = 80
-         *    Second payment net interest accrued:   0     * 0.01 = 0
+         *    First  payment net interest accounted: 2_000sec * 0.01 = 20 (Accounted during loan1 payment)
+         *    First  payment net interest accrued:   8_000sec * 0.01 = 80
+         *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 8_000 * (80/12_000) = 53
+         *    Second payment net interest accounted: 8_000sec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000 * 0.01 = 100
-         *    Second payment net interest accounted: 0      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + 20 + (53 + 80) + 80  = 1_000_233
-         *  Resulting total assets: 2_000_000 + 53 + 0         + 180 = 1_000_233
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (53 + 80) + 20 + 80  = 1_000_233
+         *  Resulting total assets: 2_000_000 + 0         + 53 + 180 = 1_000_233
          */
 
         /**********************/
@@ -1709,6 +1743,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1739,6 +1774,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 8_000,
             paymentDueDate:      START + 20_000
@@ -1779,6 +1815,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
@@ -1809,6 +1846,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
@@ -1841,42 +1879,42 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First payment net interest accounted: 6_000 * 0.008 = 48 (Accounted during loan2 funding)
-         *    First payment net interest accrued:   4_000 * 0.008 = 32
+         *    First payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000 * 0.01 = 40  (Only accrues until loan1 due date)
+         *    First payment net interest accrued: 4_000sec * 0.01 = 40  (Only accrues until loan1 due date)
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   (10_000 * 0.008) + (2_000 * 0.012) = 104
-         *    Second payment net interest accounted:  2_000  * 0.008                    = 16
+         *    First  payment net interest claimed:   (10_000sec * 0.008) + (2_000sec * 0.012) = 104
+         *    Second payment net interest accounted:  2_000sec  * 0.008                    = 16
          *  Loan 2:
-         *    First payment net interest accounted: 6_000 * 0.01 = 60
+         *    First payment net interest accounted: 6_000sec * 0.01 = 60
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + 48        + (32 + 40) + 0   = 2_000_120
-         *  Resulting total assets: 2_000_000 + (16 + 60) + 0         + 104 = 2_000_180
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (32 + 40) + 48        + 0   = 2_000_120
+         *  Resulting total assets: 2_000_000 + 0         + (16 + 60) + 104 = 2_000_180
          *
          *  ***********************************
          *  *** Loan 2 Payment (t = 16_000) ***
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 2_000 * 0.008 = 16
-         *    Second payment net interest accrued:   4_000 * 0.008 = 32
+         *    Second payment net interest accounted: 2_000sec * 0.008 = 16
+         *    Second payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First  payment net interest accounted: 6_000 * 0.01 = 60 (Accounted during loan1 claim)
-         *    First  payment net interest accrued:   4_000 * 0.01 = 40
-         *    Second payment net interest accrued:   0     * 0.01 = 0
+         *    First  payment net interest accounted: 6_000sec * 0.01 = 60 (Accounted during loan1 claim)
+         *    First  payment net interest accrued:   4_000sec * 0.01 = 40
+         *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000 * 0.008 = 48
+         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000 * 0.01 = 100
-         *    Second payment net interest accounted: 0      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
-         *  TA = principalOut + accountedInterest + accruedInterest + cash
-         *  Starting  total assets: 2_000_000 + (16 + 60) + (32 + 40) + 104 = 1_000_252
-         *  Resulting total assets: 2_000_000 + 48        + 0         + 204 = 1_000_252
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + (32 + 40) + (16 + 60) + 104 = 2_000_252
+         *  Resulting total assets: 2_000_000 + 48        + 0         + 204 = 2_000_252
          */
 
         /**********************/
@@ -1895,6 +1933,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
@@ -1925,6 +1964,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
@@ -1965,6 +2005,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
@@ -1995,6 +2036,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
+            refinanceInterest:   0,
             principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
@@ -2069,9 +2111,722 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
 }
 
+// TODO: Create mock refinance interest values
+// TODO: Add fuzzing to automate amortized tests
+contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
+
+    MockLoan loan;
+
+    // Refinance
+    address refinancer = address(new Address());
+
+    function setUp() public override {
+        super.setUp();
+
+        loan = new MockLoan(address(asset), address(asset));
+
+        // Setup next payment information
+        loan.__setPrincipal(1_000_000);
+        loan.__setPrincipalRequested(1_000_000);
+        loan.__setNextPaymentInterest(125);
+        loan.__setNextPaymentDueDate(START + 10_000);
+
+        vm.prank(address(poolManager));
+        loanManager.fund(address(loan));
+
+        // On this suite, pools have a total of 2_000_000 to facilitate funding + refinance
+        asset.mint(address(pool), 1_000_000);
+    }
+
+    function test_refinance_onLoanPaymentDueDate_interestOnly() external {
+        /**
+         *  *************************************************************
+         *  *** Loan Issuance Rate = (125 * 0.8) / 10_000 = 0.01/sec ***
+         *  *************************************************************
+         *  ***************************************************************************
+         *  *** Refinance                                                           ***
+         *  *** Principal: 1m => 2m, Incoming Interest: 100 => 300, IR 0.01 => 0.03 ***
+         *  ***************************************************************************
+         *  *********************************
+         *  *** Loan Payment (t = 10_000) ***
+         *  *********************************
+         *  --- Pre-Refinance ---
+         *  First payment net interest accounted: 0
+         *  First payment net interest accrued:   10_000sec * 0.01 = 100
+         *  --- Post-Refinance ---
+         *  First  payment net interest claimed:  10_000sec * 0.01 = 100
+         *  Second payment net interest accounted: 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 1_000_000 + 100 + 0   + 1_000_000 = 2_000_0100
+         *  Resulting total assets: 2_000_000 + 0   + 100 + 0         = 2_000_0100
+         *
+         *  ********************************
+         *  *** Loan Payment (t = 20_000) ***
+         *  ********************************
+         *  --- Pre-Claim ---
+         *  Second payment net interest accounted: 0
+         *  Second payment net interest accrued:   10_000sec * 0.03 = 300
+         *  --- Post-Claim ---
+         *  Second payment net interest claimed:   10_000sec * 0.03 = 300
+         *  Second payment net interest accounted: 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 300 + 100 + 0   = 2_000_400
+         *  Resulting total assets: 2_000_000 + 0   + 0   + 400 = 2_000_400
+         */
+
+        vm.warp(START + 10_000);
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START,
+            paymentDueDate:      START + 10_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       100,
+            accountedInterest:     0,
+            principalOut:          1_000_000,
+            assetsUnderManagement: 1_000_100,
+            issuanceRate:          0.01e30,
+            lastUpdated:           START,
+            vestingPeriodFinish:   START + 10_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        1_000_000,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_100);
+
+        // Set Refinance values
+        loan.__setRefinanceInterest(125);  // Accrued gross interest from first payment cycle (accounted for in real loan).
+        loan.__setRefinancePrincipal(2_000_000);
+        loan.__setPrincipalRequested(2_000_000);
+        loan.__setRefinanceNextPaymentInterest(375);
+        loan.__setRefinanceNextPaymentDueDate(START + 20_000);
+
+        vm.warp(START + 10_000);
+
+        // Burn from the pool to simulate fund
+        asset.burn(address(pool), 1_000_000);
+
+        vm.prank(address(poolManager));
+        loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   100,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 10_000,
+            paymentDueDate:      START + 20_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     100,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_100,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 10_000,
+            vestingPeriodFinish:   START + 20_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_100);
+
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 125,
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            paymentTimestamp:    START + 20_000,
+            nextPaymentDueDate:  START + 30_000
+        });
+
+        loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
+
+        _assertLoanManagerState({
+            accruedInterest:       300,
+            accountedInterest:     100,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_400,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 10_000,
+            vestingPeriodFinish:   START + 20_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        375 + 125,  // Principal + interest + refinance interest
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_400);
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   0,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 20_000,
+            paymentDueDate:      START + 30_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     0,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_000,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 20_000,
+            vestingPeriodFinish:   START + 30_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        100 + 300,
+            poolManagerBalance: 25 + 75
+        });
+
+        _assertTotalAssets(2_000_400);
+    }
+
+    function test_refinance_beforeLoanDueDate_interestOnly() external {
+        /**
+         *  *************************************************************
+         *  *** Loan Issuance Rate = (125 * 0.8) / 10_000 = 0.01/sec ***
+         *  *************************************************************
+         *  ***************************************************************************
+         *  *** Refinance                                                           ***
+         *  *** Principal: 1m => 2m, Incoming Interest: 100 => 300, IR 0.01 => 0.03 ***
+         *  ***************************************************************************
+         *  *****************************
+         *  *** Refinance (t = 6_000) ***
+         *  *****************************
+         *  --- Pre-Refinance ---
+         *  First payment net interest accounted: 0
+         *  First payment net interest accrued:   6_000sec * 0.01  = 60
+         *  --- Post-Refinance ---
+         *  First payment net interest accounted: 6_000sec * 0.01 = 60
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 1_000_000 + 60 + 0  + 1_000_000 = 2_000_060
+         *  Resulting total assets: 2_000_000 + 0  + 60 + 0         = 2_000_060
+         *
+         *  *********************************
+         *  *** Loan Payment (t = 16_000) ***
+         *  *********************************
+         *  --- Pre-Claim ---
+         *  Second payment net interest accounted: 0
+         *  Second payment net interest accrued:   10_000sec * 0.03 = 300
+         *  --- Post-Claim ---
+         *  Second payment net interest claimed:   10_000sec * 0.03 = 300
+         *  Secpnd payment net interest accounted: 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 300 + 60 + 0   = 2_000_360
+         *  Resulting total assets: 2_000_000 + 0   + 0  + 360 = 2_000_360
+         */
+
+        vm.warp(START + 6_000);
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START,
+            paymentDueDate:      START + 10_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       60,
+            accountedInterest:     0,
+            principalOut:          1_000_000,
+            assetsUnderManagement: 1_000_060,
+            issuanceRate:          0.01e30,
+            lastUpdated:           START,
+            vestingPeriodFinish:   START + 10_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        1_000_000,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_060);
+
+        // Set Refinance values
+        loan.__setRefinanceInterest(75);  // Accrued gross interest from first payment cycle (accounted for in real loan).
+        loan.__setRefinancePrincipal(2_000_000);
+        loan.__setPrincipalRequested(2_000_000);
+        loan.__setRefinanceNextPaymentInterest(375);
+        loan.__setRefinanceNextPaymentDueDate(START + 16_000);
+
+        asset.burn(address(pool), 1_000_000);  // Burn from the pool to simulate fund and drawdown.
+
+        vm.prank(address(poolManager));
+        loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   60,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 6_000,
+            paymentDueDate:      START + 16_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     60,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_060,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 6_000,
+            vestingPeriodFinish:   START + 16_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_060);
+
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 75,  // Interest plus refinance interest.
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            paymentTimestamp:    START + 16_000,
+            nextPaymentDueDate:  START + 26_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       300,
+            accountedInterest:     60,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_360,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 6_000,
+            vestingPeriodFinish:   START + 16_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        375 + 75,  // Principal + interest + refinance interest
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_360);
+
+        loan.__setRefinanceInterest(0);  // Set to 0 to simulate a refinance that has been paid off.
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   0,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 16_000,
+            paymentDueDate:      START + 26_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     0,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_000,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 16_000,
+            vestingPeriodFinish:   START + 26_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        60 + 300,
+            poolManagerBalance: 15 + 75
+        });
+
+        _assertTotalAssets(2_000_360);
+    }
+
+    function test_refinance_onLatePayment_interestOnly() external {
+        /**
+         *  *************************************************************
+         *  *** Loan Issuance Rate = (125 * 0.8) / 10_000 = 0.01/sec ***
+         *  *************************************************************
+         *  ***************************************************************************
+         *  *** Refinance                                                           ***
+         *  *** Principal: 1m => 2m, Incoming Interest: 100 => 300, IR 0.01 => 0.03 ***
+         *  ***************************************************************************
+         *  ***********************************
+         *  *** Refinance (t = 14_000) Late ***
+         *  ***********************************
+         *  --- Pre-Refinance ---
+         *  First payment net interest accounted: 0
+         *  First payment net interest accrued:   10_000sec * 0.01 = 100
+         *  --- Post-Refinance ---
+         *  First payment net interest accounted: (10_000sec * 0.01 + 4000sec * 0.012) = 148 (`refinanceInterest` in loan will capture late fees and allow LM to account for them)
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 1_000_000 + 100 + 0   + 1_000_000 = 2_000_100
+         *  Resulting total assets: 2_000_000 + 0   + 148 + 0         = 2_000_148
+         *
+         *  *********************************
+         *  *** Loan Payment (t = 24_000) ***
+         *  *********************************
+         *  --- Pre-Claim ---
+         *  Second payment net interest accounted: 0
+         *  Second payment net interest accrued:   10_000sec * 0.03 = 300
+         *  --- Post-Claim ---
+         *  Second payment net interest claimed:   10_000sec * 0.03 = 300
+         *  Second payment net interest accounted: 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 300 + 148 + 0   = 2_000_448
+         *  Resulting total assets: 2_000_000 + 0   + 0   + 448 = 2_000_448
+         */
+
+        vm.warp(START + 14_000);
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START,
+            paymentDueDate:      START + 10_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       100,
+            accountedInterest:     0,
+            principalOut:          1_000_000,
+            assetsUnderManagement: 1_000_100,
+            issuanceRate:          0.01e30,
+            lastUpdated:           START,
+            vestingPeriodFinish:   START + 10_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        1_000_000,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_100);
+
+        // Set Refinance values
+        loan.__setRefinanceInterest(185);  // Accrued gross interest from first payment cycle (accounted for in real loan).
+        loan.__setRefinancePrincipal(2_000_000);
+        loan.__setPrincipalRequested(2_000_000);
+        loan.__setRefinanceNextPaymentInterest(375);
+        loan.__setRefinanceNextPaymentDueDate(START + 24_000); // The payment schedule restarts at refinance
+
+        asset.burn(address(pool), 1_000_000);
+
+        vm.prank(address(poolManager));
+        loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   148,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 14_000,
+            paymentDueDate:      START + 24_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     148,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_148,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 14_000,
+            vestingPeriodFinish:   START + 24_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_148);
+
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 185,  // Interest plus refinance interest.
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            paymentTimestamp:    START + 24_000,
+            nextPaymentDueDate:  START + 34_000
+        });
+
+        loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
+
+        _assertLoanManagerState({
+            accruedInterest:       300,
+            accountedInterest:     148,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_448,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 14_000,
+            vestingPeriodFinish:   START + 24_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        375 + 185,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_448);
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   0,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 24_000,
+            paymentDueDate:      START + 34_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     0,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_000,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 24_000,
+            vestingPeriodFinish:   START + 34_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        300 + 148,
+            poolManagerBalance: 75  + 37
+        });
+
+        _assertTotalAssets(2_000_448);
+    }
+
+    function test_refinance_onPaymentDueDate_amortized() external {
+         /**
+         *  *************************************************************
+         *  *** Loan Issuance Rate = (125 * 0.8) / 10_000 = 0.01/sec ***
+         *  *************************************************************
+         *  ***************************************************************************
+         *  *** Refinance                                                           ***
+         *  *** Principal: 1m => 2m, Incoming Interest: 100 => 300, IR 0.01 => 0.03 ***
+         *  ***************************************************************************
+         *  ********************************
+         *  *** Loan Payment (t = 10_000) ***
+         *  ********************************
+         *  --- Pre-Refinance ---
+         *  First payment net interest accounted: 0
+         *  First payment net interest accrued:   10_000sec * 0.01 = 100
+         *  --- Post-Refinance ---
+         *  First payment net interest accounted: 10_000sec * 0.01 = 100
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 1_000_000 + 100 + 0   + 1_000_000 = 2_000_100
+         *  Resulting total assets: 2_000_000 + 0   + 100 + 0         = 2_000_100
+         *
+         *  ********************************
+         *  *** Loan Payment (t = 20_000) ***
+         *  ********************************
+         *  --- Pre-Claim ---
+         *  Second payment net interest accounted: 0
+         *  Second payment net interest accrued:   10_000sec * 0.03 = 300
+         *  --- Post-Claim ---
+         *  Second payment principa; claimed:      200_000
+         *  Second payment net interest claimed:   10_000sec * 0.03 = 300
+         *  Second payment net interest accounted: 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 300 + 100 + 0       = 2_000_400
+         *  Resulting total assets: 1_800_000 + 0   + 0   + 200_400 = 2_000_400
+         */
+
+        vm.warp(START + 10_000);
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START,
+            paymentDueDate:      START + 10_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       100,  // 0.008 * 10_000 = 80
+            accountedInterest:     0,
+            principalOut:          1_000_000,
+            assetsUnderManagement: 1_000_100,
+            issuanceRate:          0.01e30,
+            lastUpdated:           START,
+            vestingPeriodFinish:   START + 10_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        1_000_000,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_100);
+
+        // Set Refinance values
+        loan.__setRefinanceInterest(125);
+        loan.__setRefinancePrincipal(2_000_000);
+        loan.__setPrincipalRequested(2_000_000);
+        loan.__setRefinanceNextPaymentInterest(375);
+        loan.__setRefinanceNextPaymentDueDate(START + 20_000);
+
+        vm.prank(address(poolManager));
+        loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
+
+        asset.burn(address(pool), 1_000_000);
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   100,
+            principalOf_loan:    2_000_000,
+            startDate:           START + 10_000,
+            paymentDueDate:      START + 20_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     100,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_100,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 10_000,
+            vestingPeriodFinish:   START + 20_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_100);
+
+        // Make a payment post refinance
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 125,  // Interest plus refiance interest
+            principalAmount:     200_000,
+            nextInterestPayment: 375,
+            paymentTimestamp:    START + 20_000,
+            nextPaymentDueDate:  START + 30_000
+        });
+
+        loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
+
+        _assertLoanManagerState({
+            accruedInterest:       300,
+            accountedInterest:     100,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_400,
+            issuanceRate:          0.03e30,
+            lastUpdated:           START + 10_000,
+            vestingPeriodFinish:   START + 20_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        200_000 + 375 + 125,
+            poolBalance:        0,
+            poolManagerBalance: 0
+        });
+
+        _assertTotalAssets(2_000_400);
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan));
+
+        _assertLoanInfo({
+            loanAddress:         address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   0,
+            principalOf_loan:    1_800_000,
+            startDate:           START + 20_000,
+            paymentDueDate:      START + 30_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     0,
+            principalOut:          1_800_000,
+            assetsUnderManagement: 1_800_000,
+            issuanceRate:          0.03e30,         // 240 interest over 1000 seconds
+            lastUpdated:           START + 20_000,
+            vestingPeriodFinish:   START + 30_000
+        });
+
+        _assertBalances({
+            loanAddress:        address(loan),
+            loanBalance:        0,
+            poolBalance:        300 + 100 + 200_000,
+            poolManagerBalance: 75 + 25
+        });
+
+        _assertTotalAssets(2_000_400);
+    }
+
+}
+
 contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
 
-    address auctioneer;
     address loan;
 
     function setUp() public override {
@@ -2136,6 +2891,7 @@ contract FundLoanTests is LoanManagerBaseTest {
             ,
             ,
             uint256 incomingNetInterest_,
+            uint256 refinanceInterest_,
             ,
             uint256 startDate_,
             uint256 paymentDueDate_,
@@ -2144,6 +2900,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         ) = loanManager.loans(1);
 
         assertEq(incomingNetInterest_, 0);
+        assertEq(refinanceInterest_, 0);
         assertEq(startDate_,           0);
         assertEq(paymentDueDate_,      0);
         assertEq(managementFee_,       0);
@@ -2165,6 +2922,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         (   ,
             ,
             incomingNetInterest_,
+            refinanceInterest_,
             ,
             startDate_,
             paymentDueDate_,

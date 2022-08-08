@@ -30,7 +30,7 @@ contract Pool_ERC20TestBase {
         asset       = new MockERC20("Asset", "AT", 18);
         globals     = new MockGlobals(address(this));
         poolManager = new ConstructablePoolManager(address(globals), POOL_DELEGATE, address(asset));
-        pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "POOL1");
+        pool        = new MockERC20Pool(address(poolManager), address(asset), "TKN", "Token");
     }
 
 }

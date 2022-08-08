@@ -48,7 +48,9 @@ contract MockProxied is MapleProxiedInternals {
 contract MockERC20Pool is Pool {
 
     constructor(address manager_, address asset_, string memory name_, string memory symbol_)
-        Pool(manager_, asset_, name_, symbol_) { }
+        Pool(manager_, asset_, name_, symbol_) {
+            MockERC20(asset_).approve(manager_, type(uint256).max);
+        }
 
     function mint(address recipient_, uint256 amount_) external {
         _mint(recipient_, amount_);
@@ -181,9 +183,35 @@ contract MockLoan {
     uint256 public principal;
     uint256 public principalRequested;
 
+    uint256 public refinanceInterest;
+
+    // Refinance Variables
+    uint256 public refinanceNextPaymentInterest;
+    uint256 public refinanceNextPaymentDueDate;
+    uint256 public refinanceNextPaymentPrincipal;
+    uint256 public refinancePaymentInterval;
+    uint256 public refinancePrincipal;
+    uint256 public refinancePrincipalRequested;
+
     constructor(address collateralAsset_, address fundsAsset_) {
         collateralAsset = collateralAsset_;
         fundsAsset      = fundsAsset_;
+    }
+
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+        nextPaymentInterest  = refinanceNextPaymentInterest;
+        nextPaymentDueDate   = refinanceNextPaymentDueDate;
+        nextPaymentPrincipal = refinanceNextPaymentPrincipal;
+        paymentInterval      = refinancePaymentInterval;
+        principal            = refinancePrincipal;
+        principalRequested   = refinancePrincipalRequested;
+
+        refinanceNextPaymentInterest  = 0;
+        refinanceNextPaymentDueDate   = 0;
+        refinanceNextPaymentPrincipal = 0;
+        refinancePaymentInterval      = 0;
+        refinancePrincipal            = 0;
+        refinancePrincipalRequested   = 0;
     }
 
     function claimFunds(uint256 amount_, address destination_) external {
@@ -201,7 +229,7 @@ contract MockLoan {
 
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
         principal_ = nextPaymentPrincipal;
-        interest_  = nextPaymentInterest;
+        interest_  = nextPaymentInterest + refinanceInterest;
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -247,6 +275,34 @@ contract MockLoan {
 
     function __setClaimableFunds(uint256 claimable_) external {
         claimableFunds = claimable_;
+    }
+
+    function __setRefinanceInterest(uint256 refinanceInterest_) external {
+        refinanceInterest = refinanceInterest_;
+    }
+
+    function __setRefinancePrincipal(uint256 principal_) external {
+        refinancePrincipal = principal_;
+    }
+
+    function __setRefinancePrincipalRequested(uint256 principalRequested_) external {
+        refinancePrincipalRequested = principalRequested_;
+    }
+
+    function __setRefinanceNextPaymentInterest(uint256 nextPaymentInterest_) external {
+        refinanceNextPaymentInterest = nextPaymentInterest_;
+    }
+
+    function __setRefinanceNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
+        refinanceNextPaymentDueDate = nextPaymentDueDate_;
+    }
+
+    function __setRefinanceNextPaymentPrincipal(uint256 nextPaymentPrincipal_) external {
+        refinanceNextPaymentPrincipal = nextPaymentPrincipal_;
+    }
+
+    function __setRefinancePaymentInterval(uint256 paymentInterval_) external {
+        refinancePaymentInterval = paymentInterval_;
     }
 
 }

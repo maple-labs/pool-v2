@@ -156,6 +156,32 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Loan Functions ***/
     /**********************/
 
+    function acceptNewTerms(
+        address loan_,
+        address refinancer_,
+        uint256 deadline_,
+        bytes[] calldata calls_,
+        uint256 principalIncrease_
+    )
+        external override whenProtocolNotPaused
+    {
+        address asset_ = asset;
+        address pool_  = pool;
+
+        address loanManager_ = loanManagers[loan_];
+
+        require(msg.sender == poolDelegate,                                    "PM:F:NOT_PD");
+        require(isLoanManager[loanManager_],                                   "PM:F:INVALID_LOAN_MANAGER");
+        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
+        require(IERC20Like(pool).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:F:INSUFFICIENT_COVER");
+
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "P:F:TRANSFER_FAIL");
+
+        ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_, principalIncrease_);
+
+    }
+
     function claim(address loan_) external override whenProtocolNotPaused {
         address loanManager_ = loanManagers[loan_];
 

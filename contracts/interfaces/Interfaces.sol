@@ -46,6 +46,14 @@ interface IGlobalsLike {
 
 interface ILoanManagerLike {
 
+    function acceptNewTerms(
+        address loan_,
+        address refinancer_,
+        uint256 deadline_,
+        bytes[] calldata calls_,
+        uint256 principalIncrease_
+    ) external;
+
     function claim(address loan_) external returns (uint256 managementPortion_);
 
     function fund(address loan_) external;
@@ -73,6 +81,8 @@ interface ILiquidatorLike {
 }
 
 interface ILoanLike {
+
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
     function borrower() external view returns (address borrower_);
 
@@ -105,6 +115,8 @@ interface ILoanLike {
     function principal() external view returns (uint256 principal_);
 
     function principalRequested() external view returns (uint256 principalRequested_);
+
+    function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 

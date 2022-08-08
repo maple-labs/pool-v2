@@ -46,6 +46,8 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         _initialize(globals_, poolDelegate_, asset_, name_, symbol_);
     }
 
+    // TODO: Add starting pool cap
+    // TODO: Add starting management fee
     function _initialize(address globals_, address poolDelegate_, address asset_, string memory name_, string memory symbol_) internal {
         // TODO: Perform all checks on globals.
 

@@ -49,6 +49,14 @@ interface IPoolManager is IPoolManagerStorage {
     /*** Loan Functions ***/
     /**********************/
 
+    function acceptNewTerms(
+        address loan_,
+        address refinancer_,
+        uint256 deadline_,
+        bytes[] calldata calls_,
+        uint256 principalIncrease_
+    ) external;
+
     function claim(address loan_) external;
 
     function fund(uint256 principal_, address loan_, address loanManager_) external;
