@@ -62,47 +62,48 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 }
 
 contract ConfigureTests is PoolManagerBase {
+
     address loanManager       = address(new Address());
     address withdrawalManager = address(new Address());
 
-    uint256 liquidityCap  = 1_000_000e18;
-    uint256 managementFee = 0.1e18;
+    uint256 liquidityCap      = 1_000_000e18;
+    uint256 managementFeeRate = 0.1e18;
 
     function test_configure_notDeployer() public {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:CO:NOT_DEPLOYER");
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
 
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
     }
 
     function test_configure_alreadyConfigured() public {
         poolManager.__setConfigured(true);
 
         vm.expectRevert("PM:CO:ALREADY_CONFIGURED");
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
 
         poolManager.__setConfigured(false);
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
     }
 
     function test_configure_success() public {
         assertTrue(!poolManager.configured());
         assertTrue(!poolManager.isLoanManager(loanManager));
 
-        assertEq(poolManager.withdrawalManager(), address(0));
-        assertEq(poolManager.liquidityCap(),      uint256(0));
-        assertEq(poolManager.managementFee(),     uint256(0));
+        assertEq(poolManager.withdrawalManager(),         address(0));
+        assertEq(poolManager.liquidityCap(),              uint256(0));
+        assertEq(poolManager.delegateManagementFeeRate(), uint256(0));
 
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFee);
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
 
         assertTrue(poolManager.configured());
         assertTrue(poolManager.isLoanManager(loanManager));
 
-        assertEq(poolManager.withdrawalManager(), withdrawalManager);
-        assertEq(poolManager.liquidityCap(),      liquidityCap);
-        assertEq(poolManager.managementFee(),     managementFee);
-        assertEq(poolManager.loanManagerList(0),  loanManager);
+        assertEq(poolManager.withdrawalManager(),         withdrawalManager);
+        assertEq(poolManager.liquidityCap(),              liquidityCap);
+        assertEq(poolManager.delegateManagementFeeRate(), managementFeeRate);
+        assertEq(poolManager.loanManagerList(0),          loanManager);
     }
 }
 
@@ -363,29 +364,29 @@ contract SetManagementFee_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
 
-    uint256 newFee = uint256(0.1e18);
+    uint256 newManagementFeeRate = uint256(0.1e18);
 
     function test_setManagementFee_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.setManagementFee(newFee);
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
     function test_setManagementFee_notPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SMF:NOT_PD");
-        poolManager.setManagementFee(newFee);
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
     function test_setManagementFee_success() external {
-        assertEq(poolManager.managementFee(), uint256(0));
+        assertEq(poolManager.delegateManagementFeeRate(), uint256(0));
 
         vm.prank(POOL_DELEGATE);
-        poolManager.setManagementFee(newFee);
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
 
-        assertEq(poolManager.managementFee(), newFee);
+        assertEq(poolManager.delegateManagementFeeRate(), newManagementFeeRate);
     }
 
 }
@@ -424,17 +425,14 @@ contract ClaimTests is PoolManagerBase {
 
     address loan;
 
-    MockERC20Pool        pool;
-    MockLoanManager      loanManager;
-
-    uint256 managementPortion  = uint256(10e18);
-    uint256 managementFeeSplit = uint256(0.4e18);
+    MockERC20Pool   pool;
+    MockLoanManager loanManager;
 
     function setUp() public override {
         super.setUp();
 
-        loanManager  = new MockLoanManager();
-        pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+        pool = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+        loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
         // Replace the pool in the poolManager
         address currentPool_ = poolManager.pool();
@@ -443,11 +441,7 @@ contract ClaimTests is PoolManagerBase {
         pool = MockERC20Pool(currentPool_);
 
         // Configure globals
-        MockGlobals(globals).setManagementFeeSplit(address(pool), managementFeeSplit);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
-
-        // Set fees on LoanManager
-        loanManager.__setManagementPortion(managementPortion);
 
         // Mint ERC20 to pool
         asset.mint(address(poolManager.pool()), 1_000_000e18);
@@ -463,6 +457,13 @@ contract ClaimTests is PoolManagerBase {
         poolManager.addLoanManager(address(loanManager));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
+
+        // Setup expected fees.
+        loanManager.__setDelegateManagementFee(6e18);
+        loanManager.__setPlatformManagementFee(4e18);
+        loanManager.__setPoolAmount(0);
+
+        MockLoan(loan).__setClaimableFunds(10e18);
     }
 
     function test_claim_protocolPaused() external {
@@ -486,27 +487,8 @@ contract ClaimTests is PoolManagerBase {
         poolManager.claim(newLoan);
     }
 
-    function test_claim_failWithTreasuryPayment() external {
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), (managementPortion * 4 / 10) - 1);  //  4/10 of managementPortion goes to treasury
-
-        vm.expectRevert("PM:C:PAY_TREASURY_FAILED");
-        poolManager.claim(loan);
-    }
-
-    function test_claim_failWithPDPayment() external {
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), managementPortion - 1);
-
-        vm.expectRevert("PM:C:PAY_PD_FAILED");
-        poolManager.claim(loan);
-    }
-
     function test_claim_success_insufficientCover() external {
         MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
-
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), managementPortion);
 
         assertEq(asset.balanceOf(POOL_DELEGATE), 0);
         assertEq(asset.balanceOf(TREASURY),      0);
@@ -525,9 +507,6 @@ contract ClaimTests is PoolManagerBase {
     function test_claim_success_sufficientCover() external {
         MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), managementPortion);
-
         assertEq(asset.balanceOf(POOL_DELEGATE), 0);
         assertEq(asset.balanceOf(TREASURY),      0);
         assertEq(asset.balanceOf(address(pool)), 0);
@@ -543,9 +522,6 @@ contract ClaimTests is PoolManagerBase {
     }
 
     function test_claim_success_noCoverRequired() external {
-        // Mint asset to the PoolManager
-        asset.mint(address(poolManager), managementPortion);
-
         assertEq(asset.balanceOf(POOL_DELEGATE), 0);
         assertEq(asset.balanceOf(TREASURY),      0);
         assertEq(asset.balanceOf(address(pool)), 0);
@@ -576,9 +552,9 @@ contract FundTests is PoolManagerBase {
 
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
-        loanManager = new MockLoanManager();
         loan        = new MockLoan(address(asset), address(asset));
         pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+        loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
         loan.__setPrincipal(principalRequested);
         loan.__setCollateral(collateralRequired);
@@ -650,7 +626,6 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_insufficientCover() external {
-
         MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         // Add 1 less than the required min cover to be able to fund new loans.
@@ -667,7 +642,6 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_success_sufficientCover() external {
-
         MockGlobals(globals).setMinCoverAmount(address(pool), 1_000e18);
 
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
@@ -681,7 +655,6 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_success() external {
-
         assertEq(poolManager.loanManagers(address(loan)), address(0));
 
         vm.prank(POOL_DELEGATE);
@@ -707,8 +680,8 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loanManager = new MockLoanManager();
         pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
 
         // Replace the pool in the poolManager
         address currentPool_ = poolManager.pool();
@@ -771,8 +744,8 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loanManager  = new MockLoanManager();
         pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
+        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
 
         // Replace the pool in the poolManager
         address currentPool_ = poolManager.pool();

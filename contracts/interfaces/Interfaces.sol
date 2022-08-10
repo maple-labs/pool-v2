@@ -29,12 +29,12 @@ interface IGlobalsLike {
 
     function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
 
-    function managementFeeSplit(address pool) external view returns (uint256 split_);
+    function platformManagementFeeRate(address poolManager_) external view returns (uint256 platformManagementFeeRate_);
 
-    function maxCoverLiquidationPercent(address pool_) external view returns (uint256 maxCoverLiquidationPercent_);
+    function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
 
     // TODO: Update name to coverAmountRequired in separate PR
-    function minCoverAmount(address pool_) external view returns (uint256 minCoverAmount_);
+    function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
     function mapleTreasury() external view returns (address mapleTreasury_);
 
@@ -54,7 +54,7 @@ interface ILoanManagerLike {
         uint256 principalIncrease_
     ) external;
 
-    function claim(address loan_) external returns (uint256 managementPortion_);
+    function claim(address loan_, bool hasSufficientCover_) external;
 
     function fund(address loan_) external;
 
@@ -83,6 +83,8 @@ interface ILiquidatorLike {
 interface ILoanLike {
 
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+
+    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
 
     function borrower() external view returns (address borrower_);
 
@@ -150,11 +152,11 @@ interface IPoolManagerLike {
 
     function claim(address loan_) external;
 
+    function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
+
     function fund(uint256 principalAmount_, address loan_, address loanManager_) external;
 
     function globals() external view returns (address globals_);
-
-    function managementFee() external view returns (uint256 managementFee_);
 
     function loanManager() external view returns (address loanManager_);
 

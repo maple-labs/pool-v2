@@ -39,7 +39,7 @@ interface IPoolManager is IPoolManagerStorage {
 
     function setLiquidityCap(uint256 liquidityCap_) external;
 
-    function setManagementFee(uint256 fee_) external;
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
 
     function setOpenToPublic() external;
 

@@ -5,7 +5,7 @@ import { Address, TestUtils, console } from "../../modules/contract-test-utils/c
 import { MapleProxiedInternals }       from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }                   from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
+import { ILoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
@@ -77,14 +77,13 @@ contract MockGlobals {
     mapping(address => bool) public isPoolDeployer;
 
     mapping(address => uint256) public getLatestPrice;
-    mapping(address => uint256) public managementFeeSplit;
+    mapping(address => uint256) public platformManagementFeeRate;
     mapping(address => uint256) public maxCoverLiquidationPercent;
     mapping(address => uint256) public minCoverAmount;
 
     mapping(address => address) public ownedPool;
 
-
-    constructor (address governor_) {
+    constructor(address governor_) {
         governor = governor_;
     }
 
@@ -92,22 +91,22 @@ contract MockGlobals {
         governor = governor_;
     }
 
-    function setManagementFeeSplit(address pool_, uint256 split_) external {
-        managementFeeSplit[pool_] = split_;
+    function setPlatformManagementFeeRate(address poolManager_, uint256 platformManagementFeeRate_) external {
+        platformManagementFeeRate[poolManager_] = platformManagementFeeRate_;
     }
 
     function setLatestPrice(address asset_, uint256 latestPrice_) external {
         getLatestPrice[asset_] = latestPrice_;
     }
 
-    function setMaxCoverLiquidationPercent(address pool_, uint256 maxCoverLiquidationPercent_) external {
+    function setMaxCoverLiquidationPercent(address poolManager_, uint256 maxCoverLiquidationPercent_) external {
         require(maxCoverLiquidationPercent_ <= HUNDRED_PERCENT, "MG:SMCLP:GT_100");
 
-        maxCoverLiquidationPercent[pool_] = maxCoverLiquidationPercent_;
+        maxCoverLiquidationPercent[poolManager_] = maxCoverLiquidationPercent_;
     }
 
-    function setMinCoverAmount(address pool_, uint256 minCoverAmount_) external {
-        minCoverAmount[pool_] = minCoverAmount_;
+    function setMinCoverAmount(address poolManager_, uint256 minCoverAmount_) external {
+        minCoverAmount[poolManager_] = minCoverAmount_;
     }
 
     function setOwnedPool(address owner_, address pool_) external {
@@ -214,7 +213,13 @@ contract MockLoan {
         refinancePrincipalRequested   = 0;
     }
 
-    function claimFunds(uint256 amount_, address destination_) external {
+    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external {
+        for (uint256 i = 0; i < amounts_.length; i++) {
+            claimFunds(amounts_[i], destinations_[i]);
+        }
+    }
+
+    function claimFunds(uint256 amount_, address destination_) public {
         claimableFunds -= amount_;
         MockERC20(fundsAsset).transfer(destination_, amount_);
     }
@@ -309,37 +314,68 @@ contract MockLoan {
 
 contract MockLoanManager {
 
-    uint256 internal _principalToCover;  // Note that this is the return value for increasedUnrealizedLosses_ in triggerCollateralLiquidation and also principalToCover_ in finishCollateralLiquidation. They will always be equal.
-    uint256 internal _remainingLosses;
+    address pool;
+    address poolDelegate;
+    address treasury;
 
-    uint256 public managementPortion;
+    uint256 delegateManagementFee;
+    uint256 platformManagementFee;
+    uint256 poolAmount;
+
+    uint256 principalToCover;  // Note that this is the return value for increasedUnrealizedLosses_ in triggerCollateralLiquidation and also principalToCover_ in finishCollateralLiquidation. They will always be equal.
+    uint256 remainingLosses;
+
+    constructor(address pool_, address treasury_, address poolDelegate_) {
+        pool         = pool_;
+        treasury     = treasury_;
+        poolDelegate = poolDelegate_;
+    }
 
     function fund(address) external { }
 
-    function claim(address) external returns (uint256 managementPortion_) {
-        managementPortion_ = managementPortion;
+    function claim(address loan_, bool hasSufficientCover_) external {
+        address[] memory destinations_ = new address[](3);
+        uint256[] memory amounts_      = new uint256[](3);
+
+        destinations_[0] = treasury;
+        destinations_[1] = poolDelegate;
+        destinations_[2] = pool;
+
+        amounts_[0] = platformManagementFee;
+        amounts_[1] = hasSufficientCover_ ? delegateManagementFee : 0;
+        amounts_[2] = hasSufficientCover_ ? poolAmount  : (poolAmount + delegateManagementFee);
+
+        ILoanLike(loan_).batchClaimFunds(amounts_, destinations_);
     }
 
     function triggerCollateralLiquidation(address) external returns (uint256 increasedUnrealizedLosses_) {
-        increasedUnrealizedLosses_ = _principalToCover;
+        increasedUnrealizedLosses_ = principalToCover;
     }
 
     function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_) {
-        principalToCover_  = _principalToCover;
-        remainingLosses_   = _remainingLosses;
+        principalToCover_ = principalToCover;
+        remainingLosses_  = remainingLosses;
+    }
+
+    function __setPlatformManagementFee(uint256 platformManagementFee_) external {
+        platformManagementFee = platformManagementFee_;
+    }
+
+    function __setDelegateManagementFee(uint256 delegateManagementFee_) external {
+        delegateManagementFee = delegateManagementFee_;
+    }
+
+    function __setPoolAmount(uint256 poolAmount_) external {
+        poolAmount = poolAmount_;
     }
 
     function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_) external {
         // principal to cover is set by __setTriggerCollateralLiquidationReturn
-        _remainingLosses = remainingLosses_;
-    }
-
-    function __setManagementPortion(uint256 managementPortion_) external {
-        managementPortion = managementPortion_;
+        remainingLosses = remainingLosses_;
     }
 
     function __setTriggerCollateralLiquidationReturn(uint256 increasedUnrealizedLosses_) external {
-        _principalToCover = increasedUnrealizedLosses_;
+        principalToCover = increasedUnrealizedLosses_;
     }
 
 }
@@ -392,13 +428,21 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         // Do nothing.
     }
 
-    function setManagementFee(uint256 managementFee_) external {
-        managementFee = managementFee_;
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
+        delegateManagementFeeRate = delegateManagementFeeRate_;
     }
 
     function __setCanCall(bool canCall_, string memory errorMessage_) external {
         _canCall     = canCall_;
         errorMessage = errorMessage_;
+    }
+
+    function __setGlobals(address globals_) external {
+        globals = globals_;
+    }
+
+    function __setPoolDelegate(address poolDelegate_) external {
+        poolDelegate = poolDelegate_;
     }
 
     function __setTotalAssets(uint256 totalAssets_) external {

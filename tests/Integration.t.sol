@@ -131,19 +131,18 @@ contract IntegrationTestBase is TestUtils, GlobalsBootstrapper {
 
 contract FeeDistributionTest is IntegrationTestBase {
 
-    uint256 principalRequested = 1_000_000e18;
-    uint256 managementFeeSplit = 0.30e18; // 30% to treasury
-    uint256 managementFee      = 0.10e18;
+    uint256 principalRequested        = 1_000_000e18;
+    uint256 platformManagementFeeRate = 0.03e18;
+    uint256 delegateManagementFeeRate = 0.07e18;
 
     function setUp() public override {
         super.setUp();
 
-        MockGlobals(globals).setManagementFeeSplit(address(pool), managementFeeSplit);
+        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
-        vm.startPrank(PD);
-        poolManager.setManagementFee(managementFee);
-        vm.stopPrank();
+        vm.prank(PD);
+        poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate);
     }
 
     function test_feeDistribution() external {

@@ -23,7 +23,7 @@ interface IPoolManagerStorage {
 
     function liquidityCap() external view returns (uint256 liquidityCap_);
 
-    function managementFee() external view returns (uint256 managementFee_);
+    function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
 
     function openToPublic() external view returns (bool openToPublic_);
 

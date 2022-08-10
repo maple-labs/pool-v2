@@ -30,11 +30,15 @@ contract LoanManagerBaseTest is TestUtils {
 
     uint256 constant START = 5_000_000;
 
-    address governor       = address(new Address());
+    address governor     = address(new Address());
+    address poolDelegate = address(new Address());
+    address treasury     = address(new Address());
+
     address implementation = address(new LoanManagerHarness());
     address initializer    = address(new LoanManagerInitializer());
 
-    uint256 managementFee = 0.2e18;
+    uint256 platformManagementFeeRate = 0.05e18;
+    uint256 delegateManagementFeeRate = 0.15e18;
 
     MockERC20       asset;
     MockGlobals     globals;
@@ -50,8 +54,13 @@ contract LoanManagerBaseTest is TestUtils {
         poolManager = new MockPoolManager();
         pool        = new MockPool();
 
+        globals.setTreasury(treasury);
+
         pool.__setAsset(address(asset));
         pool.__setManager(address(poolManager));
+
+        poolManager.__setGlobals(address(globals));
+        poolManager.__setPoolDelegate(poolDelegate);
 
         vm.startPrank(governor);
         factory = new LoanManagerFactory(address(globals));
@@ -60,6 +69,7 @@ contract LoanManagerBaseTest is TestUtils {
         vm.stopPrank();
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
+        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate);
 
         bytes memory arguments = LoanManagerInitializer(initializer).encodeArguments(address(pool));
         loanManager = LoanManagerHarness(LoanManagerFactory(factory).createInstance(arguments, ""));
@@ -150,13 +160,14 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     function setUp() public virtual override {
         super.setUp();
 
-        poolManager.setManagementFee(managementFee);
+        poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate);
     }
 
-    function _assertBalances(address loanAddress, uint256 loanBalance, uint256 poolBalance, uint256 poolManagerBalance) internal {
-        assertEq(asset.balanceOf(loanAddress),          loanBalance);
-        assertEq(asset.balanceOf(address(pool)),        poolBalance);
-        assertEq(asset.balanceOf(address(poolManager)), poolManagerBalance);
+    function _assertBalances(address loanAddress, uint256 loanBalance, uint256 poolBalance, uint256 treasuryBalance, uint256 poolDelegateBalance) internal {
+        assertEq(asset.balanceOf(loanAddress),           loanBalance);
+        assertEq(asset.balanceOf(address(pool)),         poolBalance);
+        assertEq(asset.balanceOf(address(treasury)),     treasuryBalance);
+        assertEq(asset.balanceOf(address(poolDelegate)), poolDelegateBalance);
     }
 
     function _assertLoanInfo(
@@ -169,7 +180,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 incomingNetInterest_, uint256 refinanceInterest_, , uint256 startDate_, uint256 paymentDueDate_, , ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
+        ( , , uint256 incomingNetInterest_, uint256 refinanceInterest_, , uint256 startDate_, uint256 paymentDueDate_, , , ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -255,10 +266,10 @@ contract ClaimTests is LoanManagerClaimBaseTest {
         });
 
         vm.expectRevert("LM:C:NOT_POOL_MANAGER");
-        loanManager.claim(loan);
+        loanManager.claim(loan, true);
 
         vm.prank(address(poolManager));
-        loanManager.claim(loan);
+        loanManager.claim(loan, true);
     }
 }
 
@@ -361,16 +372,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -392,10 +404,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -438,16 +451,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_032);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -469,10 +483,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -515,16 +530,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        160,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         160,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -546,10 +562,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        128,  // 160 * 0.8 = 128
-            poolManagerBalance: 32    // 160 * 0.2 = 32
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         128,
+            treasuryBalance:     8,
+            poolDelegateBalance: 24
         });
 
         _assertTotalAssets(1_000_160);
@@ -593,16 +610,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -624,10 +642,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_080,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_080,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -671,16 +690,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_032);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -702,10 +722,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_080,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_080,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -749,16 +770,17 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_160,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_160,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -780,10 +802,11 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_128,  // 160 * 0.8 = 128
-            poolManagerBalance: 32        // 160 * 0.2 = 32
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_128,
+            treasuryBalance:     8,
+            poolDelegateBalance: 24
         });
 
         _assertTotalAssets(1_000_160);
@@ -849,16 +872,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -880,10 +904,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_088);
@@ -929,16 +954,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_032);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -960,10 +986,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -1009,16 +1036,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1040,10 +1068,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_088);
@@ -1089,16 +1118,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        160,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         160,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1120,10 +1150,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        128,  // 160 * 0.8 = 128
-            poolManagerBalance: 32    // 160 * 0.2 = 32
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         128,
+            treasuryBalance:     8,
+            poolDelegateBalance: 24
         });
 
         _assertTotalAssets(1_000_168);
@@ -1169,16 +1200,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1200,10 +1232,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_080,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_080,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_088);
@@ -1250,16 +1283,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_032);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1281,10 +1315,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_080,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_080,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_080);
@@ -1331,16 +1366,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1362,10 +1398,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_080,
-            poolManagerBalance: 20
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_080,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(1_000_088);
@@ -1412,16 +1449,17 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_160,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_160,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(1_000_080);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1443,10 +1481,11 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        200_128,  // 160 * 0.8 = 128
-            poolManagerBalance: 32        // 160 * 0.2 = 32
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         200_128,
+            treasuryBalance:     8,
+            poolDelegateBalance: 24
         });
 
         _assertTotalAssets(1_000_168);
@@ -1571,16 +1610,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan1),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_120);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan1));
+        loanManager.claim(address(loan1), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
@@ -1602,10 +1642,11 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan1),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(2_000_120);
@@ -1643,16 +1684,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        125,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan2),
+            loanBalance:         125,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(2_000_228);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan2));
+        loanManager.claim(address(loan2), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
@@ -1674,13 +1716,14 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        0,
-            poolBalance:        180,  // 80 from first payment, 100 from second payment.
-            poolManagerBalance: 45
+            loanAddress:         address(loan2),
+            loanBalance:         0,
+            poolBalance:         180 + 1,  // Plus the extra dust, 25 % 2 == 1
+            treasuryBalance:     11,
+            poolDelegateBalance: 33
         });
 
-        _assertTotalAssets(2_000_228);
+        _assertTotalAssets(2_000_229);
     }
 
     function test_claim_earlyPayment_interestOnly_onTimePayment_interestOnly() external {
@@ -1760,16 +1803,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        100,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan1),
+            loanBalance:         100,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_084);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan1));
+        loanManager.claim(address(loan1), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
@@ -1791,10 +1835,11 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        0,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan1),
+            loanBalance:         0,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(2_000_100);
@@ -1832,16 +1877,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        125,
-            poolBalance:        80,
-            poolManagerBalance: 20
+            loanAddress:         address(loan2),
+            loanBalance:         125,
+            poolBalance:         80,
+            treasuryBalance:     5,
+            poolDelegateBalance: 15
         });
 
         _assertTotalAssets(2_000_233);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan2));
+        loanManager.claim(address(loan2), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
@@ -1863,13 +1909,14 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        0,
-            poolBalance:        180,  // 80 from first payment, 100 from second payment.
-            poolManagerBalance: 45
+            loanAddress:         address(loan2),
+            loanBalance:         0,
+            poolBalance:         180 + 1,  // Plus the extra dust, 25 % 2 == 1
+            treasuryBalance:     11,
+            poolDelegateBalance: 33
         });
 
-        _assertTotalAssets(2_000_233);
+        _assertTotalAssets(2_000_234);
     }
 
     function test_claim_latePayment_interestOnly_onTimePayment_interestOnly() external {
@@ -1950,16 +1997,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        130,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan1),
+            loanBalance:         130,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_120);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan1));
+        loanManager.claim(address(loan1), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
@@ -1981,13 +2029,14 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan1),
-            loanBalance:        0,
-            poolBalance:        104,  // 130 * 0.8 = 104
-            poolManagerBalance: 26    // 130 * 0.2 = 26
+            loanAddress:         address(loan1),
+            loanBalance:         0,
+            poolBalance:         104 + 1,  // Dust
+            treasuryBalance:     6,
+            poolDelegateBalance: 19
         });
 
-        _assertTotalAssets(2_000_180);
+        _assertTotalAssets(2_000_181);
 
         /**********************/
         /*** Loan 2 Payment ***/
@@ -2022,16 +2071,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        125,
-            poolBalance:        104,
-            poolManagerBalance: 26
+            loanAddress:         address(loan2),
+            loanBalance:         125,
+            poolBalance:         104 + 1,  // Dust
+            treasuryBalance:     6,
+            poolDelegateBalance: 19
         });
 
-        _assertTotalAssets(2_000_252);
+        _assertTotalAssets(2_000_253);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan2));
+        loanManager.claim(address(loan2), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
@@ -2053,13 +2103,14 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan2),
-            loanBalance:        0,
-            poolBalance:        204,  // 104 from first payment, 100 from second payment.
-            poolManagerBalance: 51
+            loanAddress:         address(loan2),
+            loanBalance:         0,
+            poolBalance:         204 + 1 + 1,  // 104 from first payment, 100 from second payment, plus dust
+            treasuryBalance:     12,
+            poolDelegateBalance: 37
         });
 
-        _assertTotalAssets(2_000_252);
+        _assertTotalAssets(2_000_254);
     }
 
     function skiptest_claim_onTimePayment_interestOnly_earlyPayment_interestOnly() external {}
@@ -2198,10 +2249,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        1_000_000,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         1_000_000,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_100);
@@ -2241,10 +2293,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_100);
@@ -2272,16 +2325,17 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        375 + 125,  // Principal + interest + refinance interest
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         375 + 125,  // Principal + interest + refinance interest
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_400);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -2303,10 +2357,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        100 + 300,
-            poolManagerBalance: 25 + 75
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         100 + 300,
+            treasuryBalance:     25,
+            poolDelegateBalance: 75
         });
 
         _assertTotalAssets(2_000_400);
@@ -2371,10 +2426,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        1_000_000,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         1_000_000,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_060);
@@ -2411,10 +2467,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_060);
@@ -2440,10 +2497,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        375 + 75,  // Principal + interest + refinance interest
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         375 + 75,  // Principal + interest + refinance interest
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_360);
@@ -2451,7 +2509,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loan.__setRefinanceInterest(0);  // Set to 0 to simulate a refinance that has been paid off.
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -2473,13 +2531,14 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        60 + 300,
-            poolManagerBalance: 15 + 75
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         60 + 301,
+            treasuryBalance:     22,
+            poolDelegateBalance: 67
         });
 
-        _assertTotalAssets(2_000_360);
+        _assertTotalAssets(2_000_361);
     }
 
     function test_refinance_onLatePayment_interestOnly() external {
@@ -2541,10 +2600,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        1_000_000,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         1_000_000,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_100);
@@ -2581,10 +2641,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_148);
@@ -2612,16 +2673,17 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        375 + 185,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         375 + 185,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_448);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -2643,10 +2705,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        300 + 148,
-            poolManagerBalance: 75  + 37
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         300 + 148,
+            treasuryBalance:     28,
+            poolDelegateBalance: 84
         });
 
         _assertTotalAssets(2_000_448);
@@ -2712,10 +2775,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        1_000_000,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         1_000_000,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_100);
@@ -2752,10 +2816,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_100);
@@ -2783,16 +2848,17 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        200_000 + 375 + 125,
-            poolBalance:        0,
-            poolManagerBalance: 0
+            loanAddress:         address(loan),
+            loanBalance:         200_000 + 375 + 125,
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
         });
 
         _assertTotalAssets(2_000_400);
 
         vm.prank(address(poolManager));
-        loanManager.claim(address(loan));
+        loanManager.claim(address(loan), true);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -2814,10 +2880,11 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:        address(loan),
-            loanBalance:        0,
-            poolBalance:        300 + 100 + 200_000,
-            poolManagerBalance: 75 + 25
+            loanAddress:         address(loan),
+            loanBalance:         0,
+            poolBalance:         300 + 100 + 200_000,
+            treasuryBalance:     25,
+            poolDelegateBalance: 75
         });
 
         _assertTotalAssets(2_000_400);
@@ -2873,7 +2940,7 @@ contract FundLoanTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        poolManager.setManagementFee(managementFee);
+        poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate);
 
         loan = new MockLoan(collateralAsset, fundsAsset);
 
@@ -2884,7 +2951,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         loan.__setNextPaymentDueDate(block.timestamp + 100);
     }
 
-    function test_fund() external {
+    function test_fundy() external {
         asset.mint(address(loan), principalRequested);
 
         (
@@ -2895,15 +2962,17 @@ contract FundLoanTests is LoanManagerBaseTest {
             ,
             uint256 startDate_,
             uint256 paymentDueDate_,
-            uint256 managementFee_,
+            uint256 platformManagementFeeRate_,
+            uint256 delegateManagementFeeRate_,
             address vehicle_
         ) = loanManager.loans(1);
 
-        assertEq(incomingNetInterest_, 0);
-        assertEq(refinanceInterest_, 0);
-        assertEq(startDate_,           0);
-        assertEq(paymentDueDate_,      0);
-        assertEq(managementFee_,       0);
+        assertEq(incomingNetInterest_,         0);
+        assertEq(refinanceInterest_,           0);
+        assertEq(startDate_,                   0);
+        assertEq(paymentDueDate_,              0);
+        assertEq(platformManagementFeeRate_,   0);
+        assertEq(delegateManagementFeeRate_,   0);
         assertEq(vehicle_,             address(0));
 
         assertEq(loanManager.principalOut(),        0);
@@ -2926,16 +2995,18 @@ contract FundLoanTests is LoanManagerBaseTest {
             ,
             startDate_,
             paymentDueDate_,
-            managementFee_,
+            platformManagementFeeRate_,
+            delegateManagementFeeRate_,
             vehicle_
         ) = loanManager.loans(1);
 
         // Check loan information
-        assertEq(incomingNetInterest_, 0.8e18); // 1e18 of interest minus management fees
-        assertEq(startDate_,           block.timestamp);
-        assertEq(paymentDueDate_,      block.timestamp + 100);
-        assertEq(managementFee_,       managementFee);
-        assertEq(vehicle_,             address(loan));
+        assertEq(incomingNetInterest_,       0.8e18); // 1e18 of interest minus management fees
+        assertEq(startDate_,                 block.timestamp);
+        assertEq(paymentDueDate_,            block.timestamp + 100);
+        assertEq(platformManagementFeeRate_, platformManagementFeeRate);
+        assertEq(delegateManagementFeeRate_, delegateManagementFeeRate);
+        assertEq(vehicle_,                   address(loan));
 
         assertEq(loanManager.principalOut(),        principalRequested);
         assertEq(loanManager.accountedInterest(),   0);

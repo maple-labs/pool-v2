@@ -34,7 +34,8 @@ abstract contract LoanManagerStorage {
         uint256 issuanceRate;
         uint256 startDate;
         uint256 paymentDueDate;
-        uint256 managementFee;
+        uint256 platformManagementFeeRate;
+        uint256 delegateManagementFeeRate;
         address vehicle;
     }
 

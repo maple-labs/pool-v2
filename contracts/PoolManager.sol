@@ -80,7 +80,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Administrative Functions ***/
     /********************************/
 
-    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external override {
+    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 delegateManagementFeeRate_) external override {
         require(!configured,                                      "PM:CO:ALREADY_CONFIGURED");
         require(IGlobalsLike(globals).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
 
@@ -88,7 +88,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         isLoanManager[loanManager_] = true;
         withdrawalManager           = withdrawalManager_;
         liquidityCap                = liquidityCap_;
-        managementFee               = managementFee_;
+        delegateManagementFeeRate   = delegateManagementFeeRate_;
 
         loanManagerList.push(loanManager_);
     }
@@ -134,11 +134,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
     }
 
-    function setManagementFee(uint256 fee_) external override whenProtocolNotPaused {
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SMF:NOT_PD");
 
         // TODO check globals for boundaries
-        managementFee = fee_;
+        delegateManagementFeeRate = delegateManagementFeeRate_;
     }
 
     function setOpenToPublic() external override whenProtocolNotPaused {
@@ -188,28 +188,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
         require(loanManager_ != address(0),          "PM:C:NO_LOAN_MANAGER");
 
-        uint256 managementPortion_ = ILoanManagerLike(loanManager_).claim(loan_);
-
-        address asset_   = asset;
-        address globals_ = globals;
-        address pool_    = pool;
-
-        // TODO: Look into moving the fee logic into the LoanManager.
-
-        // Split Management Fee.
-        uint256 mapleShare_ = managementPortion_ * IGlobalsLike(globals_).managementFeeSplit(pool_) / HUNDRED_PERCENT;
-
-        require(ERC20Helper.transfer(asset_, IGlobalsLike(globals_).mapleTreasury(), mapleShare_), "PM:C:PAY_TREASURY_FAILED");
-
-        // If insufficient cover, pool delegate forfeits fees, and they are instead sent to the pool.
-        require(
-            ERC20Helper.transfer(
-                asset_,
-                _hasSufficientCover(globals_, pool_, asset_) ? poolDelegate : pool_,
-                managementPortion_ - mapleShare_
-            ),
-            "PM:C:PAY_PD_FAILED"
-        );
+        ILoanManagerLike(loanManager_).claim(loan_, _hasSufficientCover(globals, pool, asset));
     }
 
     function fund(uint256 principal_, address loan_, address loanManager_) external override whenProtocolNotPaused {
