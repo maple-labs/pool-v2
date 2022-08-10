@@ -10,11 +10,11 @@ abstract contract LoanManagerStorage {
 
     uint256 public accountedInterest;
     uint256 public issuanceRate;
-    uint256 public lastUpdated;
+    uint256 public domainStart;
     uint256 public loanCounter;
     uint256 public loanWithEarliestPaymentDueDate;
     uint256 public principalOut;
-    uint256 public vestingPeriodFinish;
+    uint256 public domainEnd;
 
     mapping(address => uint256) public loanIdOf;
     mapping(address => uint256) public principalOf;

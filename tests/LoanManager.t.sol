@@ -196,8 +196,8 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         uint256 principalOut,
         uint256 assetsUnderManagement,
         uint256 issuanceRate,
-        uint256 lastUpdated,
-        uint256 vestingPeriodFinish
+        uint256 domainStart,
+        uint256 domainEnd
     )
         internal
     {
@@ -206,8 +206,8 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         assertEq(loanManager.principalOut(),           principalOut);
         assertEq(loanManager.assetsUnderManagement(),  assetsUnderManagement);
         assertEq(loanManager.issuanceRate(),           issuanceRate);
-        assertEq(loanManager.lastUpdated(),            lastUpdated);
-        assertEq(loanManager.vestingPeriodFinish(),    vestingPeriodFinish);
+        assertEq(loanManager.domainStart(),            domainStart);
+        assertEq(loanManager.domainEnd(),              domainEnd);
     }
 
     function _assertTotalAssets(uint256 totalAssets) internal {
@@ -367,8 +367,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -399,8 +399,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_000,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -446,8 +446,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -478,8 +478,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_000,
             issuanceRate:          0.005e30,  // 80 / (10_000 + 4_000 remaining in interval) = 0.005
-            lastUpdated:           START + 4_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 4_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -525,8 +525,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -557,8 +557,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
             issuanceRate:          0.008e30,  // Same issuance rate as before.
-            lastUpdated:           START + 14_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 14_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -605,8 +605,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -637,8 +637,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_000,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -685,8 +685,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -717,8 +717,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_000,
             issuanceRate:          0.005e30,  // 80 / (10_000 + 6_000 remaining in current interval) = 0.005
-            lastUpdated:           START + 4_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 4_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -765,8 +765,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -797,8 +797,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_032,
             issuanceRate:          0.008e30,  // Same issuance rate as before.
-            lastUpdated:           START + 14_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 14_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -867,8 +867,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -899,8 +899,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_008,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 11_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 11_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -949,8 +949,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -981,8 +981,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_000,
             issuanceRate:          0.005e30,  // 80 / (10_000 + 4_000 remaining in interval) = 0.005
-            lastUpdated:           START + 4_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 4_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1031,8 +1031,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1063,8 +1063,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_008,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 11_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 11_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1113,8 +1113,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1145,8 +1145,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_040,
             issuanceRate:          0.008e30,  // Same issuance rate as before.
-            lastUpdated:           START + 15_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 15_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1195,8 +1195,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1227,8 +1227,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_008,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 11_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 11_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1278,8 +1278,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1310,8 +1310,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_000,
             issuanceRate:          0.005e30,  // 80 / (10_000 + 6_000 remaining in interval) = 0.005
-            lastUpdated:           START + 4_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 4_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1361,8 +1361,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1393,8 +1393,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_008,
             issuanceRate:          0.008e30,
-            lastUpdated:           START + 11_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 11_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1444,8 +1444,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
             issuanceRate:          0.008e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -1476,8 +1476,8 @@ contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
             principalOut:          800_000,
             assetsUnderManagement: 800_040,
             issuanceRate:          0.008e30,  // Same issuance rate as before.
-            lastUpdated:           START + 15_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 15_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -1524,10 +1524,10 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         /**
          *  Loan 1
-         *    Start date:    0sec
+         *    Start date:    0secsec
          *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
          *  Loan 2
-         *    Start date:    6_000sec
+         *    Start date:    6_000secsec
          *    Issuance rate: 0.01e30 (125 * 0.8 / 10_000)
          */
     }
@@ -1543,13 +1543,13 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
          *    First  payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000sec * 0.01 = 40
+         *    First payment net interest accrued: 4_000secsec * 0.01 = 40
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
-         *    Second payment net interest accounted: 0sec      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000secsec * 0.008 = 80
+         *    Second payment net interest accounted: 0secsec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 4_000sec * 0.01 = 40
+         *    First payment net interest accounted: 4_000secsec * 0.01 = 40
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + 48 + 0  = 1_000_120
@@ -1560,17 +1560,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 6_000sec * 0.008 = 48
+         *    Second payment net interest accrued: 6_000secsec * 0.008 = 48
          *  Loan 2:
          *    First  payment net interest accounted: 4_000sec * 0.01 = 40 (Accounted during loan1 payment)
          *    First  payment net interest accrued:   6_000sec * 0.01 = 60
          *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
+         *    Second payment net interest accounted: 6_000secsec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
-         *    Second payment net interest accounted: 0sec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
+         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (48 + 60) + 40 + 80  = 1_000_228
@@ -1605,8 +1605,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_120,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 6_000,
-            vestingPeriodFinish:   START + 10_000  // End of loan1 payment interval
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1637,8 +1637,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_040,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 10_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1679,8 +1679,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_148,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 10_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1711,8 +1711,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_048,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 16_000,
-            vestingPeriodFinish:   START + 20_000  // End of loan2 payment interval
+            domainStart:           START + 16_000,
+            domainEnd:             START + 20_000  // End of loan2 payment interval
         });
 
         _assertBalances({
@@ -1733,16 +1733,16 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
-         *    First  payment net interest accrued:   2_000sec * 0.008 = 16
+         *    First  payment net interest accounted: 6_000secsec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First  payment net interest accrued:   2_000secsec * 0.008 = 16
          *  Loan 2:
-         *    First payment net interest accrued: 2_000sec * 0.01 = 20
+         *    First payment net interest accrued: 2_000secsec * 0.01 = 20
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
-         *    Second payment net interest accounted: 0sec      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000secsec * 0.008 = 80
+         *    Second payment net interest accounted: 0secsec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 2_000sec * 0.01 = 20
+         *    First payment net interest accounted: 2_000secsec * 0.01 = 20
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (16 + 20) + 48 + 0  = 2_000_084
@@ -1753,17 +1753,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 8_000sec * (80/12_000) = 53
+         *    Second payment net interest accrued: 8_000secsec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest accounted: 2_000sec * 0.01 = 20 (Accounted during loan1 payment)
-         *    First  payment net interest accrued:   8_000sec * 0.01 = 80
-         *    Second payment net interest accrued:   0sec     * 0.01 = 0
+         *    First  payment net interest accounted: 2_000secsec * 0.01 = 20 (Accounted during loan1 payment)
+         *    First  payment net interest accrued:   8_000secsec * 0.01 = 80
+         *    Second payment net interest accrued:   0secsec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 8_000sec * (80/12_000) = 53
+         *    Second payment net interest accounted: 8_000secsec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
-         *    Second payment net interest accounted: 0sec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
+         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (53 + 80) + 20 + 80  = 1_000_233
@@ -1798,8 +1798,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_084,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 6_000,
-            vestingPeriodFinish:   START + 10_000  // End of loan1 payment interval
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1830,8 +1830,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_020,
             issuanceRate:          0.016666666666666666666666666666e30,  // 0.01 + 80/12_000 = 0.0166...
-            lastUpdated:           START + 8_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 8_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1872,8 +1872,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_153,
             issuanceRate:          0.016666666666666666666666666666e30,  // 0.01 + 80/12_000 = 0.0166...
-            lastUpdated:           START + 8_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 8_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -1904,8 +1904,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_053,
             issuanceRate:          0.016666666666666666666666666666e30,  // 0.01 + 80/12_000 = 0.0166...
-            lastUpdated:           START + 16_000,
-            vestingPeriodFinish:   START + 20_000  // End of loan2 payment interval
+            domainStart:           START + 16_000,
+            domainEnd:             START + 20_000  // End of loan2 payment interval
         });
 
         _assertBalances({
@@ -1926,16 +1926,16 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
-         *    First payment net interest accrued:   4_000sec * 0.008 = 32
+         *    First payment net interest accounted: 6_000secsec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First payment net interest accrued:   4_000secsec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000sec * 0.01 = 40  (Only accrues until loan1 due date)
+         *    First payment net interest accrued: 4_000secsec * 0.01 = 40  (Only accrues until loan1 due date)
          *  --- Post-Claim ---
          *  Loan 1:
          *    First  payment net interest claimed:   (10_000sec * 0.008) + (2_000sec * 0.012) = 104
-         *    Second payment net interest accounted:  2_000sec  * 0.008                    = 16
+         *    Second payment net interest accounted:  2_000sec  * 0.008                       = 16
          *  Loan 2:
-         *    First payment net interest accounted: 6_000sec * 0.01 = 60
+         *    First payment net interest accounted: 6_000secsec * 0.01 = 60
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + 48        + 0   = 2_000_120
@@ -1946,18 +1946,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 2_000sec * 0.008 = 16
-         *    Second payment net interest accrued:   4_000sec * 0.008 = 32
+         *    Second payment net interest accounted: 2_000secsec * 0.008 = 16
+         *    Second payment net interest accrued:   4_000secsec * 0.008 = 32
          *  Loan 2:
-         *    First  payment net interest accounted: 6_000sec * 0.01 = 60 (Accounted during loan1 claim)
-         *    First  payment net interest accrued:   4_000sec * 0.01 = 40
-         *    Second payment net interest accrued:   0sec     * 0.01 = 0
+         *    First  payment net interest accounted: 6_000secsec * 0.01 = 60 (Accounted during loan1 claim)
+         *    First  payment net interest accrued:   4_000secsec * 0.01 = 40
+         *    Second payment net interest accrued:   0secsec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
+         *    Second payment net interest accounted: 6_000secsec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
-         *    Second payment net interest accounted: 0sec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
+         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + (16 + 60) + 104 = 2_000_252
@@ -1992,8 +1992,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_120,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 6_000,
-            vestingPeriodFinish:   START + 10_000  // End of loan1 payment interval
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -2024,8 +2024,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_076,
             issuanceRate:          0.018e30,  // Not early so use same interval, causing same exchange rate
-            lastUpdated:           START + 12_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 12_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -2066,8 +2066,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_148,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 12_000,
-            vestingPeriodFinish:   START + 16_000  // End of loan1 payment interval
+            domainStart:           START + 12_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
         });
 
         _assertBalances({
@@ -2098,8 +2098,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_048,
             issuanceRate:          0.018e30,
-            lastUpdated:           START + 16_000,
-            vestingPeriodFinish:   START + 20_000  // End of loan2 payment interval
+            domainStart:           START + 16_000,
+            domainEnd:             START + 20_000  // End of loan2 payment interval
         });
 
         _assertBalances({
@@ -2160,6 +2160,243 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
     function skiptest_claim_earlyPayment_amortized_latePayment_amortized() external {}
     function skiptest_claim_latePayment_amortized_latePayment_amortized() external {}
 
+}
+
+contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
+
+    MockLoan loan1;
+    MockLoan loan2;
+
+    function setUp() public override {
+        super.setUp();
+
+        loan1 = new MockLoan(address(asset), address(asset));
+        loan2 = new MockLoan(address(asset), address(asset));
+
+        // Set next payment information for loanManager to use.
+        loan1.__setPrincipal(1_000_000);
+        loan2.__setPrincipal(1_000_000);
+        loan1.__setPrincipalRequested(1_000_000);
+        loan2.__setPrincipalRequested(1_000_000);
+        loan1.__setNextPaymentInterest(100);
+        loan2.__setNextPaymentInterest(125);
+        loan1.__setNextPaymentDueDate(START + 10_000);
+        loan2.__setNextPaymentDueDate(START + 22_000);  // 10_000 second interval from 12_000sec start.
+
+        vm.prank(address(poolManager));
+        loanManager.fund(address(loan1));
+
+        asset.mint(address(pool), 1_000_000);  // Represent totalAssets
+
+        /**
+         *  Loan 1
+         *    Start date:    0sec
+         *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
+         */
+    }
+
+    function test_claim_domainStart_gt_domainEnd() external {
+        /**
+         *  *************************************
+         *  *** Loan 1 Payment 1 (t = 10_000) ***
+         *  *************************************
+         *  ********************************
+         *  *** Loan 2 Fund (t = 12_000) ***
+         *  ********************************
+         *  --- Pre-Fund ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 0
+         *    First  payment net interest accrued:   10_000sec * 0.008 = 80 (Accrues up to VPF)
+         *  --- Post-Fund ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF using `_accountPreviousLoans`)
+         *    Second payment net interest accrued:   0                      (Second payment not recognized)
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 1_000_000 + 80 + 0  + 1_000_000 = 2_000_080
+         *  Resulting total assets: 2_000_000 + 0  + 80 + 0         = 2_000_080
+         *  *************************************
+         *  *** Loan 2 Payment 1 (t = 22_000) ***
+         *  *************************************
+         *  *********************************
+         *  *** Loan 2 Claim (t = 24_000) ***
+         *  *********************************
+         *  --- Pre-Claim ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    Second payment net interest accrued:   0                      (Second payment not recognized)
+         *  Loan 2:
+         *    First  payment net interest accounted: 0
+         *    First  payment net interest accrued:   10_000sec * 0.01 = 100 (Accrues up to VPF)
+         *    Second payment net interest accrued:   0
+         *  --- Post-Claim ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    Second payment net interest accrued:   0                      (Second payment not recognized)
+         *  Loan 2:
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 2_000sec  * 0.01 = 20  (Accounts for second payment cycle)
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 100 + 80        + 0   = 2_000_180
+         *  Resulting total assets: 2_000_000 + 0   + (80 + 20) + 100 = 2_000_200
+         *  *************************************************************************
+         *  *** Loan 1 Claim (t = 27_000) (LU = 24_000, VPF from Loan 1 = 20_000) ***
+         *  *************************************************************************
+         *  --- Pre-Claim ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    Second payment net interest accrued:   0                      (Second payment not recognized)
+         *  Loan 2:
+         *    Second payment net interest accounted: 2_000sec * 0.01 = 20
+         *    Second payment net interest accrued:   3_000sec * 0.01 = 30
+         *  --- Post-Claim ---
+         *  Loan 1:
+         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
+         *    Second payment net interest accounted: 10_000sec * 0.008 = 80
+         *  Loan 2:
+         *    Second payment net interest accounted: 5_000sec * 0.01 = 50
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accruedInterest + accountedInterest + cash
+         *  Starting  total assets: 2_000_000 + 30 + (80 + 20) + 100 = 2_000_230
+         *  Resulting total assets: 2_000_000 + 0  + (80 + 50) + 180 = 2_000_310
+         */
+
+        /**********************************/
+        /*** Loan 1 Payment (t = 10_000 ***/
+        /**********************************/
+
+        _makePayment({
+            loanAddress:         address(loan1),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            paymentTimestamp:    START + 10_000,
+            nextPaymentDueDate:  START + 20_000
+        });
+
+        /*******************/
+        /*** Loan 2 Fund ***/
+        /*******************/
+
+        vm.warp(START + 12_000);
+
+        vm.prank(address(poolManager));
+        loanManager.fund(address(loan2));
+
+        asset.burn(address(pool), 1_000_000);  // Mock pool moving cash
+
+        /***********************************/
+        /*** Loan 2 Payment (t = 22_000) ***/
+        /***********************************/
+
+        _makePayment({
+            loanAddress:         address(loan2),
+            interestAmount:      125,
+            principalAmount:     0,
+            nextInterestPayment: 125,
+            paymentTimestamp:    START + 22_000,
+            nextPaymentDueDate:  START + 32_000
+        });
+
+        /*********************************/
+        /*** Loan 2 Claim (t = 24_000) ***/
+        /*********************************/
+
+        vm.warp(START + 24_000);
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan2), true);
+
+        /*********************************/
+        /*** Loan 1 Claim (t = 27_000) ***/
+        /*********************************/
+
+        vm.warp(START + 27_000);
+
+        // Loan 1
+        _assertLoanInfo({
+            loanAddress:         address(loan1),
+            incomingNetInterest: 80,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START,
+            paymentDueDate:      START + 10_000
+        });
+
+        // Loan 2
+        _assertLoanInfo({
+            loanAddress:         address(loan2),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START + 22_000,
+            paymentDueDate:      START + 32_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       30,
+            accountedInterest:     80 + 20,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_130,
+            issuanceRate:          0.01e30,
+            domainStart:           START + 24_000,
+            domainEnd:             START + 32_000
+        });
+
+        _assertBalances({
+            loanAddress:         address(loan1),
+            loanBalance:         100,
+            poolBalance:         100 + 1,  // From loan 2 claim
+            treasuryBalance:     6,
+            poolDelegateBalance: 18
+        });
+
+        _assertTotalAssets(2_000_230 + 1);
+
+        vm.prank(address(poolManager));
+        loanManager.claim(address(loan1), true);
+
+        // Loan 1
+        _assertLoanInfo({
+            loanAddress:         address(loan1),
+            incomingNetInterest: 80,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START + 10_000,
+            paymentDueDate:      START + 20_000  // In the past - LU > VPF
+        });
+
+        // Loan 2 (No change)
+        _assertLoanInfo({
+            loanAddress:         address(loan2),
+            incomingNetInterest: 100,
+            refinanceInterest:   0,
+            principalOf_loan:    1_000_000,
+            startDate:           START + 22_000,
+            paymentDueDate:      START + 32_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     50 + 80,  // Second payment accounted interest for loan 1
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_130,
+            issuanceRate:          0.01e30,
+            domainStart:           START + 27_000,
+            domainEnd:             START + 32_000
+        });
+
+        _assertBalances({
+            loanAddress:         address(loan2),
+            loanBalance:         0,
+            poolBalance:         100 + 80 + 1,  // Dust
+            treasuryBalance:     6  + 5,
+            poolDelegateBalance: 18 + 15
+        });
+
+        _assertTotalAssets(2_000_310 + 1);  // Dust
+    }
 }
 
 // TODO: Create mock refinance interest values
@@ -2244,8 +2481,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_100,
             issuanceRate:          0.01e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -2288,8 +2525,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_100,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -2320,8 +2557,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_400,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -2352,8 +2589,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_000,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 20_000,
-            vestingPeriodFinish:   START + 30_000
+            domainStart:           START + 20_000,
+            domainEnd:             START + 30_000
         });
 
         _assertBalances({
@@ -2421,8 +2658,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_060,
             issuanceRate:          0.01e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -2462,8 +2699,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_060,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 6_000,
-            vestingPeriodFinish:   START + 16_000
+            domainStart:           START + 6_000,
+            domainEnd:             START + 16_000
         });
 
         _assertBalances({
@@ -2492,8 +2729,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_360,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 6_000,
-            vestingPeriodFinish:   START + 16_000
+            domainStart:           START + 6_000,
+            domainEnd:             START + 16_000
         });
 
         _assertBalances({
@@ -2526,8 +2763,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_000,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 16_000,
-            vestingPeriodFinish:   START + 26_000
+            domainStart:           START + 16_000,
+            domainEnd:             START + 26_000
         });
 
         _assertBalances({
@@ -2595,8 +2832,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_100,
             issuanceRate:          0.01e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -2636,8 +2873,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_148,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 14_000,
-            vestingPeriodFinish:   START + 24_000
+            domainStart:           START + 14_000,
+            domainEnd:             START + 24_000
         });
 
         _assertBalances({
@@ -2668,8 +2905,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_448,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 14_000,
-            vestingPeriodFinish:   START + 24_000
+            domainStart:           START + 14_000,
+            domainEnd:             START + 24_000
         });
 
         _assertBalances({
@@ -2700,8 +2937,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_000,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 24_000,
-            vestingPeriodFinish:   START + 34_000
+            domainStart:           START + 24_000,
+            domainEnd:             START + 34_000
         });
 
         _assertBalances({
@@ -2770,8 +3007,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_100,
             issuanceRate:          0.01e30,
-            lastUpdated:           START,
-            vestingPeriodFinish:   START + 10_000
+            domainStart:           START,
+            domainEnd:             START + 10_000
         });
 
         _assertBalances({
@@ -2811,8 +3048,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_100,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -2843,8 +3080,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_400,
             issuanceRate:          0.03e30,
-            lastUpdated:           START + 10_000,
-            vestingPeriodFinish:   START + 20_000
+            domainStart:           START + 10_000,
+            domainEnd:             START + 20_000
         });
 
         _assertBalances({
@@ -2875,8 +3112,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             principalOut:          1_800_000,
             assetsUnderManagement: 1_800_000,
             issuanceRate:          0.03e30,         // 240 interest over 1000 seconds
-            lastUpdated:           START + 20_000,
-            vestingPeriodFinish:   START + 30_000
+            domainStart:           START + 20_000,
+            domainEnd:             START + 30_000
         });
 
         _assertBalances({
@@ -2978,8 +3215,8 @@ contract FundLoanTests is LoanManagerBaseTest {
         assertEq(loanManager.principalOut(),        0);
         assertEq(loanManager.accountedInterest(),   0);
         assertEq(loanManager.issuanceRate(),        0);
-        assertEq(loanManager.vestingPeriodFinish(), 0);
-        assertEq(loanManager.lastUpdated(),         0);
+        assertEq(loanManager.domainEnd(), 0);
+        assertEq(loanManager.domainStart(),         0);
 
         loan.__setPrincipal(principalRequested);  // Simulate intermediate state from funding
 
@@ -3011,8 +3248,8 @@ contract FundLoanTests is LoanManagerBaseTest {
         assertEq(loanManager.principalOut(),        principalRequested);
         assertEq(loanManager.accountedInterest(),   0);
         assertEq(loanManager.issuanceRate(),        0.8e46);  // 0.7e18 * 1e30 / 100 = 0.7e46
-        assertEq(loanManager.vestingPeriodFinish(), START + 100);
-        assertEq(loanManager.lastUpdated(),         START);
+        assertEq(loanManager.domainEnd(), START + 100);
+        assertEq(loanManager.domainStart(),         START);
     }
 
     function test_fund_failIfNotPoolManager() external {

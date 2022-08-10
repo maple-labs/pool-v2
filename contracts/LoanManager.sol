@@ -19,6 +19,8 @@ import {
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
+// TODO: Rename LU and VPF to domainStart and domainEnd
+
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
     /**
@@ -110,7 +112,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // The new vesting period finish is the maximum of the current earliest, if it does not exist set to
         // current timestamp to end vesting.
-        vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
+        // TODO: Investigate adding `_accountToEndOfLoan` logic
+        domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
@@ -143,26 +146,33 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // If there is a next payment for this loan.
         if (nextPaymentDueDate_ != 0) {
             newRate_ = _queueNextLoanPayment(loanAddress_, nextStartDate_, nextPaymentDueDate_);
+
+            // If the current timestamp is greater than the resulting next payment due date, then the next payment must be
+            // FULLY accounted for, and the loan must be removed from the sorted list.
+            if (block.timestamp > nextPaymentDueDate_) {
+                uint256 loanId_ = loanIdOf[loanAddress_];
+
+                ( uint256 accountedInterestIncrease_, ) = _accountToEndOfLoan(loanId_, loans[loanId_].issuanceRate, previousPaymentDueDate_, nextPaymentDueDate_);
+
+                accountedInterest += accountedInterestIncrease_;
+
+                // `newRate_` always equals `issuanceRateReduction_`
+                newRate_ = 0;
+            }
+
+            // If the current timestamp is greater than the previous payment due date, then the next payment must be
+            // PARTIALLY accounted for, using the new loan's issuance rate and the time passed in the new interval.
+            else if (block.timestamp > previousPaymentDueDate_) {
+                accountedInterest += (block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION;
+            }
         }
 
-        // The new vesting period finish is the maximum of the current earliest, if it does not exist set to
-        // current timestamp to end vesting.
-        // TODO: We should try and remove this, VPF should never be explicitly set to BT.
-        vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
+        // Update domainEnd to reflect the new sorted list state.
+        domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
         issuanceRate = issuanceRate + newRate_ - previousRate_;
-
-        /*
-           If there is a new rate (meaning there is a new payment queued), and the block.timestamp is past the previousPaymentDueDate,
-           then the previous payment has been claimed late, and we are late to apply the new issuance rate, because it should have started at previousPaymentDueDate.
-           Since the new issuance rate is late to be applied, we have some unaccounted interest. We catch up the accounted interest by doing a discrete update of the missing interest,
-           starting from when the new rate should have been applied, to when the new rate is actually applied.
-        */
-        if (newRate_ != 0 && block.timestamp > previousPaymentDueDate_) {
-            accountedInterest += (block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION;
-        }
     }
 
     function fund(address loanAddress_) external {
@@ -175,9 +185,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 principal_ = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
         uint256 newRate_   = _queueNextLoanPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate());
 
-        principalOut        += principal_;
-        issuanceRate        += newRate_;
-        vestingPeriodFinish = _max(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);
+        principalOut += principal_;
+        issuanceRate += newRate_;
+        domainEnd     = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
     }
 
     /*************************/
@@ -243,7 +253,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Loan Sorting Functions ***/
     /***************************************/
 
-    // TODO Passing Memory due to stack too deep error. Investigate if efficiency is lost here
     function _addLoanToList(LoanInfo memory loan_) internal returns (uint256 loanId_) {
         loanId_ = loanIdOf[loan_.vehicle] = ++loanCounter;
 
@@ -289,40 +298,72 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Loan Accounting Functions ***/
     /******************************************/
 
+    // Advance loans in previous domains to "catch up" to current state.
+    function _accountToEndOfLoan(
+        uint256 loanId_,
+        uint256 issuanceRate_,
+        uint256 intervalStart_,
+        uint256 intervalEnd_
+    )
+        internal returns (uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_)
+    {
+        LoanInfo memory loan_ = loans[loanId_];
+
+        // Remove the loan from the linked list so the next loan can be used as the shortest timestamp.
+        // NOTE: This keeps the loan accounting info intact so it can be accounted for when the payment is claimed.
+        _removeLoanFromList(loan_.previous, loan_.next, loanId_);
+
+        issuanceRateReduction_ = loan_.issuanceRate;
+
+        // Update accounting between timestamps and set last updated to the domainEnd.
+        // Reduce the issuanceRate for the loan.
+        accountedInterestIncrease_ = (intervalEnd_ - intervalStart_) * issuanceRate_ / PRECISION;
+
+        // Remove issuanceRate as it is deducted from global issuanceRate.
+        loans[loanId_].issuanceRate = 0;
+    }
+
     // TODO: Gas optimize
-    function _advanceLoanAccounting() internal {
-        // If no vesting period finish, do not advance previous loan accounting.
-        if (vestingPeriodFinish != 0) {
-            uint256 loanId_ = loanWithEarliestPaymentDueDate;
+    function _accountPreviousDomains() internal {
+        uint256 domainEnd_ = domainEnd;
 
-            // Advance loans in previous domains to "catch up" to current state.
-            while (loans[loanId_].paymentDueDate == vestingPeriodFinish && block.timestamp > vestingPeriodFinish) {
-                LoanInfo memory loan_ = loans[loanId_];
+        if (domainEnd_ == 0 || block.timestamp <= domainEnd_) return;
 
-                // Remove the loan from the linked list so the next loan can be used as the shortest timestamp.
-                // NOTE: This keeps the loan accounting info intact so it can be accounted for when the payment is claimed.
-                _removeLoanFromList(loan_.previous, loan_.next, loanId_);
+        uint256 loanId_ = loanWithEarliestPaymentDueDate;
 
-                // Remove issuanceRate as it is deducted from global issuanceRate.
-                loans[loanId_].issuanceRate = 0;
+        // Cache variables for looping.
+        uint256 accountedInterest_ = accountedInterest;
+        uint256 domainStart_       = domainStart;
+        uint256 issuanceRate_      = issuanceRate;
 
-                // Update accounting between timestamps and set last updated to the vestingPeriodFinish.
-                // Reduce the issuanceRate for the loan.
-                accountedInterest += (vestingPeriodFinish - lastUpdated) * issuanceRate / PRECISION;
-                issuanceRate      -= loan_.issuanceRate;
-                lastUpdated        = vestingPeriodFinish;
+        // Advance loans in previous domains to "catch up" to current state.
+        while (block.timestamp > domainEnd_) {
+            ( uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_ ) = _accountToEndOfLoan(loanId_, issuanceRate_, domainStart_, domainEnd_);
 
-                // Update the new VPF by using the updated linked list.
-                vestingPeriodFinish = _min(loans[loanWithEarliestPaymentDueDate].paymentDueDate, block.timestamp);  // TODO: Revisit
+            accountedInterest_ += accountedInterestIncrease_;
+            issuanceRate_      -= issuanceRateReduction_;
 
-                // If the end of the list has been reached, exit the loop.
-                if ((loanId_ = loans[loanId_].next) == 0) break;
-            }
+            domainStart_ = domainEnd_;
+            domainEnd_   = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+
+            // If the end of the list has been reached, exit the loop.
+            if ((loanId_ = loans[loanId_].next) == 0) break;
         }
+
+        // Update global accounting.
+        accountedInterest = accountedInterest_;
+        domainStart       = domainStart_;
+        domainEnd         = domainEnd_;
+        issuanceRate      = issuanceRate_;
+    }
+
+    function _advanceLoanAccounting() internal {
+        // If VPF is in the past, account for all previous issuance domains and get to current state.
+        _accountPreviousDomains();
 
         // Accrue interest to the current timestamp.
         accountedInterest += getAccruedInterest();
-        lastUpdated        = block.timestamp;
+        domainStart        = block.timestamp;
     }
 
     // TODO: Change return vars after managment fees are properly implemented.
@@ -431,7 +472,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     function assetsUnderManagement() public view virtual returns (uint256 assetsUnderManagement_) {
         // TODO: Figure out better approach for this
-        uint256 accruedInterest = lastUpdated == block.timestamp ? 0 : getAccruedInterest();
+        uint256 accruedInterest = domainStart == block.timestamp ? 0 : getAccruedInterest();
 
         return principalOut + accountedInterest + accruedInterest;
     }
@@ -445,14 +486,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         if (issuanceRate_ == 0) return uint256(0);
 
-        uint256 vestingPeriodFinish_ = vestingPeriodFinish;
-        uint256 lastUpdated_         = lastUpdated;
-
-        uint256 vestingTimePassed = block.timestamp > vestingPeriodFinish_
-            ? vestingPeriodFinish_ - lastUpdated_
-            : block.timestamp - lastUpdated_;
-
-        accruedInterest_ = issuanceRate_ * vestingTimePassed / PRECISION;
+        // If before domain end, use current timestamp.
+        accruedInterest_ = issuanceRate_ * (_min(block.timestamp, domainEnd) - domainStart) / PRECISION;
     }
 
     function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) public view returns (uint256 returnAmount_) {
