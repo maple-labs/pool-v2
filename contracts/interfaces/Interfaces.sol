@@ -38,7 +38,7 @@ interface IGlobalsLike {
 
     function mapleTreasury() external view returns (address mapleTreasury_);
 
-    function ownedPool(address poolDelegate_) external view returns (address pool_);
+    function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
     function protocolPaused() external view returns (bool protocolPaused_);
 
@@ -177,20 +177,16 @@ interface IPoolManagerLike {
 interface IWithdrawalManagerInitializerLike {
 
     function encodeArguments(
-        address asset_,
         address pool_,
-        uint256 cycleStart_,
-        uint256 withdrawalWindowDuration_,
-        uint256 cycleDuration_
+        uint256 cycleDuration_,
+        uint256 windowDuration_
     ) external pure returns (bytes memory encodedArguments_);
 
     function decodeArguments(bytes calldata encodedArguments_)
         external pure returns (
-            address asset_,
             address pool_,
-            uint256 cycleStart_,
-            uint256 withdrawalWindowDuration_,
-            uint256 cycleDuration_
+            uint256 cycleDuration_,
+            uint256 windowDuration_
         );
 
 }

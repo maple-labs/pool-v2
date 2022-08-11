@@ -85,13 +85,12 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         ];
 
         uint256 coverAmountRequired = 10e18;
-        uint256[6] memory configParams_ = [
+        uint256[5] memory configParams_ = [
             1_000_000e18,
             0.1e18,
             coverAmountRequired,
-            block.timestamp,
-            1 days,
-            3 days
+            3 days,
+            1 days
         ];
 
         vm.prank(poolDelegate);
@@ -142,13 +141,12 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         ];
 
         uint256 coverAmountRequired = 10e18;
-        uint256[6] memory configParams_ = [
+        uint256[5] memory configParams_ = [
             1_000_000e18,
             0.1e18,
             coverAmountRequired,
-            block.timestamp,
-            1 days,
-            3 days
+            3 days,
+            1 days
         ];
 
         vm.prank(poolDelegate);

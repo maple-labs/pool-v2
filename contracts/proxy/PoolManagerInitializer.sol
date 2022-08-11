@@ -53,9 +53,9 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require((poolDelegate = poolDelegate_) != address(0), "PMI:I:ZERO_PD");
         require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
 
-        require(IGlobalsLike(globals_).isPoolDelegate(poolDelegate_),          "PMI:I:NOT_PD");
-        require(IGlobalsLike(globals_).ownedPool(poolDelegate_) == address(0), "PMI:I:POOL_OWNER");
-        require(IGlobalsLike(globals_).isPoolAsset(asset_),                    "PMI:I:ASSET_NOT_ALLOWED");
+        require(IGlobalsLike(globals_).isPoolDelegate(poolDelegate_),                 "PMI:I:NOT_PD");
+        require(IGlobalsLike(globals_).ownedPoolManager(poolDelegate_) == address(0), "PMI:I:POOL_OWNER");
+        require(IGlobalsLike(globals_).isPoolAsset(asset_),                           "PMI:I:ASSET_NOT_ALLOWED");
 
         pool              = address(new Pool(address(this), asset_, name_, symbol_));
         poolDelegateCover = address(new PoolDelegateCover(address(this), asset));

@@ -419,7 +419,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // If the amount of interest claimed is greater than the amount accounted for, set to zero.
         // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
         uint256 loanAccruedInterest_ =
-            block.timestamp < loanInfo_.paymentDueDate
+            block.timestamp <= loanInfo_.paymentDueDate  // TODO: Investigate underflow and change to < again if possible.
                 ? (block.timestamp - loanInfo_.startDate) * loanInfo_.issuanceRate / PRECISION
                 : loanInfo_.incomingNetInterest;
 

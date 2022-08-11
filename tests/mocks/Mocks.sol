@@ -81,7 +81,7 @@ contract MockGlobals {
     mapping(address => uint256) public maxCoverLiquidationPercent;
     mapping(address => uint256) public minCoverAmount;
 
-    mapping(address => address) public ownedPool;
+    mapping(address => address) public ownedPoolManager;
 
     constructor(address governor_) {
         governor = governor_;
@@ -109,8 +109,8 @@ contract MockGlobals {
         minCoverAmount[poolManager_] = minCoverAmount_;
     }
 
-    function setOwnedPool(address owner_, address pool_) external {
-        ownedPool[owner_] = pool_;
+    function setOwnedPool(address owner_, address poolManager_) external {
+        ownedPoolManager[owner_] = poolManager_;
     }
 
     function setProtocolPause(bool paused_) external {
@@ -562,23 +562,20 @@ contract MockLoanManagerInitializer is MockMigrator {
 contract MockWithdrawalManagerInitializer is MockMigrator {
 
     function encodeArguments(
-        address asset_,
         address pool_,
-        uint256 cycleStart_,
-        uint256 withdrawalWindowDuration_,
-        uint256 cycleDuration_
+        uint256 cycleDuration_,
+        uint256 windowDuration_
     ) external pure returns (bytes memory encodedArguments_) {
         encodedArguments_ = new bytes(0);
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
         external pure returns (
-            address asset_,
             address pool_,
-            uint256 cycleStart_,
-            uint256 withdrawalWindowDuration_,
-            uint256 cycleDuration_
-        ) {
+            uint256 cycleDuration_,
+            uint256 windowDuration_
+        )
+    {
         // Do nothing.
     }
 }

@@ -9,7 +9,7 @@ import { IPoolManagerInitializer }                                        from "
 import { IGlobalsLike, ILoanManagerInitializerLike, IWithdrawalManagerInitializerLike } from "./interfaces/Interfaces.sol";
 
 contract PoolDeployer {
-    
+
     address globals;
 
     constructor(address globals_) {
@@ -28,11 +28,10 @@ contract PoolDeployer {
      *                         [2]: withdrawalManagerInitializer
      *  @param configParams_ Array of uint256 config parameters. Array used to avoid stack too deep issues.
      *                         [0]: liquidityCap
-     *                         [1]: managementFee
+     *                         [1]: delegateManagementFeeRate
      *                         [2]: coverAmountRequired
-     *                         [3]: cycleStart
-     *                         [4]: withdrawalWindowDuration
-     *                         [5]: cycleDuration
+     *                         [3]: cycleDuration
+     *                         [4]: windowDuration
      */
     function deployPool(
         address[3] memory factories_,
@@ -40,7 +39,7 @@ contract PoolDeployer {
         address asset_,
         string memory name_,
         string memory symbol_,
-        uint256[6] memory configParams_
+        uint256[5] memory configParams_
     ) external returns (
         address poolManager_,
         address loanManager_,
@@ -62,13 +61,7 @@ contract PoolDeployer {
         loanManager_ = IMapleProxyFactory(factories_[1]).createInstance(arguments, salt_);
 
         // Deploy Withdrawal Manager
-        arguments = IWithdrawalManagerInitializerLike(initializers_[2]).encodeArguments({
-            asset_:                    asset_,
-            pool_:                     pool_,
-            cycleStart_:               configParams_[3],
-            withdrawalWindowDuration_: configParams_[4],
-            cycleDuration_:            configParams_[5]
-        });
+        arguments = abi.encode(pool_, configParams_[3], configParams_[4]);
         withdrawalManager_ = IMapleProxyFactory(factories_[2]).createInstance(arguments, salt_);
 
         // Configure Pool Manager
