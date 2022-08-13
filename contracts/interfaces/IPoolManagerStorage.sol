@@ -5,8 +5,6 @@ interface IPoolManagerStorage {
 
     function active() external view returns (bool active_);
 
-    function admin() external view returns (address admin_);
-
     function asset() external view returns (address asset_);
 
     function configured() external view returns (bool configured_);
@@ -26,8 +24,6 @@ interface IPoolManagerStorage {
     function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
 
     function openToPublic() external view returns (bool openToPublic_);
-
-    function pendingAdmin() external view returns (address pendingAdmin_);
 
     function pendingPoolDelegate() external view returns (address pendingPoolDelegate_);
 

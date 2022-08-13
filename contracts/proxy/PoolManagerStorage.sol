@@ -7,8 +7,6 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
 
     address public override poolDelegate;
     address public override pendingPoolDelegate;
-    address public override admin;
-    address public override pendingAdmin;
 
     address public override asset;
     address public override globals;
