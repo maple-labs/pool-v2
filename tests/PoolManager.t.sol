@@ -360,13 +360,13 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
 }
 
-contract SetManagementFee_SetterTests is PoolManagerBase {
+contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
 
     uint256 newManagementFeeRate = uint256(0.1e18);
 
-    function test_setManagementFee_protocolPaused() external {
+    function test_setDelegateManagementFeeRate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
         vm.prank(POOL_DELEGATE);
@@ -374,13 +374,23 @@ contract SetManagementFee_SetterTests is PoolManagerBase {
         poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
-    function test_setManagementFee_notPoolDelegate() external {
+    function test_setDelegateManagementFeeRate_notPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SMF:NOT_PD");
+        vm.expectRevert("PM:SDMFR:NOT_PD");
         poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
-    function test_setManagementFee_success() external {
+    function test_setDelegateManagementFeeRate_oob() external {
+        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), 0.9e18);
+
+        vm.startPrank(POOL_DELEGATE);
+        vm.expectRevert("PM:SDMFR:OOB");
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate + 1);
+
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
+    }
+
+    function test_setDelegateManagementFeeRate_success() external {
         assertEq(poolManager.delegateManagementFeeRate(), uint256(0));
 
         vm.prank(POOL_DELEGATE);

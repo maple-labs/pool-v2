@@ -135,7 +135,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:SMF:NOT_PD");
+        require(msg.sender == poolDelegate, "PM:SDMFR:NOT_PD");
+
+        require(delegateManagementFeeRate_ + IGlobalsLike(globals).platformManagementFeeRate(address(this)) <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         // TODO check globals for boundaries
         delegateManagementFeeRate = delegateManagementFeeRate_;
@@ -171,11 +173,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         address loanManager_ = loanManagers[loan_];
 
-        require(msg.sender == poolDelegate,                                    "PM:F:NOT_PD");
-        require(isLoanManager[loanManager_],                                   "PM:F:INVALID_LOAN_MANAGER");
-        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
-        require(IERC20Like(pool).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:F:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                    "PM:ANT:NOT_PD");
+        require(isLoanManager[loanManager_],                                   "PM:ANT:INVALID_LOAN_MANAGER");
+        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
+        require(IERC20Like(pool).totalSupply() != 0,                           "PM:ANT:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:ANT:INSUFFICIENT_COVER");
 
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "P:F:TRANSFER_FAIL");
 
