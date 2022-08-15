@@ -57,8 +57,6 @@ interface IPoolManager is IPoolManagerStorage {
         uint256 principalIncrease_
     ) external;
 
-    function claim(address loan_) external;
-
     function fund(uint256 principal_, address loan_, address loanManager_) external;
 
     /*****************************/

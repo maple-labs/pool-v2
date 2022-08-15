@@ -168,40 +168,34 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     )
         external override whenProtocolNotPaused
     {
-        address asset_ = asset;
-        address pool_  = pool;
+        address asset_   = asset;
+        address globals_ = globals;
+        address pool_    = pool;
 
         address loanManager_ = loanManagers[loan_];
 
-        require(msg.sender == poolDelegate,                                    "PM:ANT:NOT_PD");
-        require(isLoanManager[loanManager_],                                   "PM:ANT:INVALID_LOAN_MANAGER");
-        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
-        require(IERC20Like(pool).totalSupply() != 0,                           "PM:ANT:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:ANT:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                     "PM:ANT:NOT_PD");
+        require(isLoanManager[loanManager_],                                    "PM:ANT:INVALID_LOAN_MANAGER");
+        require(IGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                           "PM:ANT:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                          "PM:ANT:INSUFFICIENT_COVER");
 
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "P:F:TRANSFER_FAIL");
 
         ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_, principalIncrease_);
     }
 
-    function claim(address loan_) external override whenProtocolNotPaused {
-        address loanManager_ = loanManagers[loan_];
-
-        require(IERC20Like(pool).totalSupply() != 0, "PM:C:ZERO_SUPPLY");
-        require(loanManager_ != address(0),          "PM:C:NO_LOAN_MANAGER");
-
-        ILoanManagerLike(loanManager_).claim(loan_, _hasSufficientCover(globals, pool, asset));
-    }
-
+    // TODO: Investigate why gas costs are so high for funding
     function fund(uint256 principal_, address loan_, address loanManager_) external override whenProtocolNotPaused {
-        address asset_ = asset;
-        address pool_  = pool;
+        address asset_   = asset;
+        address globals_ = globals;
+        address pool_    = pool;
 
-        require(msg.sender == poolDelegate,                                    "PM:F:NOT_PD");
-        require(isLoanManager[loanManager_],                                   "PM:F:INVALID_LOAN_MANAGER");
-        require(IGlobalsLike(globals).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
-        require(IERC20Like(pool).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals, pool_, asset_),                   "PM:F:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                     "PM:F:NOT_PD");
+        require(isLoanManager[loanManager_],                                    "PM:F:INVALID_LOAN_MANAGER");
+        require(IGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                          "PM:F:INSUFFICIENT_COVER");
 
         loanManagers[loan_] = loanManager_;
 
@@ -258,7 +252,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function withdrawCover(uint256 amount_, address recipient_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:WC:NOT_PD");
         require(
-            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IGlobalsLike(globals).minCoverAmount(pool)),
+            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IGlobalsLike(globals).minCoverAmount(address(this))),
             "PM:WC:BELOW_MIN"
         );
 
@@ -313,6 +307,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         return _factory();
     }
 
+    function hasSufficientCover() public view returns (bool hasSufficientCover_) {
+        hasSufficientCover_ = _hasSufficientCover(globals, asset);
+    }
+
     function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
@@ -345,8 +343,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
     }
 
-    function _hasSufficientCover(address globals_, address pool_, address asset_) internal view returns (bool hasSufficientCover_) {
-        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IGlobalsLike(globals_).minCoverAmount(pool_);
+    function _hasSufficientCover(address globals_, address asset_) internal view returns (bool hasSufficientCover_) {
+        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IGlobalsLike(globals_).minCoverAmount(address(this));
     }
 
 }

@@ -154,17 +154,16 @@ contract FeeDistributionTest is IntegrationTestBase {
 
         uint256 interestPayment = 1_000e18;
 
-        // Simulate an interest payment
-        fundsAsset.mint(address(loan_), interestPayment);
-        loan_.__setClaimableFunds(interestPayment);
-        loan_.__setNextPaymentDueDate(block.timestamp + 30 days);
-
-        assertEq(fundsAsset.balanceOf(address(loan_)),     interestPayment);
+        assertEq(fundsAsset.balanceOf(address(loan_)),     0);
         assertEq(fundsAsset.balanceOf(address(pool)),      0);
         assertEq(fundsAsset.balanceOf(address(TREASURY)),  0);
         assertEq(fundsAsset.balanceOf(address(PD)),        0);
 
-        poolManager.claim(address(loan_));
+        // Simulate an interest payment
+        fundsAsset.mint(address(loanManager), interestPayment);
+
+        vm.prank(address(loan_));
+        loanManager.claim(0, interestPayment, block.timestamp + 30 days);
 
         assertEq(fundsAsset.balanceOf(address(loan_)),     0);
         assertEq(fundsAsset.balanceOf(address(pool)),      900e18); // 10% of the interest paid

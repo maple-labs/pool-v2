@@ -88,8 +88,6 @@ interface ILoanLike {
 
     function borrower() external view returns (address borrower_);
 
-    function claimableFunds() external view returns (uint256 claimableFunds_);
-
     function claimFunds(uint256 amount_, address destination_) external;
 
     function collateralAsset() external view returns(address asset_);
@@ -157,6 +155,8 @@ interface IPoolManagerLike {
     function fund(uint256 principalAmount_, address loan_, address loanManager_) external;
 
     function globals() external view returns (address globals_);
+
+    function hasSufficientCover() external view returns (bool hasSufficientCover_);
 
     function loanManager() external view returns (address loanManager_);
 

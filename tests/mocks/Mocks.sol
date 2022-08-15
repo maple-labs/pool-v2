@@ -174,7 +174,6 @@ contract MockLoan {
 
     uint256 public collateral;
     uint256 public collateralRequired;
-    uint256 public claimableFunds;
     uint256 public nextPaymentInterest;
     uint256 public nextPaymentDueDate;
     uint256 public nextPaymentPrincipal;
@@ -211,17 +210,6 @@ contract MockLoan {
         refinancePaymentInterval      = 0;
         refinancePrincipal            = 0;
         refinancePrincipalRequested   = 0;
-    }
-
-    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external {
-        for (uint256 i = 0; i < amounts_.length; i++) {
-            claimFunds(amounts_[i], destinations_[i]);
-        }
-    }
-
-    function claimFunds(uint256 amount_, address destination_) public {
-        claimableFunds -= amount_;
-        MockERC20(fundsAsset).transfer(destination_, amount_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external {
@@ -276,10 +264,6 @@ contract MockLoan {
 
     function __setPrincipalRequested(uint256 principalRequested_) external {
         principalRequested = principalRequested_;
-    }
-
-    function __setClaimableFunds(uint256 claimable_) external {
-        claimableFunds = claimable_;
     }
 
     function __setRefinanceInterest(uint256 refinanceInterest_) external {
@@ -414,6 +398,7 @@ contract MockPool {
 contract MockPoolManager is PoolManagerStorage, MockProxied {
 
     bool internal _canCall;
+    bool internal _hasSufficientCover;
 
     uint256 public totalAssets;
 
@@ -428,6 +413,10 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         // Do nothing.
     }
 
+    function hasSufficientCover() external pure returns (bool hasSufficientCover_) {
+        hasSufficientCover_ = true;
+    }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
         delegateManagementFeeRate = delegateManagementFeeRate_;
     }
@@ -439,6 +428,10 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
 
     function __setGlobals(address globals_) external {
         globals = globals_;
+    }
+
+    function __setHasSufficientCover(bool hasSufficientCover_) external {
+        _hasSufficientCover = hasSufficientCover_;
     }
 
     function __setPoolDelegate(address poolDelegate_) external {

@@ -19,8 +19,6 @@ import {
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
-// TODO: Rename LU and VPF to domainStart and domainEnd
-
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
     /**
@@ -84,12 +82,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
         require(msg.sender == poolManager, "LM:ANT:NOT_ADMIN");
 
-        require(
-            ILoanLike(loan_).claimableFunds() == uint256(0) &&
-            ILoanLike(loan_).principal() == principalOf[loan_],
-            "LM:ANT:NEED_TO_CLAIM"
-        );
-
         _advanceLoanAccounting();
 
         // Remove loan from sorted list and get relevant previous parameters.
@@ -100,7 +92,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Perform the refinancing, updating the loan state.
         ILoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
 
-        uint256 principal_ = principalOf[loan_] = ILoanLike(loan_).principal();
+        uint256 principal_ = ILoanLike(loan_).principal();
 
         if (principal_ > previousPrincipal) {
             principalOut += principal_ - previousPrincipal;
@@ -122,20 +114,18 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     // TODO: Test situation where multiple payment intervals pass between claims of a single loan
 
-    function claim(address loanAddress_, bool hasSufficientCover_) external {
-        require(msg.sender == poolManager, "LM:C:NOT_POOL_MANAGER");
+    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external {
+        require(loanIdOf[msg.sender] != 0, "LM:C:NOT_LOAN");
 
         _advanceLoanAccounting();
 
         // Claim loan and move funds into pool and to PM.
-        _claimLoan(loanAddress_, hasSufficientCover_);
+        _claimLoan(msg.sender, principal_, interest_);
 
         // Finalized the previous payment into the pool accounting.
-        ( uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _recognizeLoanPayment(loanAddress_);
+        ( uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _recognizeLoanPayment(msg.sender);
 
         uint256 newRate_ = 0;
-
-        uint256 nextPaymentDueDate_ = ILoanLike(loanAddress_).nextPaymentDueDate();
 
         // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
         // In other words, if the previous payment was early, then the next payment will start accruing from now,
@@ -145,12 +135,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // If there is a next payment for this loan.
         if (nextPaymentDueDate_ != 0) {
-            newRate_ = _queueNextLoanPayment(loanAddress_, nextStartDate_, nextPaymentDueDate_);
+            newRate_ = _queueNextLoanPayment(msg.sender, nextStartDate_, nextPaymentDueDate_);
 
             // If the current timestamp is greater than the resulting next payment due date, then the next payment must be
             // FULLY accounted for, and the loan must be removed from the sorted list.
             if (block.timestamp > nextPaymentDueDate_) {
-                uint256 loanId_ = loanIdOf[loanAddress_];
+                uint256 loanId_ = loanIdOf[msg.sender];
 
                 ( uint256 accountedInterestIncrease_, ) = _accountToEndOfLoan(loanId_, loans[loanId_].issuanceRate, previousPaymentDueDate_, nextPaymentDueDate_);
 
@@ -182,10 +172,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ILoanLike(loanAddress_).fundLoan(address(this));
 
-        uint256 principal_ = principalOf[loanAddress_] = ILoanLike(loanAddress_).principal();
-        uint256 newRate_   = _queueNextLoanPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate());
+        uint256 newRate_ = _queueNextLoanPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate());
 
-        principalOut += principal_;
+        principalOut += ILoanLike(loanAddress_).principal();
         issuanceRate += newRate_;
         domainEnd     = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
     }
@@ -219,8 +208,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // TODO: The loan is not able to handle defaults while there are claimable funds
         ILoanLike loan = ILoanLike(loan_);
-
-        require(loan.claimableFunds() == uint256(0), "LM:TCL:NEED_TO_CLAIM");
 
         uint256 principal = loan.principal();
 
@@ -367,42 +354,24 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     // TODO: Change return vars after managment fees are properly implemented.
-    function _claimLoan(address loanAddress_, bool hasSufficientCover_) internal {
-        ILoanLike loan_ = ILoanLike(loanAddress_);
-
-        uint256 claimable_ = loan_.claimableFunds();
-
-        require(claimable_ != 0, "LM:CL:NO_CLAIMABLE_FUNDS");
-
-        uint256 currentPrincipal_ = loan_.principal();
-        uint256 principalPortion_ = principalOf[loanAddress_] - currentPrincipal_;
-        uint256 interestPortion_  = claimable_ - principalPortion_;
-
-        // Update principal values.
-        principalOf[loanAddress_] = currentPrincipal_;
-        principalOut             -= principalPortion_;
+    function _claimLoan(address loanAddress_, uint256 principal_, uint256 interest_) internal {
+        principalOut -= principal_;
 
         uint256 loanId_ = loanIdOf[loanAddress_];
 
-        uint256 platformFee_ = interestPortion_ * loans[loanId_].platformManagementFeeRate / SCALED_ONE;
+        bool hasSufficientCover_ = IPoolManagerLike(poolManager).hasSufficientCover();
 
-        uint256 delegateFee_ = hasSufficientCover_ ? interestPortion_ * loans[loanId_].delegateManagementFeeRate / SCALED_ONE : 0;
+        uint256 platformFee_ = interest_ * loans[loanId_].platformManagementFeeRate / SCALED_ONE;
 
-        address[] memory destinations_ = new address[](hasSufficientCover_ ? 3 : 2);
-        uint256[] memory amounts_      = new uint256[](hasSufficientCover_ ? 3 : 2);
+        uint256 delegateFee_ = hasSufficientCover_ ? interest_ * loans[loanId_].delegateManagementFeeRate / SCALED_ONE : 0;
 
-        destinations_[0] = mapleTreasury();
-        destinations_[1] = pool;
+        require(ERC20Helper.transfer(fundsAsset, pool, principal_ + interest_ - platformFee_ - delegateFee_), "LM:CL:POOL_TRANSFER");
 
-        amounts_[0] = platformFee_;
-        amounts_[1] = principalPortion_ + interestPortion_ - platformFee_ - delegateFee_;
+        require(ERC20Helper.transfer(fundsAsset, mapleTreasury(), platformFee_), "LM:CL:MT_TRANSFER");
 
         if (hasSufficientCover_) {
-            destinations_[2] = poolDelegate();
-            amounts_[2]      = delegateFee_;
+            require(ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_), "LM:CL:MT_TRANSFER");
         }
-
-        loan_.batchClaimFunds(amounts_, destinations_);
     }
 
     // TODO: Rename function to indicate that it can happen on refinance as well.

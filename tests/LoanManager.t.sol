@@ -163,8 +163,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate);
     }
 
-    function _assertBalances(address loanAddress, uint256 loanBalance, uint256 poolBalance, uint256 treasuryBalance, uint256 poolDelegateBalance) internal {
-        assertEq(asset.balanceOf(loanAddress),           loanBalance);
+    function _assertBalances(uint256 poolBalance, uint256 treasuryBalance, uint256 poolDelegateBalance) internal {
         assertEq(asset.balanceOf(address(pool)),         poolBalance);
         assertEq(asset.balanceOf(address(treasury)),     treasuryBalance);
         assertEq(asset.balanceOf(address(poolDelegate)), poolDelegateBalance);
@@ -174,7 +173,6 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         address loanAddress,
         uint256 incomingNetInterest,
         uint256 refinanceInterest,
-        uint256 principalOf_loan,
         uint256 startDate,
         uint256 paymentDueDate
     )
@@ -186,8 +184,6 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         assertEq(refinanceInterest_,   refinanceInterest);
         assertEq(startDate_,           startDate);
         assertEq(paymentDueDate_,      paymentDueDate);
-
-        assertEq(loanManager.principalOf(loanAddress), principalOf_loan);
     }
 
     function _assertLoanManagerState(
@@ -219,18 +215,18 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         uint256 interestAmount,
         uint256 principalAmount,
         uint256 nextInterestPayment,
-        uint256 paymentTimestamp,
         uint256 nextPaymentDueDate
     )
         public
     {
         MockLoan loan_ = MockLoan(loanAddress);
-        vm.warp(paymentTimestamp);
-        asset.mint(address(loan_), interestAmount + principalAmount);
-        loan_.__setClaimableFunds(interestAmount + principalAmount);
+        asset.mint(address(loanManager), interestAmount + principalAmount);  // Simulate borrower funds moving through loan to LM
         loan_.__setPrincipal(loan_.principal() - principalAmount);
         loan_.__setNextPaymentInterest(nextInterestPayment);
         loan_.__setNextPaymentDueDate(nextPaymentDueDate);
+
+        vm.prank(address(loan_));
+        loanManager.claim(principalAmount, interestAmount, nextPaymentDueDate);
     }
 
 }
@@ -256,20 +252,13 @@ contract ClaimTests is LoanManagerClaimBaseTest {
     }
 
     function test_claim_notManager() external {
-        _makePayment({
-            loanAddress:         loan,
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
+        asset.mint(address(loanManager), 100);
 
-        vm.expectRevert("LM:C:NOT_POOL_MANAGER");
-        loanManager.claim(loan, true);
+        vm.expectRevert("LM:C:NOT_LOAN");
+        loanManager.claim(0, 100, START + 10_000);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(loan, true);
+        vm.prank(address(loan));
+        loanManager.claim(0, 100, START + 10_000);
     }
 }
 
@@ -343,20 +332,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0  + 80 = 1_000_080
         // Resulting total assets: 1_000_000 + 80 + 0  = 1_000_080
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START+ 10_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -372,8 +353,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -381,14 +360,18 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -404,8 +387,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -422,20 +403,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0  + 32 = 1_000_032
         // Resulting total assets: 1_000_000 + 80 + 0  = 1_000_080
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 4_000,  // Payment is made 6000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START+ 4_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -451,8 +424,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -460,14 +431,18 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_032);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
         });
@@ -483,8 +458,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -501,20 +474,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0   + 80 = 1_000_080
         // Resulting total assets: 1_000_000 + 128 + 32 = 1_000_160
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 14_000,  // Payment is made 4000 seconds late.
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START+ 14_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -530,8 +495,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         160,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -539,14 +502,19 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
+
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -562,8 +530,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         128,
             treasuryBalance:     8,
             poolDelegateBalance: 24
@@ -581,20 +547,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0       + 0  + 80 = 1_000_080
         // Resulting total assets: 800_000   + 200_000 + 80 + 0  = 1_000_080
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,  // Payment is made 4000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 10_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -610,8 +568,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -619,14 +575,18 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      100,
+            principalAmount:     200_000,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -642,8 +602,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         200_080,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -661,20 +619,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0       + 0  + 32 = 1_000_032
         // Resulting total assets: 800_000   + 200_000 + 80 + 0  = 1_000_080
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 4_000,  // Payment is made 4000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 4_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -690,8 +640,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -699,14 +647,18 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_032);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      100,
+            principalAmount:     200_000,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    800_000,
             startDate:           START + 4_000,
             paymentDueDate:      START + 20_000
         });
@@ -722,8 +674,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         200_080,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -741,20 +691,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         // Starting  total assets: 1_000_000 + 0       + 0   + 80 = 1_000_080
         // Resulting total assets: 800_000   + 200_000 + 128 + 32 = 1_000_156
 
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 14_000,  // Payment is made 4000 seconds late.
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 14_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -770,8 +712,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_160,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -779,14 +719,18 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
+            principalAmount:     200_000,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    800_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -802,693 +746,12 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         200_128,
             treasuryBalance:     8,
             poolDelegateBalance: 24
         });
 
         _assertTotalAssets(1_000_160);
-    }
-
-}
-
-contract SingleLoanLateClaimTests is LoanManagerClaimBaseTest {
-
-    MockLoan loan;
-
-    function setUp() public override {
-        super.setUp();
-
-        loan = new MockLoan(address(asset), address(asset));
-
-        // Set next payment information for loanManager to use.
-        loan.__setPrincipal(1_000_000);
-        loan.__setPrincipalRequested(1_000_000);
-        loan.__setNextPaymentInterest(100);
-        loan.__setNextPaymentDueDate(START + 10_000);
-
-        vm.prank(address(poolManager));
-        loanManager.fund(address(loan));
-    }
-
-    function test_claim_onTimePayment_interestOnly() external {
-        // First  payment net interest accrued: 10_000 * 0.008 = 80
-        // First  payment net interest claimed: 10_000 * 0.008 = 80
-        // Second payment net interest accrued:  1_000 * 0.008 = 8
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0  + 80 = 1_000_080
-        // Resulting total assets: 1_000_000 + 80 + 7  = 1_000_088
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 11_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     8,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_008,
-            issuanceRate:          0.008e30,
-            domainStart:           START + 11_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         80,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_088);
-    }
-
-    function test_claim_earlyPayment_interestOnly_claimBeforeDueDate() external {
-        // First  payment net interest accrued at time of payment:  3_000 * 0.008 = 24
-        // First  payment net interest accrued at time of claim:    4_000 * 0.008 = 32
-        // First  payment net interest claimed:                    10_000 * 0.008 = 80
-        // Second payment net interest accrued:                         0 * 0.008 = 0
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0  + 56 = 1_000_056
-        // Resulting total assets: 1_000_000 + 80 + 0  = 1_000_080
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 5_000,  // Payment is made 5000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 4_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       32,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_032,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_032);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START + 4_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_000,
-            issuanceRate:          0.005e30,  // 80 / (10_000 + 4_000 remaining in interval) = 0.005
-            domainStart:           START + 4_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         80,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_080);
-    }
-
-    function test_claim_earlyPayment_interestOnly_claimAfterDueDate() external {
-        // First  payment net interest accrued at time of payment:  5_000 * 0.008 = 40
-        // First  payment net interest accrued at time of claim:   10_000 * 0.008 = 80
-        // First  payment net interest claimed:                    10_000 * 0.008 = 80
-        // Second payment net interest accrued:                     1_000 * 0.008 = 8
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0  + 80 = 1_000_080
-        // Resulting total assets: 1_000_000 + 80 + 8  = 1_000_088
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 5_000,  // Payment is made 5000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 11_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     8,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_008,
-            issuanceRate:          0.008e30,
-            domainStart:           START + 11_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         80,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_088);
-    }
-
-    function test_claim_latePayment_interestOnly() external {
-        // First  payment net interest accrued:      10_000 * 0.008                = 80
-        // First  payment net interest claimed:      10_000 * 0.008 + 4000 * 0.012 = 128
-        // Second payment net interest accrued:       4_000 * 0.008                = 32
-        // Second payment interest accrued at claim:  5_000 * 0.008                = 40
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0   + 80 = 1_000_080
-        // Resulting total assets: 1_000_000 + 128 + 40 = 1_000_168
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 14_000,  // Payment is made 4000 seconds late.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 15_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         160,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     40,  // 5000 seconds into the next interval = 5000 * 0.008 = 40
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_040,
-            issuanceRate:          0.008e30,  // Same issuance rate as before.
-            domainStart:           START + 15_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         128,
-            treasuryBalance:     8,
-            poolDelegateBalance: 24
-        });
-
-        _assertTotalAssets(1_000_168);
-    }
-
-    function test_claim_onTimePayment_amortized() external {
-        // First  payment net interest accrued: 10_000 * 0.008 = 80
-        // First  payment net interest claimed: 10_000 * 0.008 = 80
-        // Second payment net interest accrued:  1_000 * 0.008 = 8
-        // Principal paid: 200_000
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0       + 0  + 80 = 1_000_080
-        // Resulting total assets: 800_000   + 200_000 + 80 + 7  = 1_000_088
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 11_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    800_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     8,
-            principalOut:          800_000,
-            assetsUnderManagement: 800_008,
-            issuanceRate:          0.008e30,
-            domainStart:           START + 11_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         200_080,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_088);
-    }
-
-    function test_claim_earlyPayment_amortized_claimBeforeDueDate() external {
-        // First  payment net interest accrued at time of payment:  3_000 * 0.008 = 24
-        // First  payment net interest accrued at time of claim:    4_000 * 0.008 = 32
-        // First  payment net interest claimed:                    10_000 * 0.008 = 80
-        // Second payment net interest accrued:                         0 * 0.008 = 0
-        // Principal paid: 200_000
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0       + 0  + 32 = 1_000_032
-        // Resulting total assets: 800_000   + 200_000 + 80 + 0  = 1_000_080
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 3_000,  // Payment is made 5000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 4_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       32,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_032,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_032);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    800_000,
-            startDate:           START + 4_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     0,
-            principalOut:          800_000,
-            assetsUnderManagement: 800_000,
-            issuanceRate:          0.005e30,  // 80 / (10_000 + 6_000 remaining in interval) = 0.005
-            domainStart:           START + 4_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         200_080,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_080);
-    }
-
-    function test_claim_earlyPayment_amortized_claimAfterDueDate() external {
-        // First  payment net interest accrued at time of payment:  5_000 * 0.008 = 40
-        // First  payment net interest accrued at time of claim:   10_000 * 0.008 = 80
-        // First  payment net interest claimed:                    10_000 * 0.008 = 80
-        // Second payment net interest accrued:                     1_000 * 0.008 = 8
-        // Principal paid: 200_000
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0       + 0  + 80 = 1_000_080
-        // Resulting total assets: 800_000   + 200_000 + 80 + 7  = 1_000_088
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      100,
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 5_000,  // Payment is made 5000 seconds early.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 11_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_100,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    800_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     8,
-            principalOut:          800_000,
-            assetsUnderManagement: 800_008,
-            issuanceRate:          0.008e30,
-            domainStart:           START + 11_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         200_080,
-            treasuryBalance:     5,
-            poolDelegateBalance: 15
-        });
-
-        _assertTotalAssets(1_000_088);
-    }
-
-    function test_claim_latePayment_amortized() external {
-        // First  payment net interest accrued:      10_000 * 0.008                = 80
-        // First  payment net interest claimed:      10_000 * 0.008 + 4000 * 0.012 = 128
-        // Second payment net interest accrued:       4_000 * 0.008                = 32
-        // Second payment interest accrued at claim:  5_000 * 0.008                = 40
-        // Principal paid: 200_000
-        // ----------------------
-        // Starting  total assets: 1_000_000 + 0       + 0   + 80 = 1_000_080
-        // Resulting total assets: 800_000   + 200_000 + 128 + 40 = 1_000_168
-
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012 = 160)
-            principalAmount:     200_000,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 14_000,  // Payment is made 4000 seconds late.
-            nextPaymentDueDate:  START + 20_000
-        });
-
-        vm.warp(START + 15_000);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
-            startDate:           START,
-            paymentDueDate:      START + 10_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       80,
-            accountedInterest:     0,
-            principalOut:          1_000_000,
-            assetsUnderManagement: 1_000_080,
-            issuanceRate:          0.008e30,
-            domainStart:           START,
-            domainEnd:             START + 10_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_160,
-            poolBalance:         0,
-            treasuryBalance:     0,
-            poolDelegateBalance: 0
-        });
-
-        _assertTotalAssets(1_000_080);
-
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
-
-        _assertLoanInfo({
-            loanAddress:         address(loan),
-            incomingNetInterest: 80,
-            refinanceInterest:   0,
-            principalOf_loan:    800_000,
-            startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
-        });
-
-        _assertLoanManagerState({
-            accruedInterest:       0,
-            accountedInterest:     40,  // 5000 seconds into the next interval = 4000 * 0.008 = 28
-            principalOut:          800_000,
-            assetsUnderManagement: 800_040,
-            issuanceRate:          0.008e30,  // Same issuance rate as before.
-            domainStart:           START + 15_000,
-            domainEnd:             START + 20_000
-        });
-
-        _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
-            poolBalance:         200_128,
-            treasuryBalance:     8,
-            poolDelegateBalance: 24
-        });
-
-        _assertTotalAssets(1_000_168);
     }
 
 }
@@ -1581,20 +844,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 1 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan1),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 10_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -1610,8 +865,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -1619,14 +872,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_120);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan1), true);
+        _makePayment({
+            loanAddress:         address(loan1),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -1642,8 +899,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         0,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -1655,20 +910,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 2 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan2),
-            interestAmount:      125,
-            principalAmount:     0,
-            nextInterestPayment: 125,
-            paymentTimestamp:    START + 16_000,
-            nextPaymentDueDate:  START + 26_000
-        });
+        vm.warp(START + 16_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
         });
@@ -1684,8 +931,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         125,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -1693,14 +938,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_228);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan2), true);
+        _makePayment({
+            loanAddress:         address(loan2),
+            interestAmount:      125,
+            principalAmount:     0,
+            nextInterestPayment: 125,
+            nextPaymentDueDate:  START + 26_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
         });
@@ -1716,8 +965,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         0,
             poolBalance:         180 + 1,  // Plus the extra dust, 25 % 2 == 1
             treasuryBalance:     11,
             poolDelegateBalance: 33
@@ -1774,20 +1021,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 1 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan1),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 8_000,
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 8_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -1803,8 +1042,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         100,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -1812,14 +1049,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_084);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan1), true);
+        _makePayment({
+            loanAddress:         address(loan1),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 8_000,
             paymentDueDate:      START + 20_000
         });
@@ -1835,8 +1076,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         0,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -1848,20 +1087,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 2 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan2),
-            interestAmount:      125,
-            principalAmount:     0,
-            nextInterestPayment: 125,
-            paymentTimestamp:    START + 16_000,
-            nextPaymentDueDate:  START + 26_000
-        });
+        vm.warp(START + 16_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
         });
@@ -1877,8 +1108,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         125,
             poolBalance:         80,
             treasuryBalance:     5,
             poolDelegateBalance: 15
@@ -1886,14 +1115,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_233);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan2), true);
+        _makePayment({
+            loanAddress:         address(loan2),
+            interestAmount:      125,
+            principalAmount:     0,
+            nextInterestPayment: 125,
+            nextPaymentDueDate:  START + 26_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
         });
@@ -1909,8 +1142,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         0,
             poolBalance:         180 + 1,  // Plus the extra dust, 25 % 2 == 1
             treasuryBalance:     11,
             poolDelegateBalance: 33
@@ -1968,20 +1199,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 1 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan1),
-            interestAmount:      130,  // ((10_000 * 0.008) + (2_000 * 0.012)) / 0.8 = 130 (gross late interest)
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 12_000,
-            nextPaymentDueDate:  START + 20_000
-        });
+        vm.warp(START + 12_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -1997,8 +1220,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         130,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2006,14 +1227,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_120);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan1), true);
+        _makePayment({
+            loanAddress:         address(loan1),
+            interestAmount:      130,  // ((10_000 * 0.008) + (2_000 * 0.012)) / 0.8 = 130 (gross late interest)
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -2029,8 +1254,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         0,
             poolBalance:         104 + 1,  // Dust
             treasuryBalance:     6,
             poolDelegateBalance: 19
@@ -2042,20 +1265,12 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         /*** Loan 2 Payment ***/
         /**********************/
 
-        _makePayment({
-            loanAddress:         address(loan2),
-            interestAmount:      125,
-            principalAmount:     0,
-            nextInterestPayment: 125,
-            paymentTimestamp:    START + 16_000,
-            nextPaymentDueDate:  START + 26_000
-        });
+        vm.warp(START + 16_000);
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
         });
@@ -2071,8 +1286,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         125,
             poolBalance:         104 + 1,  // Dust
             treasuryBalance:     6,
             poolDelegateBalance: 19
@@ -2080,14 +1293,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_253);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan2), true);
+        _makePayment({
+            loanAddress:         address(loan2),
+            interestAmount:      125,
+            principalAmount:     0,
+            nextInterestPayment: 125,
+            nextPaymentDueDate:  START + 26_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
         });
@@ -2103,8 +1320,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         0,
             poolBalance:         204 + 1 + 1,  // 104 from first payment, 100 from second payment, plus dust
             treasuryBalance:     12,
             poolDelegateBalance: 37
@@ -2112,53 +1327,6 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_254);
     }
-
-    function skiptest_claim_onTimePayment_interestOnly_earlyPayment_interestOnly() external {}
-    function skiptest_claim_earlyPayment_interestOnly_earlyPayment_interestOnly() external {}
-    function skiptest_claim_latePayment_interestOnly_earlyPayment_interestOnly() external {}
-
-    function skiptest_claim_onTimePayment_interestOnly_latePayment_interestOnly() external {}
-    function skiptest_claim_earlyPayment_interestOnly_latePayment_interestOnly() external {}
-    function skiptest_claim_latePayment_interestOnly_latePayment_interestOnly() external {}
-
-    // Interest only, amortized
-    function skiptest_claim_onTimePayment_interestOnly_onTimePayment_amortized() external {}
-    function skiptest_claim_earlyPayment_interestOnly_onTimePayment_amortized() external {}
-    function skiptest_claim_latePayment_interestOnly_onTimePayment_amortized() external {}
-
-    function skiptest_claim_onTimePayment_interestOnly_earlyPayment_amortized() external {}
-    function skiptest_claim_earlyPayment_interestOnly_earlyPayment_amortized() external {}
-    function skiptest_claim_latePayment_interestOnly_earlyPayment_amortized() external {}
-
-    function skiptest_claim_onTimePayment_interestOnly_latePayment_amortized() external {}
-    function skiptest_claim_earlyPayment_interestOnly_latePayment_amortized() external {}
-    function skiptest_claim_latePayment_interestOnly_latePayment_amortized() external {}
-
-    // Amortized, interest only
-    function skiptest_claim_onTimePayment_amortized_onTimePayment_interestOnly() external {}
-    function skiptest_claim_earlyPayment_amortized_onTimePayment_interestOnly() external {}
-    function skiptest_claim_latePayment_amortized_onTimePayment_interestOnly() external {}
-
-    function skiptest_claim_onTimePayment_amortized_earlyPayment_interestOnly() external {}
-    function skiptest_claim_earlyPayment_amortized_earlyPayment_interestOnly() external {}
-    function skiptest_claim_latePayment_amortized_earlyPayment_interestOnly() external {}
-
-    function skiptest_claim_onTimePayment_amortized_latePayment_interestOnly() external {}
-    function skiptest_claim_earlyPayment_amortized_latePayment_interestOnly() external {}
-    function skiptest_claim_latePayment_amortized_latePayment_interestOnly() external {}
-
-    // Amortized, amortized
-    function skiptest_claim_onTimePayment_amortized_onTimePayment_amortized() external {}
-    function skiptest_claim_earlyPayment_amortized_onTimePayment_amortized() external {}
-    function skiptest_claim_latePayment_amortized_onTimePayment_amortized() external {}
-
-    function skiptest_claim_onTimePayment_amortized_earlyPayment_amortized() external {}
-    function skiptest_claim_earlyPayment_amortized_earlyPayment_amortized() external {}
-    function skiptest_claim_latePayment_amortized_earlyPayment_amortized() external {}
-
-    function skiptest_claim_onTimePayment_amortized_latePayment_amortized() external {}
-    function skiptest_claim_earlyPayment_amortized_latePayment_amortized() external {}
-    function skiptest_claim_latePayment_amortized_latePayment_amortized() external {}
 
 }
 
@@ -2195,11 +1363,9 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
          */
     }
 
+    // TODO: Simulate loan catching all the way back up
     function test_claim_domainStart_gt_domainEnd() external {
         /**
-         *  *************************************
-         *  *** Loan 1 Payment 1 (t = 10_000) ***
-         *  *************************************
          *  ********************************
          *  *** Loan 2 Fund (t = 12_000) ***
          *  ********************************
@@ -2215,12 +1381,9 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 1_000_000 + 80 + 0  + 1_000_000 = 2_000_080
          *  Resulting total assets: 2_000_000 + 0  + 80 + 0         = 2_000_080
-         *  *************************************
-         *  *** Loan 2 Payment 1 (t = 22_000) ***
-         *  *************************************
-         *  *********************************
-         *  *** Loan 2 Claim (t = 24_000) ***
-         *  *********************************
+         *  ***********************************
+         *  *** Loan 2 Payment (t = 24_000) ***
+         *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
          *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
@@ -2240,9 +1403,9 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + 100 + 80        + 0   = 2_000_180
          *  Resulting total assets: 2_000_000 + 0   + (80 + 20) + 100 = 2_000_200
-         *  *************************************************************************
-         *  *** Loan 1 Claim (t = 27_000) (LU = 24_000, VPF from Loan 1 = 20_000) ***
-         *  *************************************************************************
+         *  *****************************************************************************
+         *  *** Loan 1 Payment 1 (t = 27_000) (LU = 24_000, VPF from Loan 1 = 20_000) ***
+         *  *****************************************************************************
          *  --- Pre-Claim ---
          *  Loan 1:
          *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
@@ -2262,19 +1425,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
          *  Resulting total assets: 2_000_000 + 0  + (80 + 50) + 180 = 2_000_310
          */
 
-        /**********************************/
-        /*** Loan 1 Payment (t = 10_000 ***/
-        /**********************************/
-
-        _makePayment({
-            loanAddress:         address(loan1),
-            interestAmount:      100,
-            principalAmount:     0,
-            nextInterestPayment: 100,
-            paymentTimestamp:    START + 10_000,
-            nextPaymentDueDate:  START + 20_000
-        });
-
         /*******************/
         /*** Loan 2 Fund ***/
         /*******************/
@@ -2287,30 +1437,24 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
         asset.burn(address(pool), 1_000_000);  // Mock pool moving cash
 
         /***********************************/
-        /*** Loan 2 Payment (t = 22_000) ***/
+        /*** Loan 2 Payment (t = 24_000) ***/
         /***********************************/
+
+        vm.warp(START + 24_000);
 
         _makePayment({
             loanAddress:         address(loan2),
             interestAmount:      125,
             principalAmount:     0,
             nextInterestPayment: 125,
-            paymentTimestamp:    START + 22_000,
             nextPaymentDueDate:  START + 32_000
         });
 
-        /*********************************/
-        /*** Loan 2 Claim (t = 24_000) ***/
-        /*********************************/
 
-        vm.warp(START + 24_000);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan2), true);
-
-        /*********************************/
-        /*** Loan 1 Claim (t = 27_000) ***/
-        /*********************************/
+        /***********************************/
+        /*** Loan 1 Payment (t = 27_000) ***/
+        /***********************************/
 
         vm.warp(START + 27_000);
 
@@ -2319,7 +1463,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -2329,7 +1472,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 22_000,
             paymentDueDate:      START + 32_000
         });
@@ -2345,8 +1487,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan1),
-            loanBalance:         100,
             poolBalance:         100 + 1,  // From loan 2 claim
             treasuryBalance:     6,
             poolDelegateBalance: 18
@@ -2354,15 +1494,23 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_230 + 1);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan1), true);
+        /**********************************/
+        /*** Loan 1 Payment (t = 10_000 ***/
+        /**********************************/
+
+        _makePayment({
+            loanAddress:         address(loan1),
+            interestAmount:      100,
+            principalAmount:     0,
+            nextInterestPayment: 100,
+            nextPaymentDueDate:  START + 20_000
+        });
 
         // Loan 1
         _assertLoanInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000  // In the past - LU > VPF
         });
@@ -2372,7 +1520,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START + 22_000,
             paymentDueDate:      START + 32_000
         });
@@ -2388,8 +1535,6 @@ contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan2),
-            loanBalance:         0,
             poolBalance:         100 + 80 + 1,  // Dust
             treasuryBalance:     6  + 5,
             poolDelegateBalance: 18 + 15
@@ -2470,7 +1615,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -2486,8 +1630,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         1_000_000,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2514,7 +1656,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
-            principalOf_loan:    2_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -2530,8 +1671,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2539,15 +1678,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_100);
 
-        // Make a refinanced payment and claim
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      375 + 125,
-            principalAmount:     0,
-            nextInterestPayment: 375,
-            paymentTimestamp:    START + 20_000,
-            nextPaymentDueDate:  START + 30_000
-        });
+        vm.warp(START + 20_000);
 
         loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
 
@@ -2562,8 +1693,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         375 + 125,  // Principal + interest + refinance interest
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2571,14 +1700,19 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_400);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 125,
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            nextPaymentDueDate:  START + 30_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
-            principalOf_loan:    2_000_000,
             startDate:           START + 20_000,
             paymentDueDate:      START + 30_000
         });
@@ -2594,8 +1728,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         100 + 300,
             treasuryBalance:     25,
             poolDelegateBalance: 75
@@ -2647,7 +1779,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -2663,8 +1794,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         1_000_000,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2688,7 +1817,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   60,
-            principalOf_loan:    2_000_000,
             startDate:           START + 6_000,
             paymentDueDate:      START + 16_000
         });
@@ -2704,8 +1832,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2713,15 +1839,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_060);
 
-        // Make a refinanced payment and claim
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      375 + 75,  // Interest plus refinance interest.
-            principalAmount:     0,
-            nextInterestPayment: 375,
-            paymentTimestamp:    START + 16_000,
-            nextPaymentDueDate:  START + 26_000
-        });
+        vm.warp(START + 16_000);
 
         _assertLoanManagerState({
             accruedInterest:       300,
@@ -2734,8 +1852,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         375 + 75,  // Principal + interest + refinance interest
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2745,14 +1861,19 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         loan.__setRefinanceInterest(0);  // Set to 0 to simulate a refinance that has been paid off.
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 75,  // Interest plus refinance interest.
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            nextPaymentDueDate:  START + 26_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
-            principalOf_loan:    2_000_000,
             startDate:           START + 16_000,
             paymentDueDate:      START + 26_000
         });
@@ -2768,8 +1889,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         60 + 301,
             treasuryBalance:     22,
             poolDelegateBalance: 67
@@ -2821,7 +1940,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -2837,8 +1955,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         1_000_000,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2862,7 +1978,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   148,
-            principalOf_loan:    2_000_000,
             startDate:           START + 14_000,
             paymentDueDate:      START + 24_000
         });
@@ -2878,8 +1993,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2887,15 +2000,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_148);
 
-        // Make a refinanced payment and claim
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      375 + 185,  // Interest plus refinance interest.
-            principalAmount:     0,
-            nextInterestPayment: 375,
-            paymentTimestamp:    START + 24_000,
-            nextPaymentDueDate:  START + 34_000
-        });
+        vm.warp(START + 24_000);
 
         loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
 
@@ -2910,8 +2015,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         375 + 185,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -2919,14 +2022,19 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_448);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        // Make a refinanced payment and claim
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 185,  // Interest plus refinance interest.
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            nextPaymentDueDate:  START + 34_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
-            principalOf_loan:    2_000_000,
             startDate:           START + 24_000,
             paymentDueDate:      START + 34_000
         });
@@ -2942,8 +2050,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         300 + 148,
             treasuryBalance:     28,
             poolDelegateBalance: 84
@@ -2996,7 +2102,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
-            principalOf_loan:    1_000_000,
             startDate:           START,
             paymentDueDate:      START + 10_000
         });
@@ -3012,8 +2117,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         1_000_000,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -3037,7 +2140,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
-            principalOf_loan:    2_000_000,
             startDate:           START + 10_000,
             paymentDueDate:      START + 20_000
         });
@@ -3053,8 +2155,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -3062,15 +2162,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_100);
 
-        // Make a payment post refinance
-        _makePayment({
-            loanAddress:         address(loan),
-            interestAmount:      375 + 125,  // Interest plus refiance interest
-            principalAmount:     200_000,
-            nextInterestPayment: 375,
-            paymentTimestamp:    START + 20_000,
-            nextPaymentDueDate:  START + 30_000
-        });
+        vm.warp(START + 20_000);
 
         loan.__setRefinanceInterest(0);  // Set refinance interest to zero after payment is made.
 
@@ -3085,8 +2177,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         200_000 + 375 + 125,
             poolBalance:         0,
             treasuryBalance:     0,
             poolDelegateBalance: 0
@@ -3094,14 +2184,19 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_400);
 
-        vm.prank(address(poolManager));
-        loanManager.claim(address(loan), true);
+        // Make a payment post refinance
+        _makePayment({
+            loanAddress:         address(loan),
+            interestAmount:      375 + 125,  // Interest plus refiance interest
+            principalAmount:     200_000,
+            nextInterestPayment: 375,
+            nextPaymentDueDate:  START + 30_000
+        });
 
         _assertLoanInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
-            principalOf_loan:    1_800_000,
             startDate:           START + 20_000,
             paymentDueDate:      START + 30_000
         });
@@ -3117,8 +2212,6 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertBalances({
-            loanAddress:         address(loan),
-            loanBalance:         0,
             poolBalance:         300 + 100 + 200_000,
             treasuryBalance:     25,
             poolDelegateBalance: 75
@@ -3188,7 +2281,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         loan.__setNextPaymentDueDate(block.timestamp + 100);
     }
 
-    function test_fundy() external {
+    function test_fund() external {
         asset.mint(address(loan), principalRequested);
 
         (
