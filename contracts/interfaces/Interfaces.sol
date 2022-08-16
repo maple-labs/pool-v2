@@ -130,7 +130,13 @@ interface IPoolDelegateCoverLike {
 
 interface IPoolLike {
 
+    function approve(address spender_, uint256 amount_) external;
+
     function asset() external view returns (address asset_);
+
+    function convertToAssets(uint256 shares_) external view returns (uint256 assets_);
+
+    function convertToExitShares(uint256 assets_) external view returns (uint256 shares_);
 
     function deposit(uint256 assets_, address receiver_) external returns (uint256 shares_);
 
@@ -138,15 +144,21 @@ interface IPoolLike {
 
     function previewMint(uint256 shares_) external view returns (uint256 assets_);
 
+    function processExit(uint256 shares_, uint256 assets_, address receiver_, address owner_) external;
+
     function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_);
+
+    function totalSupply() external view returns (uint256 totalSupply_);
 
 }
 
 interface IPoolManagerLike {
 
-    function poolDelegate() external view returns (address poolDelegate_);
+    function addLoanManager(address loanManager_) external;
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
+
+    function convertToExitShares(uint256 assets_) external view returns (uint256 shares_);
 
     function claim(address loan_) external;
 
@@ -154,23 +166,62 @@ interface IPoolManagerLike {
 
     function fund(uint256 principalAmount_, address loan_, address loanManager_) external;
 
+    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShres_, address escrow_);
+
     function globals() external view returns (address globals_);
 
     function hasSufficientCover() external view returns (bool hasSufficientCover_);
 
     function loanManager() external view returns (address loanManager_);
 
+    function maxDeposit(address receiver_) external view returns (uint256 maxAssets_);
+
+    function maxMint(address receiver_) external view returns (uint256 maxShares_);
+
+    function maxRedeem(address owner_) external view returns (uint256 maxShares_);
+
+    function maxWithdraw(address owner_) external view returns (uint256 maxAssets_);
+
+    function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
+
+    function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
+
+    function processRedeem(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+
+    function processWithdraw(uint256 assets_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+
+    function poolDelegate() external view returns (address poolDelegate_);
+
     function poolDelegateCover() external view returns (address poolDelegateCover_);
 
-    function addLoanManager(address loanManager_) external;
-
     function removeLoanManager(address loanManager_) external;
+
+    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
+
+    function requestRedeem(uint256 shares_, address owner_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+    function withdrawalManager() external view returns (address withdrawalManager_);
+}
+
+interface IWithdrawalManagerLike {
+
+    function addShares(uint256 shares_, address owner_) external;
+
+    function isInExitWindow(address owner_) external view returns (bool isInExitWindow_);
+
+    function lockedShares(address owner_) external view returns (uint256 lockedShares_);
+
+    function previewRedeem(address owner_, uint256 shares) external view returns (uint256 redeemableShares, uint256 resultingAssets_);
+
+    function processExit(address account_, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+
+    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
 }
 

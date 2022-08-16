@@ -400,9 +400,19 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     bool internal _canCall;
     bool internal _hasSufficientCover;
 
+    uint256 internal _previewRedeemAmount;
+    uint256 internal _previewWithdrawAmount;
+    uint256 internal _redeemableAssets;
+    uint256 internal _redeemableShares;
+
     uint256 public totalAssets;
 
     string public errorMessage;
+
+    mapping(address => uint256) public maxDeposit;
+    mapping(address => uint256) public maxMint;
+    mapping(address => uint256) public maxRedeem;
+    mapping(address => uint256) public maxWithdraw;
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;
@@ -417,13 +427,30 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         hasSufficientCover_ = true;
     }
 
+    function previewRedeem(address account_, uint256 shares_) external view returns (uint256 assets_) {
+        assets_ = _previewRedeemAmount;
+    }
+
+    function previewWithdraw(address account_, uint256 shares_) external view returns (uint256 assets_) {
+        assets_ = _previewWithdrawAmount;
+    }
+
+    function processRedeem(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
+        redeemableShares_ = shares_;
+        assets_           = _redeemableAssets;
+    }
+
+    function processWithdraw(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
+        redeemableShares_ = _redeemableShares;
+        assets_           = _redeemableAssets;
+    }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
         delegateManagementFeeRate = delegateManagementFeeRate_;
     }
 
-    function __setCanCall(bool canCall_, string memory errorMessage_) external {
-        _canCall     = canCall_;
-        errorMessage = errorMessage_;
+    function setWithdrawalManager(address withdrawalManager_) external {
+        withdrawalManager = withdrawalManager_;
     }
 
     function __setGlobals(address globals_) external {
@@ -434,8 +461,45 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         _hasSufficientCover = hasSufficientCover_;
     }
 
+    function __setCanCall(bool canCall_, string memory errorMessage_) external {
+        _canCall     = canCall_;
+        errorMessage = errorMessage_;
+    }
+
+    function __setMaxDeposit(address account_, uint256 maxDeposit_) external {
+        maxDeposit[account_] = maxDeposit_;
+    }
+
+    function __setMaxMint(address account_, uint256 maxMint_) external {
+        maxMint[account_] = maxMint_;
+    }
+
+    function __setMaxRedeem(address account_, uint256 maxRedeem_) external {
+        maxRedeem[account_] = maxRedeem_;
+    }
+
+    function __setMaxWithdraw(address account_, uint256 maxWithdraw_) external {
+        maxWithdraw[account_] = maxWithdraw_;
+    }
+
     function __setPoolDelegate(address poolDelegate_) external {
         poolDelegate = poolDelegate_;
+    }
+
+    function __setPreviewRedeem(uint256 amount_) external {
+        _previewRedeemAmount = amount_;
+    }
+
+    function __setPreviewWithdraw(uint256 amount_) external {
+        _previewWithdrawAmount = amount_;
+    }
+
+    function __setRedeemableShares(uint256 redeemableShares_) external {
+        _redeemableShares = redeemableShares_;
+    }
+
+    function __setRedeemableAssets(uint256 redeemableAssets_) external {
+        _redeemableAssets = redeemableAssets_;
     }
 
     function __setTotalAssets(uint256 totalAssets_) external {
@@ -526,6 +590,7 @@ abstract contract MockMigrator {
     fallback() external {
         // Do nothing.
     }
+
 }
 
 contract MockPoolManagerInitializer is MockMigrator {
@@ -550,6 +615,15 @@ contract MockLoanManagerInitializer is MockMigrator {
     function decodeArguments(bytes calldata calldata_) public pure returns (address pool_) {
         // Do nothing.
     }
+}
+
+contract MockWithdrawalManager {
+
+    function addShares(uint256 shares_, address owner_) external { }
+
+    function processExit(address owner, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
+
+    function removeShares(uint256 shares_, address owner_) external { }
 }
 
 contract MockWithdrawalManagerInitializer is MockMigrator {

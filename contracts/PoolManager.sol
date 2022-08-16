@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { console, Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -13,7 +13,8 @@ import {
     ILoanLike,
     ILoanManagerLike,
     IPoolDelegateCoverLike,
-    IPoolLike
+    IPoolLike,
+    IWithdrawalManagerLike
 } from "./interfaces/Interfaces.sol";
 
 import { IPoolManager } from "./interfaces/IPoolManager.sol";
@@ -234,10 +235,28 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Exit Functions ***/
     /**********************/
 
-    function redeem(uint256 shares_, address receiver_, address owner_) external override whenProtocolNotPaused returns (uint256 assets_) {
-        require(msg.sender == withdrawalManager, "PM:R:NOT_WM");
+    function processRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused returns (uint256 redeemableShares_, uint256 resultingAssets_) {
+        require(msg.sender == pool, "PM:PR:NOT_POOL");
+        ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, shares_);
+    }
 
-        return IPoolLike(pool).redeem(shares_, receiver_, owner_);
+    function processWithdraw(uint256 assets_, address owner_) external override whenProtocolNotPaused returns (uint256 redeemableShares_, uint256 resultingAssets_) {
+        require(msg.sender == pool, "PM:PW:NOT_POOL");
+        ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, convertToExitShares(assets_));
+    }
+
+    function removeShares(uint256 shares_, address owner_) external override whenProtocolNotPaused returns (uint256 sharesReturned_) {
+        require(msg.sender == pool, "PM:RS:NOT_POOL");
+
+        sharesReturned_ = IWithdrawalManagerLike(withdrawalManager).removeShares(shares_, owner_);
+    }
+
+    function requestRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused {
+        require(msg.sender == pool, "PM:RR:NOT_POOL");
+
+        IPoolLike(pool).approve(withdrawalManager, shares_);
+
+        IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
     }
 
     /***********************/
@@ -307,7 +326,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         return _factory();
     }
 
-    function hasSufficientCover() public view returns (bool hasSufficientCover_) {
+    function hasSufficientCover() public view override returns (bool hasSufficientCover_) {
         hasSufficientCover_ = _hasSufficientCover(globals, asset);
     }
 
@@ -326,6 +345,51 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         }
     }
 
+    /*******************************/
+    /*** LP Token View Functions ***/
+    /*******************************/
+
+    function getEscrowParams(address owner_, uint256 shares_) external view override returns (uint256 escorwShares_, address destination) {
+        return (shares_, address(this));
+    }
+
+    function convertToExitShares(uint256 assets_) public view override returns (uint256 shares_) {
+        return IPoolLike(pool).convertToExitShares(assets_);
+    }
+
+    function maxDeposit(address receiver_) external view virtual override returns (uint256 maxAssets_) {
+        maxAssets_ = _getMaxAssets(receiver_, totalAssets());
+    }
+
+    function maxMint(address receiver_) external view virtual override returns (uint256 maxShares_) {
+        uint256 totalAssets_ = totalAssets();
+        uint256 totalSupply_ = IPoolLike(pool).totalSupply();
+        uint256 maxAssets_   = _getMaxAssets(receiver_, totalAssets_);
+
+        maxShares_ = totalSupply_ == 0 ? maxAssets_ : maxAssets_ * totalSupply_ / totalAssets_;
+    }
+
+    function maxRedeem(address owner_) external view virtual override returns (uint256 maxShares_) {
+        uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
+
+        maxShares_ = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
+    }
+
+    function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
+        uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
+        uint256 maxShares_    = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
+
+        maxAssets_ = maxShares_ * (totalAssets() - unrealizedLosses) / IPoolLike(pool).totalSupply();
+    }
+
+    function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {
+        ( , assets_ ) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, shares_);
+    }
+
+    function previewWithdraw(address owner_, uint256 assets_) external view virtual override returns (uint256 shares_) {
+        ( shares_, ) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, convertToExitShares(assets_));
+    }
+
     /**************************/
     /*** Internal Functions ***/
     /**************************/
@@ -341,6 +405,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function _formatErrorMessage(string memory errorPrefix_, string memory partialError_) internal pure returns (string memory errorMessage_) {
         errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
+    }
+
+    function _getMaxAssets(address receiver_, uint256 totalAssets_) internal view returns (uint256 maxAssets_) {
+        bool depositAllowed = openToPublic || isValidLender[receiver_];
+
+        uint256 liquidityCap_ = liquidityCap;
+
+        maxAssets_ = liquidityCap_ > totalAssets_ && depositAllowed ? liquidityCap_ - totalAssets_ : 0;
     }
 
     function _hasSufficientCover(address globals_, address asset_) internal view returns (bool hasSufficientCover_) {

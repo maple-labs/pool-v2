@@ -34,9 +34,9 @@ interface IPool is IERC20, IERC4626 {
      */
     function manager() external view returns (address owner_);
 
-    /************************/
-    /*** Staker Functions ***/
-    /************************/
+    /********************/
+    /*** LP Functions ***/
+    /********************/
 
     /**
      *  @dev    Does a ERC4626 `deposit` with a ERC-2612 `permit`.
@@ -63,6 +63,15 @@ interface IPool is IERC20, IERC4626 {
      */
     function mintWithPermit(uint256 shares_, address receiver_, uint256 maxAssets_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) external returns (uint256 assets_);
 
+    /************************************/
+    /*** Withdrawal Request Functions ***/
+    /************************************/
+
+    function removeShares(uint256 shares_) external returns (uint256 sharesReturned_);
+
+    function requestWithdraw(uint256 assets_) external returns (uint256 escrowShares_);
+
+    function requestRedeem(uint256 shares_) external returns (uint256 escrowShares_);
 
     /**********************/
     /*** View Functions ***/
@@ -74,5 +83,9 @@ interface IPool is IERC20, IERC4626 {
      *  @return assets_  Amount of assets owned.
      */
     function balanceOfAssets(address account_) external view returns (uint256 assets_);
+
+    function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
+
+    function unrealizedLosses() external view returns (uint256 totalManagedAssets_);
 
 }

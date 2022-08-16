@@ -16,7 +16,8 @@ import {
     MockLoan,
     MockLoanManager,
     MockPoolManagerMigrator,
-    MockPool
+    MockPool,
+    MockWithdrawalManager
 } from "./mocks/Mocks.sol";
 
 import { PoolManagerHarness } from "./harnesses/PoolManagerHarness.sol";
@@ -28,11 +29,13 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
     address POOL_DELEGATE = address(new Address());
 
     MockERC20          asset;
+    MockERC20Pool      pool;
     PoolManagerHarness poolManager;
     PoolManagerFactory factory;
 
     address implementation;
     address initializer;
+    address withdrawalManager;
 
     function setUp() public virtual {
         asset = new MockERC20("Asset", "AT", 18);
@@ -57,14 +60,29 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
 
         poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
+
+        withdrawalManager = address(new MockWithdrawalManager());
+
+        MockERC20Pool mockPool = new MockERC20Pool(address(poolManager), address(asset), poolName_, poolSymbol_);
+
+        address poolAddress = poolManager.pool();
+
+        vm.etch(poolAddress, address(mockPool).code);
+
+        // Mint ERC20 to pool
+        asset.mint(poolAddress, 1_000_000e18);
+
+        pool = MockERC20Pool(poolAddress);
+
+        // Get past zero supply check
+        pool.mint(address(1), 1);
     }
 
 }
 
 contract ConfigureTests is PoolManagerBase {
 
-    address loanManager       = address(new Address());
-    address withdrawalManager = address(new Address());
+    address loanManager = address(new Address());
 
     uint256 liquidityCap      = 1_000_000e18;
     uint256 managementFeeRate = 0.1e18;
@@ -435,7 +453,6 @@ contract FundTests is PoolManagerBase {
 
     MockLoan        loan;
     MockLoanManager loanManager;
-    MockERC20Pool   pool;
 
     uint256 principalRequested = 1_000_000e18;
     uint256 collateralRequired = 0;
@@ -446,24 +463,11 @@ contract FundTests is PoolManagerBase {
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         loan        = new MockLoan(address(asset), address(asset));
-        pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
         loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
         loan.__setPrincipal(principalRequested);
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
-
-        // Replace the pool in the poolManager
-        address currentPool_ = poolManager.pool();
-        vm.etch(currentPool_, address(pool).code);
-
-        pool = MockERC20Pool(currentPool_);
-
-        // Mint ERC20 to pool
-        asset.mint(address(poolManager.pool()), 1_000_000e18);
-
-        // Get past zero supply check
-        pool.mint(LP, 1);
 
         vm.prank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
@@ -482,7 +486,6 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_invalidBorrower() external {
-
         MockGlobals(globals).setValidBorrower(BORROWER, false);
 
         vm.prank(POOL_DELEGATE);
@@ -491,7 +494,7 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_zeroSupply() external {
-        pool.burn(LP, 1);
+        pool.burn(address(1), 1);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:F:ZERO_SUPPLY");
@@ -567,28 +570,14 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
     address loan;
     address poolDelegateCover;
 
-    MockERC20Pool   pool;
     MockLoanManager loanManager;
 
     function setUp() public override {
         super.setUp();
 
-        pool        = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
         loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
 
-        // Replace the pool in the poolManager
-        address currentPool_ = poolManager.pool();
-        vm.etch(currentPool_, address(pool).code);
-
         poolDelegateCover = poolManager.poolDelegateCover();
-
-        pool = MockERC20Pool(currentPool_);
-
-        // Mint ERC20 to pool
-        asset.mint(address(poolManager.pool()), 1_000_000e18);
-
-        // Get past zero supply check
-        pool.mint(LP, 1);
 
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
@@ -631,30 +620,16 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     address loan;
     address poolDelegateCover;
 
-    MockERC20Pool   pool;
     MockLoanManager loanManager;
 
     function setUp() public override {
         super.setUp();
 
-        pool         = new MockERC20Pool(address(poolManager), address(asset), "Pool", "Pool");
         loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
-
-        // Replace the pool in the poolManager
-        address currentPool_ = poolManager.pool();
-        vm.etch(currentPool_, address(pool).code);
 
         poolDelegateCover = poolManager.poolDelegateCover();
 
-        pool = MockERC20Pool(currentPool_);
-
         _bootstrapGlobals(address(asset), POOL_DELEGATE);
-
-        // Mint ERC20 to pool
-        asset.mint(address(poolManager.pool()), 1_000_000e18);
-
-        // Get past zero supply check
-        pool.mint(LP, 1);
 
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
@@ -832,34 +807,56 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
 }
 
-contract RedeemTests is PoolManagerBase {
-
-    address WITHDRAWAL_MANAGER = address(new Address());
+contract ProcessRedeemTests is PoolManagerBase {
 
     function setUp() public override {
         super.setUp();
 
         vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+        poolManager.setWithdrawalManager(withdrawalManager);
     }
 
-    function test_redeem_protocolPaused() external {
+    function test_processRedeem_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
-
-        vm.prank(WITHDRAWAL_MANAGER);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.redeem(0, address(0), address(0));
+        poolManager.processRedeem(1, address(1));
     }
 
-    function test_redeem_notWithdrawalManager() external {
-        vm.expectRevert("PM:R:NOT_WM");
-        poolManager.redeem(0, address(0), address(0));
+    function test_processRedeem_notWithdrawalManager() external {
+        vm.expectRevert("PM:PR:NOT_POOL");
+        poolManager.processRedeem(1, address(1));
     }
 
-    function test_redeem_success() external {
-        vm.etch(poolManager.pool(), address(new MockPool()).code);
-        vm.prank(WITHDRAWAL_MANAGER);
-        poolManager.redeem(0, address(0), address(0));
+    function test_processRedeem_success() external {
+        vm.prank(poolManager.pool());
+        poolManager.processRedeem(1, address(1));
+    }
+
+}
+
+contract ProcessWithdrawTests is PoolManagerBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(withdrawalManager);
+    }
+
+    function test_processWithdraw_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.processWithdraw(1, address(1));
+    }
+
+    function test_processWithdraw_notWithdrawalManager() external {
+        vm.expectRevert("PM:PW:NOT_POOL");
+        poolManager.processWithdraw(1, address(1));
+    }
+
+    function test_processWithdraw_success() external {
+        vm.prank(poolManager.pool());
+        poolManager.processWithdraw(1, address(1));
     }
 
 }
@@ -1465,14 +1462,6 @@ contract DepositCoverTests is PoolManagerBase {
 }
 
 contract WithdrawCoverTests is PoolManagerBase {
-
-    address pool;
-
-    function setUp() public override {
-        super.setUp();
-
-        pool = poolManager.pool();
-    }
 
     function test_withdrawCover_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
