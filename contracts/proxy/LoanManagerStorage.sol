@@ -9,16 +9,19 @@ abstract contract LoanManagerStorage {
     address public poolManager;
 
     uint256 public accountedInterest;
-    uint256 public issuanceRate;
     uint256 public domainStart;
+    uint256 public domainEnd;
+    uint256 public issuanceRate;
     uint256 public loanCounter;
     uint256 public loanWithEarliestPaymentDueDate;
     uint256 public principalOut;
-    uint256 public domainEnd;
+    uint256 public unrealizedLosses;
 
     mapping(address => uint256) public loanIdOf;
     mapping(address => uint256) public allowedSlippageFor;
     mapping(address => uint256) public minRatioFor;
+
+    mapping(uint256 => TriggerDefaultWarningInfo) public triggerDefaultWarningInfo;
 
     mapping(address => LiquidationInfo) public liquidationInfo;
 
@@ -39,8 +42,14 @@ abstract contract LoanManagerStorage {
     }
 
     struct LiquidationInfo {
-        uint256 principalToCover;
+        uint256 shortfallToCover;
         address liquidator;
+    }
+
+    struct TriggerDefaultWarningInfo {
+        uint256 paymentDueDate;
+        uint256 principal;
+        uint256 interest;
     }
 
 }

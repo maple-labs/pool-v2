@@ -67,6 +67,10 @@ interface IPoolManager is IPoolManagerStorage {
 
     function triggerCollateralLiquidation(address loan_) external;
 
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external;
+
+    function removeDefaultWarning(address loan_) external;
+
     /**********************/
     /*** Exit Functions ***/
     /**********************/
@@ -121,4 +125,5 @@ interface IPoolManager is IPoolManagerStorage {
 
     function totalAssets() external view returns (uint256 totalAssets_);
 
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 }

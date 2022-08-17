@@ -598,7 +598,7 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
     }
 
     function test_triggerCollateralLiquidation_notPoolDelegate() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
@@ -649,7 +649,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_notPoolDelegate() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
 
         loanManager.__setTriggerCollateralLiquidationReturn(2_000e18);
 
@@ -668,7 +668,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
     }
 
     function test_finishCollateralLiquidation_success_noCover() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
         assertEq(poolManager.unrealizedLosses(),                0);
@@ -690,7 +690,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_noRemainingLossAfterCollateralLiquidation() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
@@ -713,7 +713,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_coverLeftOver() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 2_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 2_000e18);
@@ -736,7 +736,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_noCoverLeftOver() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
@@ -759,11 +759,11 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_fullCoverLiquidation_preexistingLoss() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), poolManager.HUNDRED_PERCENT());
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         // There could be unrealizedLosses from a previous ongoing loan default.
-        poolManager.__setUnrealizedLosses(2_000e18);
+        loanManager.__setUnrealizedLosses(2_000e18);
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
         assertEq(poolManager.unrealizedLosses(),                2_000e18);
@@ -785,7 +785,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_exceedMaxCoverLiquidationPercentAmount() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(pool), 0.5e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 0.5e18);
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(poolManager.unrealizedLosses(), 0);

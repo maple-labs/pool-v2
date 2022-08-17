@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console, Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, console, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -209,26 +209,34 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Liquidation Functions ***/
     /*****************************/
 
-    function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
-        unrealizedLosses += ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_);
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external override {
+        require(msg.sender == poolDelegate, "PM:TDW:NOT_PD");
+
+        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, newPaymentDueDate_);
     }
 
-    // TODO: I think this liquidation flow needs business validation.
+    function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
+        ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_);
+    }
+
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
-        ( uint256 principalToCover_, uint256 remainingLosses_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
-        unrealizedLosses -= principalToCover_;
+        uint256 remainingLosses_ = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
         uint256 coverBalance_ = IERC20Like(asset).balanceOf(poolDelegateCover);
 
         if (coverBalance_ != 0 && remainingLosses_ != 0) {
-            uint256 maxLiquidationAmount_ = coverBalance_ * IGlobalsLike(globals).maxCoverLiquidationPercent(pool) / HUNDRED_PERCENT;
+            uint256 maxLiquidationAmount_ = coverBalance_ * IGlobalsLike(globals).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
             uint256 liquidationAmount_    = remainingLosses_ > maxLiquidationAmount_ ? maxLiquidationAmount_ : remainingLosses_ ;
-
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(liquidationAmount_, pool);
         }
+    }
+
+    function removeDefaultWarning(address loan_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate, "PM:RDW:NOT_PD");
+        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_);
     }
 
     /**********************/
@@ -379,7 +387,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
         uint256 maxShares_    = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
 
-        maxAssets_ = maxShares_ * (totalAssets() - unrealizedLosses) / IPoolLike(pool).totalSupply();
+        maxAssets_ = maxShares_ * (totalAssets() - unrealizedLosses()) / IPoolLike(pool).totalSupply();
     }
 
     function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {
@@ -388,6 +396,15 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function previewWithdraw(address owner_, uint256 assets_) external view virtual override returns (uint256 shares_) {
         ( shares_, ) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, convertToExitShares(assets_));
+    }
+
+    function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
+        uint256 length = loanManagerList.length;
+
+        for (uint256 i = 0; i < length;) {
+            unrealizedLosses_ += ILoanManagerLike(loanManagerList[i]).unrealizedLosses();
+            unchecked { i++; }
+        }
     }
 
     /**************************/

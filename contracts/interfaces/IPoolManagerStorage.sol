@@ -33,8 +33,6 @@ interface IPoolManagerStorage {
 
     function poolDelegateCover() external view returns (address poolDelegateCover_);
 
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
-
     function withdrawalManager() external view returns (address withdrawalManager_);
 
 }

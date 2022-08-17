@@ -54,16 +54,21 @@ interface ILoanManagerLike {
         uint256 principalIncrease_
     ) external;
 
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+
     function claim(address loan_, bool hasSufficientCover_) external;
 
     function fund(address loan_) external;
 
-    function triggerCollateralLiquidation(address loan_) external returns (uint256 increasedUnrealizedLosses_);
+    function removeDefaultWarning(address loan_) external;
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_);
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external;
 
-    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+    function triggerCollateralLiquidation(address loan_) external;
 
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_);
+
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 }
 
 interface ILoanManagerInitializerLike {
@@ -104,6 +109,8 @@ interface ILoanLike {
 
     function interestRate() external view returns (uint256 interestRate_);
 
+    function isInDefaultWarning() external view returns (bool isInDefaultWarning_);
+
     function lateFeeRate() external view returns (uint256 lateFeeRate_);
 
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
@@ -118,8 +125,13 @@ interface ILoanLike {
 
     function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
+    function removeDefaultWarning() external;
+
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
+    function triggerDefaultWarning(uint256 newPaymentDueDate_) external;
+
+    function prewarningPaymentDueDate() external view returns (uint256 prewarningPaymentDueDate_);
 }
 
 interface IPoolDelegateCoverLike {

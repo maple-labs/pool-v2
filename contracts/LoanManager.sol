@@ -123,7 +123,16 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _claimLoan(msg.sender, principal_, interest_);
 
         // Finalized the previous payment into the pool accounting.
-        ( uint256 previousPaymentDueDate_, uint256 previousRate_ ) = _recognizeLoanPayment(msg.sender);
+        uint256 previousPaymentDueDate_;
+        uint256 previousRate_;
+
+        // TODO: Should we clear the flag in the loan and pass in a bool to this function, or call this during a default warning payment, then clear the flag in the loan after this call returns?
+        if (!ILoanLike(msg.sender).isInDefaultWarning()) {
+            ( previousPaymentDueDate_, previousRate_ ) = _recognizeLoanPayment(msg.sender);
+        } else {
+            // If we successfully claimed above, that means that the payment has been made through the default warning, and the loan did not default.
+            ( previousPaymentDueDate_, previousRate_ ) = _recognizeDefaultWarningLoanPayment(msg.sender);
+        }
 
         uint256 newRate_ = 0;
 
@@ -183,35 +192,100 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Default Functions ***/
     /*************************/
 
-    // TODO: Investigate transferring funds directly into pool from liquidator instead of accumulating in IM
-    // TODO: Decrement principalOut by the full principal balance of the loan at the time of the repossession (principalToCover).
-    // TODO: Rename principalToCover to indicate that it is the full principal balance of the loan at the time of the repossession.
+    function removeDefaultWarning(address loan_) external {
+        require(msg.sender == poolManager, "LM:RDW:NOT_POOL_MANAGER");
+
+        _advanceLoanAccounting();
+
+        ILoanLike(loan_).removeDefaultWarning();
+
+        uint256 loanId_ = loanIdOf[loan_];
+        LoanInfo memory loanInfo_ = loans[loanId_];
+
+        _revertDefaultWarning(loanId_);
+
+        _addLoanToList(loanId_, loanInfo_);
+
+        // Discretely update missing interest as if loan was always part of the list.
+        accountedInterest += _getLoanAccruedInterest(loanInfo_.startDate, domainStart, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
+
+        domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+    }
+
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external {
+        require(msg.sender == poolManager, "LM:TDW:NOT_POOL_MANAGER");
+
+        _advanceLoanAccounting();
+
+        ILoanLike(loan_).triggerDefaultWarning(newPaymentDueDate_);
+
+        // Get necessary data structures.
+        uint256 loanId_           = loanIdOf[loan_];
+        LoanInfo memory loanInfo_ = loans[loanId_];
+
+        // Remove payment's issuance rate from the LM issuance rate.
+        issuanceRate -= loanInfo_.issuanceRate;
+
+        // NOTE: Even though `nextPaymentDueDate` could be set to after `block`.timestamp, we still stop the interest accrual.
+        // Principal + payment accrued interest + refinance interest.
+        uint256 shortfallPrincipalPortion_ = ILoanLike(loan_).principal();
+        uint256 shortfallInterestPortion_  = _getLoanAccruedInterest(loanInfo_.startDate, block.timestamp, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
+        triggerDefaultWarningInfo[loanId_] = TriggerDefaultWarningInfo(newPaymentDueDate_, shortfallPrincipalPortion_, shortfallInterestPortion_);
+
+        unrealizedLosses += (shortfallPrincipalPortion_ + shortfallInterestPortion_);
+
+        // Update `loanInfo_` with new values reflecting a loan that is expected to default.
+        _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
+
+        // NOTE: `loanInfo_` state is not updated in case the default warning must be removed and previous state must be restored.
+
+        // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
+        // Otherwise, set it to the next upcoming payment.
+        if (loanWithEarliestPaymentDueDate == 0) {
+            domainEnd = block.timestamp;
+        } else {
+            domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+        }
+    }
+
+    // TODO: Reorder funcs alphabetically.
     // TODO: Revisit `recoveredFunds` logic, especially in the case of multiple simultaneous liquidations.
-    function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_) {
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_) {
         require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
         require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
 
-        uint256 recoveredFunds_ = IERC20Like(fundsAsset).balanceOf(address(this));
+        uint256 recoveredFunds_   = IERC20Like(fundsAsset).balanceOf(address(this));
+        uint256 shortfallToCover_ = liquidationInfo[loan_].shortfallToCover;
+        uint256 principal_        = ILoanLike(loan_).principal();
 
-        principalToCover_ = liquidationInfo[loan_].principalToCover;
-        remainingLosses_  = recoveredFunds_ > principalToCover_ ? 0 : principalToCover_ - recoveredFunds_;
+        // Realize the loss following the liquidation.
+        unrealizedLosses -= shortfallToCover_;
+
+        // Get the remaining losses to attempt to recover via pool delegate cover.
+        remainingLosses_ = recoveredFunds_ > shortfallToCover_ ? 0 : shortfallToCover_ - recoveredFunds_;
+
+        // Reduce principal out, since it has been accounted for in the liquidation.
+        principalOut -= principal_;
+
+        // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
+        accountedInterest -= shortfallToCover_ - principal_;
 
         delete liquidationInfo[loan_];
 
-        // TODO decide on how the pool will handle the accounting
         require(ERC20Helper.transfer(fundsAsset, pool, recoveredFunds_));
     }
 
     /// @dev Trigger Default on a loan
-    function triggerCollateralLiquidation(address loan_) external returns (uint256 increasedUnrealizedLosses_) {
+    function triggerCollateralLiquidation(address loan_) external {
         require(msg.sender == poolManager, "LM:TCL:NOT_POOL_MANAGER");
 
-        // TODO: The loan is not able to handle defaults while there are claimable funds
-        ILoanLike loan = ILoanLike(loan_);
+        _advanceLoanAccounting();
 
-        uint256 principal = loan.principal();
+        ILoanLike loan            = ILoanLike(loan_);
+        uint256 loanId_           = loanIdOf[loan_];
+        LoanInfo memory loanInfo_ = loans[loanId_];
 
-        (uint256 collateralAssetAmount, uint256 fundsAssetAmount) = loan.repossess(address(this));
+        ( uint256 collateralAssetAmount, uint256 fundsAssetAmount ) = loan.repossess(address(this));
 
         address collateralAsset = loan.collateralAsset();
 
@@ -231,18 +305,47 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "LM:TD:FA_TRANSFER");
         }
 
-        increasedUnrealizedLosses_ = principal;  // TODO: Should this be principal + accrued interest?
+        uint256 defaultAmount_;
 
-        liquidationInfo[loan_] = LiquidationInfo(principal, liquidator);
+        // `unrealizedLosses` is unchanged if `isInDefaultWarning` because it has already been accounted for.
+        if (!loan.isInDefaultWarning()) {
+            defaultAmount_ = loan.principal() + loanInfo_.incomingNetInterest + loanInfo_.refinanceInterest;
+
+            // TODO: Include paying Maple fees in finalizeCollateralLiquidation, using collateral and/or cover.
+            // TODO: Validate late interest is correctly accounted.
+            unrealizedLosses += defaultAmount_;
+
+            // Loan Info is cleaned up, because this function confirms that the payment will not be made and that it is recognized as a loss.
+            _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
+        } else {
+            // TODO: Need to revisit late interest for this code path.
+            TriggerDefaultWarningInfo memory defaultInfo = triggerDefaultWarningInfo[loanId_];
+            defaultAmount_ = defaultInfo.principal + defaultInfo.interest;
+            delete triggerDefaultWarningInfo[loanId_];
+        }
+
+        liquidationInfo[loan_] = LiquidationInfo(defaultAmount_, liquidator);
+
+        delete loanIdOf[loan_];
+        delete loans[loanId_];
+
+        // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
+        // Otherwise, set it to the next upcoming payment.
+        if (loanWithEarliestPaymentDueDate == 0) {
+            domainEnd = block.timestamp;
+        } else {
+            domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+        }
+
+        // TODO: need to clean up loan contract accounting, since it has defaulted.
     }
 
     /***************************************/
     /*** Internal Loan Sorting Functions ***/
     /***************************************/
 
-    function _addLoanToList(LoanInfo memory loan_) internal returns (uint256 loanId_) {
-        loanId_ = loanIdOf[loan_.vehicle] = ++loanCounter;
-
+    // TODO: Should domain end be set here to the end date of loanWithEarliestPaymentDueDate.
+    function _addLoanToList(uint256 loanId_, LoanInfo memory loan_) internal {
         uint256 current = 0;
         uint256 next    = loanWithEarliestPaymentDueDate;
 
@@ -374,10 +477,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
     }
 
+    function _getLoanAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 loanIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
+        accruedInterest_ = (endTime_ - startTime_) * loanIssuanceRate_ / PRECISION + refinanceInterest_;
+    }
+
     // TODO: Rename function to indicate that it can happen on refinance as well.
     function _recognizeLoanPayment(address loan_) internal returns (uint256 paymentDueDate_, uint256 issuanceRate_) {
-        uint256 loanId_ = loanIdOf[loan_];
-
+        uint256 loanId_           = loanIdOf[loan_];
         LoanInfo memory loanInfo_ = loans[loanId_];
 
         _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
@@ -400,6 +506,27 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         delete loans[loanId_];
     }
 
+    function _recognizeDefaultWarningLoanPayment(address loan_) internal returns (uint256 paymentDueDate_, uint256 issuanceRate_) {
+        uint256 loanId_ = loanIdOf[loan_];
+
+        paymentDueDate_ = triggerDefaultWarningInfo[loanId_].paymentDueDate;
+        issuanceRate_ = 0;
+
+        _revertDefaultWarning(loanId_);
+
+        delete loanIdOf[loan_];
+        delete loans[loanId_];
+    }
+
+    function _revertDefaultWarning(uint256 loanId_) internal {
+        TriggerDefaultWarningInfo memory defaultInfo = triggerDefaultWarningInfo[loanId_];
+
+        accountedInterest -= defaultInfo.interest;
+        unrealizedLosses  -= (defaultInfo.principal + defaultInfo.interest);
+
+        delete triggerDefaultWarningInfo[loanId_];
+    }
+
     function _queueNextLoanPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
         uint256 platformManagementFeeRate_ = IGlobalsLike(globals()).platformManagementFeeRate(poolManager);
         uint256 delegateManagementFeeRate_ = IPoolManagerLike(poolManager).delegateManagementFeeRate();
@@ -417,7 +544,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         newRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
         // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-        _addLoanToList(LoanInfo({
+        uint256 loanId_ = loanIdOf[loan_] = ++loanCounter;
+
+        _addLoanToList(loanId_, LoanInfo({
             // Previous and next will be overriden within _addLoan function
             previous:                  0,
             next:                      0,

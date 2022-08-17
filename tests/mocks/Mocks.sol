@@ -10,6 +10,7 @@ import { ILoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol"
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
 
+import { LoanManagerStorage } from "../../contracts/proxy/LoanManagerStorage.sol";
 import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";
 
 interface ILiquidatorLike {
@@ -64,7 +65,7 @@ contract MockERC20Pool is Pool {
 
 contract MockGlobals {
 
-    uint256 constant HUNDRED_PERCENT = 1e18;
+    uint256 public constant HUNDRED_PERCENT = 1e18;
 
     address public governor;
     address public mapleTreasury;
@@ -172,12 +173,15 @@ contract MockLoan {
     address public collateralAsset;
     address public fundsAsset;
 
+    bool public isInDefaultWarning;
+
     uint256 public collateral;
     uint256 public collateralRequired;
     uint256 public nextPaymentInterest;
     uint256 public nextPaymentDueDate;
     uint256 public nextPaymentPrincipal;
     uint256 public paymentInterval;
+    uint256 public prewarningPaymentDueDate;
     uint256 public principal;
     uint256 public principalRequested;
 
@@ -228,6 +232,21 @@ contract MockLoan {
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         collateralRepossessed_ = collateral;
         MockERC20(collateralAsset).transfer(destination_, collateral);
+    }
+
+    function removeDefaultWarning() external {
+        nextPaymentDueDate = prewarningPaymentDueDate;
+        delete prewarningPaymentDueDate;
+
+        isInDefaultWarning = false;
+    }
+
+    function triggerDefaultWarning(uint256 newPaymentDueDate_) external {
+        require(newPaymentDueDate_ < nextPaymentDueDate);
+
+        prewarningPaymentDueDate = nextPaymentDueDate;
+        nextPaymentDueDate       = newPaymentDueDate_;
+        isInDefaultWarning       = true;
     }
 
     function __setBorrower(address borrower_) external {
@@ -296,9 +315,8 @@ contract MockLoan {
 
 }
 
-contract MockLoanManager {
+contract MockLoanManager is LoanManagerStorage {
 
-    address pool;
     address poolDelegate;
     address treasury;
 
@@ -306,8 +324,9 @@ contract MockLoanManager {
     uint256 platformManagementFee;
     uint256 poolAmount;
 
-    uint256 principalToCover;  // Note that this is the return value for increasedUnrealizedLosses_ in triggerCollateralLiquidation and also principalToCover_ in finishCollateralLiquidation. They will always be equal.
     uint256 remainingLosses;
+    uint256 decreasedUnrealizedLosses;
+    uint256 increasedUnrealizedLosses;
 
     constructor(address pool_, address treasury_, address poolDelegate_) {
         pool         = pool_;
@@ -332,12 +351,14 @@ contract MockLoanManager {
         ILoanLike(loan_).batchClaimFunds(amounts_, destinations_);
     }
 
-    function triggerCollateralLiquidation(address) external returns (uint256 increasedUnrealizedLosses_) {
-        increasedUnrealizedLosses_ = principalToCover;
+    function triggerCollateralLiquidation(address) external {
+        unrealizedLosses += increasedUnrealizedLosses;
     }
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 principalToCover_, uint256 remainingLosses_) {
-        principalToCover_ = principalToCover;
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_) {
+        loan_;
+
+        unrealizedLosses -= increasedUnrealizedLosses;
         remainingLosses_  = remainingLosses;
     }
 
@@ -354,14 +375,16 @@ contract MockLoanManager {
     }
 
     function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_) external {
-        // principal to cover is set by __setTriggerCollateralLiquidationReturn
         remainingLosses = remainingLosses_;
     }
 
     function __setTriggerCollateralLiquidationReturn(uint256 increasedUnrealizedLosses_) external {
-        principalToCover = increasedUnrealizedLosses_;
+        increasedUnrealizedLosses = increasedUnrealizedLosses_;
     }
 
+    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
+        unrealizedLosses = unrealizedLosses_;
+    }
 }
 
 contract MockLoanManagerMigrator {
@@ -406,6 +429,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     uint256 internal _redeemableShares;
 
     uint256 public totalAssets;
+    uint256 public unrealizedLosses;
 
     string public errorMessage;
 

@@ -13,10 +13,6 @@ contract PoolManagerHarness is PoolManager {
         configured = _configured;
     }
 
-    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
-        unrealizedLosses = unrealizedLosses_;
-    }
-
     function __getLoanManagerListLength() external view returns (uint256 length_) {
         return loanManagerList.length;
     }
