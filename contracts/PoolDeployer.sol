@@ -9,8 +9,7 @@ import { IPoolManagerInitializer } from "./interfaces/IPoolManagerInitializer.so
 
 import {
     ILoanManagerInitializerLike,
-    IMapleGlobalsLike,
-    IWithdrawalManagerInitializerLike
+    IMapleGlobalsLike
 } from "./interfaces/Interfaces.sol";
 
 contract PoolDeployer {

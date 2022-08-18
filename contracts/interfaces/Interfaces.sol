@@ -241,6 +241,8 @@ interface IWithdrawalManagerLike {
 
     function isInExitWindow(address owner_) external view returns (bool isInExitWindow_);
 
+    function lockedLiquidity() external view returns (uint256 lockedLiquidity_);
+
     function lockedShares(address owner_) external view returns (uint256 lockedShares_);
 
     function previewRedeem(address owner_, uint256 shares) external view returns (uint256 redeemableShares, uint256 resultingAssets_);
@@ -248,22 +250,5 @@ interface IWithdrawalManagerLike {
     function processExit(address account_, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
-
-}
-
-interface IWithdrawalManagerInitializerLike {
-
-    function encodeArguments(
-        address pool_,
-        uint256 cycleDuration_,
-        uint256 windowDuration_
-    ) external pure returns (bytes memory encodedArguments_);
-
-    function decodeArguments(bytes calldata encodedArguments_)
-        external pure returns (
-            address pool_,
-            uint256 cycleDuration_,
-            uint256 windowDuration_
-        );
 
 }

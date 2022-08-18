@@ -503,8 +503,10 @@ contract FundTests is PoolManagerBase {
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
 
-        vm.prank(POOL_DELEGATE);
+        vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
+        poolManager.setWithdrawalManager(address(withdrawalManager));
+        vm.stopPrank();
     }
 
     function test_fund_protocolPaused() external {
@@ -540,7 +542,7 @@ contract FundTests is PoolManagerBase {
         asset.burn(address(poolManager.pool()), 1_000_000e18);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("P:F:TRANSFER_FAIL");
+        vm.expectRevert("PM:F:TRANSFER_FAIL");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -569,6 +571,17 @@ contract FundTests is PoolManagerBase {
 
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_fund_lockedLiquidity() external {
+        MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:F:LOCKED_LIQUIDITY");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested - 1, address(loan), address(loanManager));
     }
 
     function test_fund_success_sufficientCover() external {
@@ -619,6 +632,7 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
+        poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
     }
@@ -671,6 +685,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
+        poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
     }

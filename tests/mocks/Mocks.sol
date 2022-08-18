@@ -652,7 +652,7 @@ contract MockPoolManagerMigrator {
 
 }
 
-abstract contract MockMigrator {
+contract MockMigrator {
 
     fallback() external {
         // Do nothing.
@@ -684,32 +684,33 @@ contract MockLoanManagerInitializer is MockMigrator {
     }
 }
 
-contract MockWithdrawalManager {
+contract MockWithdrawalManager is MapleProxiedInternals {
+
+    uint256 public lockedLiquidity;
 
     function addShares(uint256 shares_, address owner_) external { }
+
+    function migrate(address migrator_, bytes calldata arguments_) external {
+        _migrate(migrator_, arguments_);
+    }
+
+    function setImplementation(address implementation_) external {
+        _setImplementation(implementation_);
+    }
+
+    function implementation() external view returns (address implementation_) {
+        implementation_ = _implementation();
+    }
+
+    function factory() external view returns (address factory_) {
+        factory_ = _factory();
+    }
 
     function processExit(address owner, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
 
     function removeShares(uint256 shares_, address owner_) external { }
-}
 
-contract MockWithdrawalManagerInitializer is MockMigrator {
-
-    function encodeArguments(
-        address pool_,
-        uint256 cycleDuration_,
-        uint256 windowDuration_
-    ) external pure returns (bytes memory encodedArguments_) {
-        encodedArguments_ = new bytes(0);
-    }
-
-    function decodeArguments(bytes calldata encodedArguments_)
-        external pure returns (
-            address pool_,
-            uint256 cycleDuration_,
-            uint256 windowDuration_
-        )
-    {
-        // Do nothing.
+    function __setLockedLiquidity(uint256 lockedLiquidity_) external {
+        lockedLiquidity = lockedLiquidity_;
     }
 }

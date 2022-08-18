@@ -14,8 +14,7 @@ import {
     MockProxied,
     MockMigrator,
     MockPoolManager,
-    MockPoolManagerInitializer,
-    MockWithdrawalManagerInitializer
+    MockPoolManagerInitializer
 } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
@@ -51,7 +50,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
         withdrawalManagerFactory        = address(new MapleProxyFactory(globals));
         withdrawalManagerImplementation = address(new MockProxied());
-        withdrawalManagerInitializer    = address(new MockWithdrawalManagerInitializer());
+        withdrawalManagerInitializer    = address(new MockMigrator());
 
         vm.startPrank(GOVERNOR);
         IMapleProxyFactory(poolManagerFactory).registerImplementation(1, poolManagerImplementation, poolManagerInitializer);
