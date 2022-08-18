@@ -203,7 +203,7 @@ contract UpgradeTests is PoolManagerBase {
     }
 
     function test_upgrade_notPoolDelegate() external {
-        vm.expectRevert("PM:U:NOT_PD");
+        vm.expectRevert("PM:U:NOT_AUTHORIZED");
         poolManager.upgrade(2, "");
     }
 
@@ -218,6 +218,16 @@ contract UpgradeTests is PoolManagerBase {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("MPF:UI:FAILED");
         poolManager.upgrade(2, "1");
+    }
+
+    function test_upgrade_successWithGovernor() external {
+        assertEq(poolManager.implementation(), implementation);
+
+        // No need to schedule call
+        vm.prank(GOVERNOR);
+        poolManager.upgrade(2, "");
+
+        assertEq(poolManager.implementation(), newImplementation);
     }
 
     function test_upgrade_success() external {

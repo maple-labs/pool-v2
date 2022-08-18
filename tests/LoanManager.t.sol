@@ -148,7 +148,7 @@ contract UpgradeTests is LoanManagerBaseTest {
     }
 
     function test_upgrade_notPoolDelegate() external {
-        vm.expectRevert("LM:U:NOT_PD");
+        vm.expectRevert("LM:U:NOT_AUTHORIZED");
         loanManager.upgrade(2, "");
     }
 
@@ -165,10 +165,20 @@ contract UpgradeTests is LoanManagerBaseTest {
         loanManager.upgrade(2, "1");
     }
 
+    function test_upgrade_successWithGovernor() external {
+        // No need to schedule call
+        vm.prank(governor);
+        loanManager.upgrade(2, "");
+        
+        assertEq(loanManager.implementation(), newImplementation);
+    }
+
     function test_upgrade_success() external {
         MockGlobals(globals).__setIsValidScheduledCall(true);
         vm.prank(poolManager.poolDelegate());
         loanManager.upgrade(2, "");
+
+        assertEq(loanManager.implementation(), newImplementation);
     }
 
 }

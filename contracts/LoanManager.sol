@@ -56,13 +56,18 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external {
-        require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:U:NOT_PD");
+        address poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
+
+        require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NOT_AUTHORIZED");
 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());
 
-        require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "LM:UPGRADE", msg.data), "LM:U:NOT_SCHEDULED");
+        if (msg.sender == poolDelegate_) {
+            require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "LM:UPGRADE", msg.data), "LM:U:NOT_SCHEDULED");
 
-        mapleGlobals.unscheduleCall(msg.sender, "LM:UPGRADE", msg.data);
+            mapleGlobals.unscheduleCall(msg.sender, "LM:UPGRADE", msg.data);
+        }
+
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
@@ -622,6 +627,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     function globals() public view returns (address globals_) {
         return IPoolManagerLike(poolManager).globals();
+    }
+
+    function governor() public view returns (address governor_) {
+        governor_ = IMapleGlobalsLike(globals()).governor();
     }
 
     function implementation() external view returns (address implementation_) {

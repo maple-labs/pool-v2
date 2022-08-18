@@ -54,13 +54,18 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:U:NOT_PD");
+        address poolDelegate_ = poolDelegate;
+
+        require(msg.sender == poolDelegate_ || msg.sender == governor(), "PM:U:NOT_AUTHORIZED");
 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals);
 
-        require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:NOT_SCHEDULED");
+        if (msg.sender == poolDelegate_) {
+            require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:NOT_SCHEDULED");
 
-        mapleGlobals.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
+            mapleGlobals.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
+        }
+
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
@@ -336,6 +341,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function factory() external view override returns (address factory_) {
         return _factory();
+    }
+
+    function governor() public view override returns (address governor_) {
+        governor_ = IMapleGlobalsLike(globals).governor();
     }
 
     function hasSufficientCover() public view override returns (bool hasSufficientCover_) {
