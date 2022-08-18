@@ -72,7 +72,7 @@ interface ILoanManagerLike {
 
     function triggerCollateralLiquidation(address loan_) external;
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_);
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 }
@@ -103,13 +103,15 @@ interface ILoanLike {
 
     function collateralAsset() external view returns(address asset_);
 
+    function feeManager() external view returns (address feeManager_);
+
     function fundsAsset() external view returns (address asset_);
 
     function fundLoan(address lender_) external returns (uint256 fundsLent_);
 
     function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     function gracePeriod() external view returns (uint256 gracePeriod_);
 
@@ -138,6 +140,12 @@ interface ILoanLike {
     function triggerDefaultWarning(uint256 newPaymentDueDate_) external;
 
     function prewarningPaymentDueDate() external view returns (uint256 prewarningPaymentDueDate_);
+}
+
+interface IMapleLoanFeeManagerLike  {
+
+    function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee);
+
 }
 
 interface IPoolDelegateCoverLike {

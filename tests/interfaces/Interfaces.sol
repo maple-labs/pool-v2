@@ -9,6 +9,4 @@ interface ILoanManagerLike {
 
     function liquidationInfo(address loan_) external view returns (LoanManager.LiquidationInfo memory liquidationInfo_);  // Used to avoid stack too deep issues.
 
-    function triggerDefaultWarningInfo(uint256 loanId_) external view returns (LoanManager.TriggerDefaultWarningInfo memory triggerDefaultWarningInfo_);
-
 }

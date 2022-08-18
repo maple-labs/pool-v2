@@ -192,6 +192,7 @@ contract MockLoan {
 
     address public borrower;
     address public collateralAsset;
+    address public feeManager;
     address public fundsAsset;
 
     bool public isInDefaultWarning;
@@ -205,8 +206,8 @@ contract MockLoan {
     uint256 public prewarningPaymentDueDate;
     uint256 public principal;
     uint256 public principalRequested;
-
     uint256 public refinanceInterest;
+    uint256 public serviceFees;
 
     // Refinance Variables
     uint256 public refinanceNextPaymentInterest;
@@ -245,9 +246,10 @@ contract MockLoan {
         // Do nothing
     }
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         principal_ = nextPaymentPrincipal;
         interest_  = nextPaymentInterest + refinanceInterest;
+        fees_      = serviceFees;
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -280,6 +282,15 @@ contract MockLoan {
 
     function __setCollateralRequired(uint256 collateralRequired_) external {
         collateralRequired = collateralRequired_;
+    }
+
+    function __setServiceFees(uint256 fees_) external {
+        // This is the return `fees` variable from getNextPaymentBreakdown()
+        serviceFees = fees_;
+    }
+
+    function __setFeeManager(address feeManager_) external {
+        feeManager = feeManager_;
     }
 
     function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
@@ -336,6 +347,15 @@ contract MockLoan {
 
 }
 
+contract MockMapleLoanFeeManager {
+
+    mapping(address => uint256) public platformServiceFee;
+
+    function __setPlatformServiceFee(address loan_, uint256 serviceFee_) external {
+        platformServiceFee[loan_] = serviceFee_;
+    }
+}
+
 contract MockLoanManager is LoanManagerStorage {
 
     address poolDelegate;
@@ -346,8 +366,8 @@ contract MockLoanManager is LoanManagerStorage {
     uint256 poolAmount;
 
     uint256 remainingLosses;
-    uint256 decreasedUnrealizedLosses;
     uint256 increasedUnrealizedLosses;
+    uint256 serviceFee;  // Management + Platform
 
     constructor(address pool_, address treasury_, address poolDelegate_) {
         pool         = pool_;
@@ -376,11 +396,12 @@ contract MockLoanManager is LoanManagerStorage {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_) {
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_) {
         loan_;
 
         unrealizedLosses -= increasedUnrealizedLosses;
         remainingLosses_  = remainingLosses;
+        serviceFee_       = serviceFee;
     }
 
     function __setPlatformManagementFee(uint256 platformManagementFee_) external {
@@ -395,8 +416,9 @@ contract MockLoanManager is LoanManagerStorage {
         poolAmount = poolAmount_;
     }
 
-    function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_) external {
+    function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_, uint256 serviceFee_) external {
         remainingLosses = remainingLosses_;
+        serviceFee      = serviceFee_;
     }
 
     function __setTriggerCollateralLiquidationReturn(uint256 increasedUnrealizedLosses_) external {

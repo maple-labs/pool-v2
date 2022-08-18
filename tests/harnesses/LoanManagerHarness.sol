@@ -7,18 +7,18 @@ import { LoanManager } from "../../contracts/LoanManager.sol";
 
 contract LoanManagerHarness is LoanManager {
 
-    function addLoanToList(LoanInfo memory loan_) external {
-        uint256 loanId_ = loanIdOf[loan_.vehicle] = ++loanCounter;
+    function addLoanToList(address loanAddress_, LoanInfo memory loanInfo_) external {
+        uint256 loanId_ = loanIdOf[loanAddress_] = ++loanCounter;
 
-        _addLoanToList(loanId_, loan_);
+        _addLoanToList(loanId_, loanInfo_);
     }
 
-    function recognizeLoanPayment(address vehicle_) external returns (uint256 loanAccruedInterest_, uint256 paymentDueDate_, uint256 issuanceRate_) {
-        ( paymentDueDate_, issuanceRate_ ) = _recognizeLoanPayment(vehicle_);
+    function recognizeLoanPayment(address loan_) external returns (uint256 issuanceRate_) {
+        issuanceRate_ = _recognizeLoanPayment(loan_);
     }
 
-    function loan(uint256 loanId_) external view returns (LoanInfo memory loan_) {
-        loan_ = loans[loanId_];
+    function loan(uint256 loanId_) external view returns (LoanInfo memory loanInfo_) {
+        loanInfo_ = loans[loanId_];
     }
 
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {

@@ -232,14 +232,21 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
 
-        uint256 remainingLosses_ = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
+        address globals_ = globals;
 
-        uint256 coverBalance_ = IERC20Like(asset).balanceOf(poolDelegateCover);
+        ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
-        if (coverBalance_ != 0 && remainingLosses_ != 0) {
-            uint256 maxLiquidationAmount_ = coverBalance_ * IMapleGlobalsLike(globals).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
-            uint256 liquidationAmount_    = remainingLosses_ > maxLiquidationAmount_ ? maxLiquidationAmount_ : remainingLosses_ ;
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(liquidationAmount_, pool);
+        uint256 availableCover_ = IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
+
+        uint256 toTreasury_ = _min(availableCover_,               platformFees_);
+        uint256 toPool_     = _min(availableCover_ - toTreasury_, losses_);
+
+        if (toTreasury_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
+        }
+
+        if (toPool_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
     }
 
@@ -448,6 +455,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function _hasSufficientCover(address globals_, address asset_) internal view returns (bool hasSufficientCover_) {
         hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IMapleGlobalsLike(globals_).minCoverAmount(address(this));
+    }
+
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
+        return a_ < b_ ? a_ : b_;
     }
 
 }

@@ -692,7 +692,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
         vm.expectRevert("PM:FCL:NOT_PD");
         poolManager.finishCollateralLiquidation(loan);
@@ -713,13 +713,14 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(),                0);
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
     }
 
     function test_finishCollateralLiquidation_success_noRemainingLossAfterCollateralLiquidation() external {
@@ -736,7 +737,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(0);
+        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 0, serviceFee_: 0 });
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);
@@ -759,7 +760,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);
@@ -782,7 +783,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);
@@ -808,7 +809,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 5_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);
@@ -830,7 +831,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18);
+        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
         vm.prank(POOL_DELEGATE);
         poolManager.finishCollateralLiquidation(loan);

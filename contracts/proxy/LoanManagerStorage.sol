@@ -21,8 +21,6 @@ abstract contract LoanManagerStorage {
     mapping(address => uint256) public allowedSlippageFor;
     mapping(address => uint256) public minRatioFor;
 
-    mapping(uint256 => TriggerDefaultWarningInfo) public triggerDefaultWarningInfo;
-
     mapping(address => LiquidationInfo) public liquidationInfo;
 
     mapping(uint256 => LoanInfo) public loans;
@@ -38,18 +36,13 @@ abstract contract LoanManagerStorage {
         uint256 paymentDueDate;
         uint256 platformManagementFeeRate;
         uint256 delegateManagementFeeRate;
-        address vehicle;
     }
 
     struct LiquidationInfo {
-        uint256 shortfallToCover;
-        address liquidator;
-    }
-
-    struct TriggerDefaultWarningInfo {
-        uint256 paymentDueDate;
         uint256 principal;
         uint256 interest;
+        uint256 platformFees;
+        address liquidator;
     }
 
 }

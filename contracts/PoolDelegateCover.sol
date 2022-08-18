@@ -13,8 +13,6 @@ contract PoolDelegateCover {
         poolManager = poolManager_;
     }
 
-    // TODO: Add a deposit function with ACL to PM. Do transferFrom from PM to this contract.
-
     function moveFunds(uint256 amount_, address recipient_) external {
         require(msg.sender == poolManager,                        "PDC:MF:NOT_MANAGER");
         require(ERC20Helper.transfer(asset, recipient_, amount_), "PDC:MF:TRANSFER_FAILED");
