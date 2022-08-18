@@ -25,4 +25,8 @@ contract LoanManagerHarness is LoanManager {
         unrealizedLosses = unrealizedLosses_;
     }
 
+    function __queueNextLoanPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) external returns (uint256 newRate_) {
+        newRate_ = _queueNextLoanPayment(loan_, startDate_, nextPaymentDueDate_);
+    }
+
 }

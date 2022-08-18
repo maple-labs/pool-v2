@@ -420,13 +420,11 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
     }
 
     function test_setDelegateManagementFeeRate_oob() external {
-        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), 0.9e18);
-
         vm.startPrank(POOL_DELEGATE);
         vm.expectRevert("PM:SDMFR:OOB");
-        poolManager.setDelegateManagementFeeRate(newManagementFeeRate + 1);
+        poolManager.setDelegateManagementFeeRate(1e18 + 1);
 
-        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
+        poolManager.setDelegateManagementFeeRate(1e18);
     }
 
     function test_setDelegateManagementFeeRate_success() external {

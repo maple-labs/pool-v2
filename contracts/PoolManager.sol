@@ -142,11 +142,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:SDMFR:NOT_PD");
+        require(msg.sender == poolDelegate,                    "PM:SDMFR:NOT_PD");
+        require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
-        require(delegateManagementFeeRate_ + IMapleGlobalsLike(globals).platformManagementFeeRate(address(this)) <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
-
-        // TODO check globals for boundaries
         delegateManagementFeeRate = delegateManagementFeeRate_;
     }
 

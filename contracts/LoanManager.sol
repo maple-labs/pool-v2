@@ -538,6 +538,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 delegateManagementFeeRate_ = IPoolManagerLike(poolManager).delegateManagementFeeRate();
         uint256 managementFeeRate_         = platformManagementFeeRate_ + delegateManagementFeeRate_;
 
+        // NOTE: If combined fee is greater than 100%, then cap delegate fee and clamp management fee.
+        if (managementFeeRate_ > SCALED_ONE) {
+            delegateManagementFeeRate_ = SCALED_ONE - platformManagementFeeRate_;
+            managementFeeRate_ = SCALED_ONE;
+        }
+
         ( , uint256 incomingNetInterest_ ) = ILoanLike(loan_).getNextPaymentBreakdown();
 
         // Calculate net refinance interest.

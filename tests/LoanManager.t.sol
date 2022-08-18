@@ -1611,7 +1611,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
 }
 
-contract ClaimdomainStartGtVPF is LoanManagerClaimBaseTest {
+contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
 
     MockLoan loan1;
     MockLoan loan2;
@@ -3264,6 +3264,65 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(loanManager.loan(3).vehicle,  address(0));
         assertEq(loanManager.loan(3).next,     0);
         assertEq(loanManager.loan(3).previous, 0);
+    }
+
+}
+
+contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
+
+    address internal collateralAsset = address(asset);
+    address internal fundsAsset      = address(asset);
+
+    uint256 internal principalRequested = 1_000_000e18;
+    uint256 internal paymentInterest    = 1e18;
+    uint256 internal paymentPrincipal   = 0;
+
+    MockLoan internal loan;
+
+    function setUp() public override {
+        super.setUp();
+
+        loan = new MockLoan(collateralAsset, fundsAsset);
+
+        // Set next payment information for loanManager to use.
+        loan.__setPrincipalRequested(principalRequested);  // Simulate funding
+        loan.__setNextPaymentInterest(paymentInterest);
+        loan.__setNextPaymentPrincipal(paymentPrincipal);
+        loan.__setNextPaymentDueDate(block.timestamp + 100);
+    }
+
+    function test_queueNextLoanPayment_fees() external {
+        uint256 platformManagementFeeRate_ = 0.75e18;
+        uint256 delegateManagementFeeRate_ = 0.50e18;
+
+        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
+        poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
+
+        loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
+
+        uint256 loanId = loanManager.loanIdOf(address(loan));
+
+        ( , , , , , , , uint256 platformManagementFeeRate, uint256 delegateManagementFeeRate,  ) = loanManager.loans(loanId);
+
+        assertEq(platformManagementFeeRate, 0.75e18);
+        assertEq(delegateManagementFeeRate, 0.25e18);  // Gets reduced to 0.25 so sum is less than 100%
+    }
+
+    function testFuzz_queueNextLoanPayment_fees(uint256 platformManagementFeeRate_, uint256 delegateManagementFeeRate_) external {
+        platformManagementFeeRate_ = constrictToRange(platformManagementFeeRate_, 0, 1e18);
+        delegateManagementFeeRate_ = constrictToRange(delegateManagementFeeRate_, 0, 1e18);
+
+        MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
+        poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
+
+        loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
+
+        uint256 loanId = loanManager.loanIdOf(address(loan));
+
+        ( , , , , , , , uint256 platformManagementFeeRate, uint256 delegateManagementFeeRate,  ) = loanManager.loans(loanId);
+
+        assertEq(platformManagementFeeRate, platformManagementFeeRate_);
+        assertTrue(platformManagementFeeRate + delegateManagementFeeRate <= 1e18);
     }
 
 }
