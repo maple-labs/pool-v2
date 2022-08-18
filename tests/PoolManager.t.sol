@@ -76,6 +76,9 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
         // Get past zero supply check
         pool.mint(address(1), 1);
+
+        vm.prank(globals);
+        poolManager.setActive(true);
     }
 
 }
@@ -308,6 +311,12 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
 
 contract SetActive_SetterTests is PoolManagerBase {
 
+    function setUp() public override {
+        super.setUp();
+        vm.prank(globals);
+        poolManager.setActive(false);
+    }
+
     function test_setActive_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
@@ -349,8 +358,6 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
     }
 
     function test_setAllowedLender_notPoolDelegate() external {
-        assertTrue(!poolManager.active());
-
         vm.expectRevert("PM:SAL:NOT_PD");
         poolManager.setAllowedLender(address(this), true);
     }
@@ -449,8 +456,6 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
     }
 
     function test_setOpenToPublic_notPoolDelegate() external {
-        assertTrue(!poolManager.active());
-
         vm.expectRevert("PM:SOTP:NOT_PD");
         poolManager.setOpenToPublic();
     }
@@ -1059,6 +1064,21 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
 
 contract CanCallTests is PoolManagerBase {
 
+    function test_canCall_deposit_notActive() external {
+        bytes32 functionId_ = bytes32("P:deposit");
+        address receiver_   = address(this);
+
+        vm.prank(globals);
+        poolManager.setActive(false);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:D:NOT_ACTIVE");
+    }
+
     function test_canCall_deposit_notOpenToPublic() external {
         bytes32 functionId_ = bytes32("P:deposit");
         address receiver_   = address(this);
@@ -1120,6 +1140,21 @@ contract CanCallTests is PoolManagerBase {
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:D:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_depositWithPermit_notActive() external {
+        bytes32 functionId_ = bytes32("P:depositWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(globals);
+        poolManager.setActive(false);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:DWP:NOT_ACTIVE");
     }
 
     function test_canCall_depositWithPermit_notOpenToPublic() external {
@@ -1185,6 +1220,21 @@ contract CanCallTests is PoolManagerBase {
         assertEq(errorMessage_, "P:DWP:DEPOSIT_GT_LIQ_CAP");
     }
 
+    function test_canCall_mint_notActive() external {
+        bytes32 functionId_ = bytes32("P:mint");
+        address receiver_   = address(this);
+
+        vm.prank(globals);
+        poolManager.setActive(false);
+
+        bytes memory params = abi.encode(1_000e6, receiver_);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:M:NOT_ACTIVE");
+    }
+
     function test_canCall_mint_notOpenToPublic() external {
         bytes32 functionId_ = bytes32("P:mint");
         address receiver_   = address(this);
@@ -1246,6 +1296,21 @@ contract CanCallTests is PoolManagerBase {
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:M:DEPOSIT_GT_LIQ_CAP");
+    }
+
+    function test_canCall_mintWithPermit_notActive() external {
+        bytes32 functionId_ = bytes32("P:mintWithPermit");
+        address receiver_   = address(this);
+
+        vm.prank(globals);
+        poolManager.setActive(false);
+
+        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "P:MWP:NOT_ACTIVE");
     }
 
     function test_canCall_mintWithPermit_notOpenToPublic() external {

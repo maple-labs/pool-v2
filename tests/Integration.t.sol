@@ -101,6 +101,8 @@ contract IntegrationTestBase is GlobalsBootstrapper {
         poolManager.setOpenToPublic();
         vm.stopPrank();
 
+        vm.prank(globals);
+        poolManager.setActive(true);
     }
 
     /************************/
