@@ -204,15 +204,27 @@ contract UpgradeTests is PoolManagerBase {
         poolManager.upgrade(2, "");
     }
 
+    function test_upgrade_notScheduled() external {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:U:NOT_SCHEDULED");
+        poolManager.upgrade(2, "");
+    }
+
     function test_upgrade_upgradeFailed() external {
+        MockGlobals(globals).__setIsValidScheduledCall(true);
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("MPF:UI:FAILED");
         poolManager.upgrade(2, "1");
     }
 
     function test_upgrade_success() external {
+        assertEq(poolManager.implementation(), implementation);
+
+        MockGlobals(globals).__setIsValidScheduledCall(true);
         vm.prank(POOL_DELEGATE);
         poolManager.upgrade(2, "");
+
+        assertEq(poolManager.implementation(), newImplementation);
     }
 
 }
@@ -238,11 +250,20 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
     function test_acceptPendingPoolDelegate_notPendingPoolDelegate() external {
         vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:APA:NOT_PENDING_PD");
+        vm.expectRevert("PM:APPD:NOT_PENDING_PD");
+        poolManager.acceptPendingPoolDelegate();
+    }
+
+    function test_acceptPendingPoolDelegate_globalsTransferFails() external {
+        MockGlobals(globals).__setFailTransferOwnedPoolManager(true);
+        vm.prank(SET_ADDRESS);
+        vm.expectRevert("MG:TOPM:FAILED");
         poolManager.acceptPendingPoolDelegate();
     }
 
     function test_acceptPendingPoolDelegate_success() external {
+        MockGlobals(globals).__setFailTransferOwnedPoolManager(false);
+
         assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
         assertEq(poolManager.poolDelegate(),        POOL_DELEGATE);
 

@@ -9,10 +9,11 @@ import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import { ILoanManager } from "./interfaces/ILoanManager.sol";
+
 import {
     IERC20Like,
-    IGlobalsLike,
     ILoanLike,
+    IMapleGlobalsLike,
     IPoolLike,
     IPoolManagerLike
 } from "./interfaces/Interfaces.sol";
@@ -57,12 +58,17 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function upgrade(uint256 version_, bytes calldata arguments_) external {
         require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:U:NOT_PD");
 
+        IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());
+
+        require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "LM:UPGRADE", msg.data), "LM:U:NOT_SCHEDULED");
+
+        mapleGlobals.unscheduleCall(msg.sender, "LM:UPGRADE", msg.data);
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
-    /*******************************/
-    /*** Adminstrative Functions ***/
-    /*******************************/
+    /********************************/
+    /*** Administrative Functions ***/
+    /********************************/
 
     function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external {
         require(msg.sender == poolManager,                     "LM:SAS:NOT_POOL_MANAGER");
@@ -456,7 +462,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         domainStart        = block.timestamp;
     }
 
-    // TODO: Change return vars after managment fees are properly implemented.
+    // TODO: Change return vars after management fees are properly implemented.
     function _claimLoan(address loanAddress_, uint256 principal_, uint256 interest_) internal {
         principalOut -= principal_;
 
@@ -528,7 +534,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function _queueNextLoanPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
-        uint256 platformManagementFeeRate_ = IGlobalsLike(globals()).platformManagementFeeRate(poolManager);
+        uint256 platformManagementFeeRate_ = IMapleGlobalsLike(globals()).platformManagementFeeRate(poolManager);
         uint256 delegateManagementFeeRate_ = IPoolManagerLike(poolManager).delegateManagementFeeRate();
         uint256 managementFeeRate_         = platformManagementFeeRate_ + delegateManagementFeeRate_;
 
@@ -547,7 +553,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 loanId_ = loanIdOf[loan_] = ++loanCounter;
 
         _addLoanToList(loanId_, LoanInfo({
-            // Previous and next will be overriden within _addLoan function
+            // Previous and next will be overridden within _addLoan function.
             previous:                  0,
             next:                      0,
             incomingNetInterest:       incomingNetInterest_,
@@ -595,10 +601,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         uint256 oracleAmount =
             swapAmount_
-                * IGlobalsLike(globals_).getLatestPrice(collateralAsset_)              // Convert from `fromAsset` value.
+                * IMapleGlobalsLike(globals_).getLatestPrice(collateralAsset_)        // Convert from `fromAsset` value.
                 * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())           // Convert to `toAsset` decimal precision.
                 * (ONE_HUNDRED_PERCENT_BASIS - allowedSlippageFor[collateralAsset_])  // Multiply by allowed slippage basis points
-                / IGlobalsLike(globals_).getLatestPrice(fundsAsset)                    // Convert to `toAsset` value.
+                / IMapleGlobalsLike(globals_).getLatestPrice(fundsAsset)              // Convert to `toAsset` value.
                 / uint256(10) ** uint256(collateralAssetDecimals)                     // Convert from `fromAsset` decimal precision.
                 / ONE_HUNDRED_PERCENT_BASIS;                                          // Divide basis points for slippage.
 
@@ -627,7 +633,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function mapleTreasury() public view returns (address treasury_) {
-        return IGlobalsLike(globals()).mapleTreasury();
+        return IMapleGlobalsLike(globals()).mapleTreasury();
     }
 
     /*********************************/

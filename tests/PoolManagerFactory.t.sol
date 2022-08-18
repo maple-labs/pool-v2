@@ -114,7 +114,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     }
 
     function test_createInstance_failWithActivePoolDelegate() external {
-        MockGlobals(globals).setOwnedPool(PD, address(13));
+        MockGlobals(globals).__setOwnedPoolManager(PD, address(13));
 
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), PD, address(asset), "Pool", "P2");
 

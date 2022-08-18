@@ -18,7 +18,7 @@ contract GlobalsBootstrapper is TestUtils {
         vm.startPrank(GOVERNOR);
         MockGlobals(globals).setValidPoolAsset(address(liquidityAsset_), true);
         MockGlobals(globals).setValidPoolDelegate(poolDelegate_, true);
-        MockGlobals(globals).setTreasury(TREASURY);
+        MockGlobals(globals).setMapleTreasury(TREASURY);
         vm.stopPrank();
     }
 

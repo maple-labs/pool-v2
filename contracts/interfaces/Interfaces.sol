@@ -15,7 +15,7 @@ interface IERC20Like {
 
 }
 
-interface IGlobalsLike {
+interface IMapleGlobalsLike {
 
     function getLatestPrice(address asset_) external view returns (uint256 price_);
 
@@ -29,6 +29,8 @@ interface IGlobalsLike {
 
     function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
 
+    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_) external view returns (bool isValid_);
+
     function platformManagementFeeRate(address poolManager_) external view returns (uint256 platformManagementFeeRate_);
 
     function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
@@ -41,6 +43,10 @@ interface IGlobalsLike {
     function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
     function protocolPaused() external view returns (bool protocolPaused_);
+
+    function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
+
+    function unscheduleCall(address caller_, bytes32 functionId_, bytes calldata callData_) external;
 
 }
 

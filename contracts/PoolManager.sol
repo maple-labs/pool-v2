@@ -9,9 +9,9 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import {
     IERC20Like,
-    IGlobalsLike,
     ILoanLike,
     ILoanManagerLike,
+    IMapleGlobalsLike,
     IPoolDelegateCoverLike,
     IPoolLike,
     IWithdrawalManagerLike
@@ -30,7 +30,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*****************/
 
     modifier whenProtocolNotPaused {
-        require(!IGlobalsLike(globals).protocolPaused(), "PM:PROTOCOL_PAUSED");
+        require(!IMapleGlobalsLike(globals).protocolPaused(), "PM:PROTOCOL_PAUSED");
         _;
     }
 
@@ -56,6 +56,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function upgrade(uint256 version_, bytes calldata arguments_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:U:NOT_PD");
 
+        IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals);
+
+        require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:NOT_SCHEDULED");
+
+        mapleGlobals.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
@@ -63,9 +68,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Ownership Transfer Functions ***/
     /************************************/
 
-    // TODO: Add PD transfer check
     function acceptPendingPoolDelegate() external override whenProtocolNotPaused {
-        require(msg.sender == pendingPoolDelegate, "PM:APA:NOT_PENDING_PD");
+        require(msg.sender == pendingPoolDelegate, "PM:APPD:NOT_PENDING_PD");
+
+        IMapleGlobalsLike(globals).transferOwnedPoolManager(poolDelegate, msg.sender);
 
         poolDelegate        = pendingPoolDelegate;
         pendingPoolDelegate = address(0);
@@ -82,8 +88,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /********************************/
 
     function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 delegateManagementFeeRate_) external override {
-        require(!configured,                                      "PM:CO:ALREADY_CONFIGURED");
-        require(IGlobalsLike(globals).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
+        require(!configured,                                           "PM:CO:ALREADY_CONFIGURED");
+        require(IMapleGlobalsLike(globals).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
 
         configured                  = true;
         isLoanManager[loanManager_] = true;
@@ -138,7 +144,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SDMFR:NOT_PD");
 
-        require(delegateManagementFeeRate_ + IGlobalsLike(globals).platformManagementFeeRate(address(this)) <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
+        require(delegateManagementFeeRate_ + IMapleGlobalsLike(globals).platformManagementFeeRate(address(this)) <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         // TODO check globals for boundaries
         delegateManagementFeeRate = delegateManagementFeeRate_;
@@ -175,11 +181,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         address loanManager_ = loanManagers[loan_];
 
-        require(msg.sender == poolDelegate,                                     "PM:ANT:NOT_PD");
-        require(isLoanManager[loanManager_],                                    "PM:ANT:INVALID_LOAN_MANAGER");
-        require(IGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                           "PM:ANT:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                          "PM:ANT:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                          "PM:ANT:NOT_PD");
+        require(isLoanManager[loanManager_],                                         "PM:ANT:INVALID_LOAN_MANAGER");
+        require(IMapleGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                                "PM:ANT:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                               "PM:ANT:INSUFFICIENT_COVER");
 
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "P:F:TRANSFER_FAIL");
 
@@ -192,11 +198,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address globals_ = globals;
         address pool_    = pool;
 
-        require(msg.sender == poolDelegate,                                     "PM:F:NOT_PD");
-        require(isLoanManager[loanManager_],                                    "PM:F:INVALID_LOAN_MANAGER");
-        require(IGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                           "PM:F:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                          "PM:F:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                          "PM:F:NOT_PD");
+        require(isLoanManager[loanManager_],                                         "PM:F:INVALID_LOAN_MANAGER");
+        require(IMapleGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                                "PM:F:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                               "PM:F:INSUFFICIENT_COVER");
 
         loanManagers[loan_] = loanManager_;
 
@@ -228,7 +234,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         uint256 coverBalance_ = IERC20Like(asset).balanceOf(poolDelegateCover);
 
         if (coverBalance_ != 0 && remainingLosses_ != 0) {
-            uint256 maxLiquidationAmount_ = coverBalance_ * IGlobalsLike(globals).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
+            uint256 maxLiquidationAmount_ = coverBalance_ * IMapleGlobalsLike(globals).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
             uint256 liquidationAmount_    = remainingLosses_ > maxLiquidationAmount_ ? maxLiquidationAmount_ : remainingLosses_ ;
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(liquidationAmount_, pool);
         }
@@ -279,7 +285,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function withdrawCover(uint256 amount_, address recipient_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:WC:NOT_PD");
         require(
-            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IGlobalsLike(globals).minCoverAmount(address(this))),
+            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IMapleGlobalsLike(globals).minCoverAmount(address(this))),
             "PM:WC:BELOW_MIN"
         );
 
@@ -295,7 +301,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view override returns (bool canCall_, string memory errorMessage_) {
         bool willRevert_;
 
-        if (IGlobalsLike(globals).protocolPaused()) return (false, "PROTOCOL_PAUSED");
+        if (IMapleGlobalsLike(globals).protocolPaused()) return (false, "PROTOCOL_PAUSED");
 
         if (functionId_ == "P:deposit") {
             ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));
@@ -433,7 +439,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function _hasSufficientCover(address globals_, address asset_) internal view returns (bool hasSufficientCover_) {
-        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IGlobalsLike(globals_).minCoverAmount(address(this));
+        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IMapleGlobalsLike(globals_).minCoverAmount(address(this));
     }
 
 }

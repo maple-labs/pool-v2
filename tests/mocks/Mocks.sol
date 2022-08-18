@@ -67,6 +67,9 @@ contract MockGlobals {
 
     uint256 public constant HUNDRED_PERCENT = 1e18;
 
+    bool internal _failTransferOwnedPoolManager;
+    bool internal _isValidScheduledCall;
+
     address public governor;
     address public mapleTreasury;
 
@@ -88,16 +91,32 @@ contract MockGlobals {
         governor = governor_;
     }
 
+    function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
+        isValid_ = _isValidScheduledCall;
+    }
+
+    function __setFailTransferOwnedPoolManager(bool fail_) external {
+        _failTransferOwnedPoolManager = fail_;
+    }
+
+    function __setIsValidScheduledCall(bool isValid_) external {
+        _isValidScheduledCall = isValid_;
+    }
+
+    function __setOwnedPoolManager(address owner_, address poolManager_) external {
+        ownedPoolManager[owner_] = poolManager_;
+    }
+
+    function __setLatestPrice(address asset_, uint256 latestPrice_) external {
+        getLatestPrice[asset_] = latestPrice_;
+    }
+
     function setGovernor(address governor_) external {
         governor = governor_;
     }
 
     function setPlatformManagementFeeRate(address poolManager_, uint256 platformManagementFeeRate_) external {
         platformManagementFeeRate[poolManager_] = platformManagementFeeRate_;
-    }
-
-    function setLatestPrice(address asset_, uint256 latestPrice_) external {
-        getLatestPrice[asset_] = latestPrice_;
     }
 
     function setMaxCoverLiquidationPercent(address poolManager_, uint256 maxCoverLiquidationPercent_) external {
@@ -110,15 +129,11 @@ contract MockGlobals {
         minCoverAmount[poolManager_] = minCoverAmount_;
     }
 
-    function setOwnedPool(address owner_, address poolManager_) external {
-        ownedPoolManager[owner_] = poolManager_;
-    }
-
     function setProtocolPause(bool paused_) external {
         protocolPaused = paused_;
     }
 
-    function setTreasury(address treasury_) external {
+    function setMapleTreasury(address treasury_) external {
         mapleTreasury = treasury_;
     }
 
@@ -137,6 +152,12 @@ contract MockGlobals {
     function setValidPoolDelegate(address poolDelegate_, bool isValid_) external {
         isPoolDelegate[poolDelegate_] = isValid_;
     }
+
+    function transferOwnedPoolManager(address, address) external {
+        require(!(_failTransferOwnedPoolManager = _failTransferOwnedPoolManager), "MG:TOPM:FAILED");
+    }
+
+    function unscheduleCall(address, bytes32, bytes calldata) external {}
 
 }
 

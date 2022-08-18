@@ -289,10 +289,10 @@ contract FeeDistributionTest is IntegrationTestBase {
 
         uint256 interestPayment = 1_000e18;
 
-        assertEq(fundsAsset.balanceOf(address(loan_)),     0);
-        assertEq(fundsAsset.balanceOf(address(pool)),      0);
-        assertEq(fundsAsset.balanceOf(address(TREASURY)),  0);
-        assertEq(fundsAsset.balanceOf(address(PD)),        0);
+        assertEq(fundsAsset.balanceOf(address(loan_)),    0);
+        assertEq(fundsAsset.balanceOf(address(pool)),     0);
+        assertEq(fundsAsset.balanceOf(address(TREASURY)), 0);
+        assertEq(fundsAsset.balanceOf(address(PD)),       0);
 
         // Simulate an interest payment
         fundsAsset.mint(address(loanManager), interestPayment);
@@ -300,10 +300,10 @@ contract FeeDistributionTest is IntegrationTestBase {
         vm.prank(address(loan_));
         loanManager.claim(0, interestPayment, block.timestamp + 30 days);
 
-        assertEq(fundsAsset.balanceOf(address(loan_)),     0);
-        assertEq(fundsAsset.balanceOf(address(pool)),      900e18); // 10% of the interest paid
-        assertEq(fundsAsset.balanceOf(address(TREASURY)),  30e18);  // 30% of 100e18 (10% of interest paid)
-        assertEq(fundsAsset.balanceOf(address(PD)),        70e18);  // 70% of 100e18 (10% of interest paid)
+        assertEq(fundsAsset.balanceOf(address(loan_)),    0);
+        assertEq(fundsAsset.balanceOf(address(pool)),     900e18); // 10% of the interest paid
+        assertEq(fundsAsset.balanceOf(address(TREASURY)), 30e18);  // 30% of 100e18 (10% of interest paid)
+        assertEq(fundsAsset.balanceOf(address(PD)),       70e18);  // 70% of 100e18 (10% of interest paid)
     }
 
 }
@@ -317,8 +317,8 @@ contract TriggerDefaultWarningTest is IntegrationTestBase {
 
         vm.startPrank(PD);
 
-        MockGlobals(globals).setLatestPrice(address(fundsAsset),      FUNDS_PRICE);
-        MockGlobals(globals).setLatestPrice(address(collateralAsset), COLLATERAL_PRICE);
+        MockGlobals(globals).__setLatestPrice(address(fundsAsset),      FUNDS_PRICE);
+        MockGlobals(globals).__setLatestPrice(address(collateralAsset), COLLATERAL_PRICE);
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), MockGlobals(globals).HUNDRED_PERCENT());
 
         vm.stopPrank();
@@ -979,8 +979,8 @@ contract LoanManagerTest is IntegrationTestBase {
 
         vm.startPrank(PD);
 
-        MockGlobals(globals).setLatestPrice(address(fundsAsset),      FUNDS_PRICE);
-        MockGlobals(globals).setLatestPrice(address(collateralAsset), COLLATERAL_PRICE);
+        MockGlobals(globals).__setLatestPrice(address(fundsAsset),      FUNDS_PRICE);
+        MockGlobals(globals).__setLatestPrice(address(collateralAsset), COLLATERAL_PRICE);
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), MockGlobals(globals).HUNDRED_PERCENT());
 
         vm.stopPrank();

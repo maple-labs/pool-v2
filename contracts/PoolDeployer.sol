@@ -4,9 +4,14 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { IPoolManager }                                                   from "./interfaces/IPoolManager.sol";
-import { IPoolManagerInitializer }                                        from "./interfaces/IPoolManagerInitializer.sol";
-import { IGlobalsLike, ILoanManagerInitializerLike, IWithdrawalManagerInitializerLike } from "./interfaces/Interfaces.sol";
+import { IPoolManager }            from "./interfaces/IPoolManager.sol";
+import { IPoolManagerInitializer } from "./interfaces/IPoolManagerInitializer.sol";
+
+import {
+    ILoanManagerInitializerLike,
+    IMapleGlobalsLike,
+    IWithdrawalManagerInitializerLike
+} from "./interfaces/Interfaces.sol";
 
 contract PoolDeployer {
 
@@ -47,7 +52,7 @@ contract PoolDeployer {
     ) {
         address poolDelegate_ = msg.sender;
 
-        require(IGlobalsLike(globals).isPoolDelegate(poolDelegate_), "PD:DP:INVALID_PD");
+        require(IMapleGlobalsLike(globals).isPoolDelegate(poolDelegate_), "PD:DP:INVALID_PD");
 
         bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
 

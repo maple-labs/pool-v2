@@ -64,7 +64,7 @@ contract LoanManagerBaseTest is TestUtils {
         poolManager = new MockPoolManager();
         pool        = new MockPool();
 
-        globals.setTreasury(treasury);
+        globals.setMapleTreasury(treasury);
 
         pool.__setAsset(address(asset));
         pool.__setManager(address(poolManager));
@@ -152,13 +152,21 @@ contract UpgradeTests is LoanManagerBaseTest {
         loanManager.upgrade(2, "");
     }
 
+    function test_upgrade_notScheduled() external {
+        vm.prank(poolManager.poolDelegate());
+        vm.expectRevert("LM:U:NOT_SCHEDULED");
+        loanManager.upgrade(2, "");
+    }
+
     function test_upgrade_upgradeFailed() external {
+        MockGlobals(globals).__setIsValidScheduledCall(true);
         vm.prank(poolManager.poolDelegate());
         vm.expectRevert("MPF:UI:FAILED");
         loanManager.upgrade(2, "1");
     }
 
     function test_upgrade_success() external {
+        MockGlobals(globals).__setIsValidScheduledCall(true);
         vm.prank(poolManager.poolDelegate());
         loanManager.upgrade(2, "");
     }
