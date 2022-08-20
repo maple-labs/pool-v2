@@ -361,6 +361,9 @@ contract MockLoanManager is LoanManagerStorage {
     address poolDelegate;
     address treasury;
 
+    bool public wasRDWCalledByGovernor;
+    bool public wasTDWCalledByGovernor;
+
     uint256 delegateManagementFee;
     uint256 platformManagementFee;
     uint256 poolAmount;
@@ -392,8 +395,16 @@ contract MockLoanManager is LoanManagerStorage {
         ILoanLike(loan_).batchClaimFunds(amounts_, destinations_);
     }
 
+    function removeDefaultWarning(address, bool isCalledByGovernor_) external {
+        wasRDWCalledByGovernor = isCalledByGovernor_;
+    }
+
     function triggerCollateralLiquidation(address) external {
         unrealizedLosses += increasedUnrealizedLosses;
+    }
+
+        function triggerDefaultWarning(address, uint256, bool isGovernor_) external {
+        wasTDWCalledByGovernor = isGovernor_;
     }
 
     function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_) {

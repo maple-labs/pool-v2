@@ -66,9 +66,9 @@ interface ILoanManagerLike {
 
     function fund(address loan_) external;
 
-    function removeDefaultWarning(address loan_) external;
+    function removeDefaultWarning(address loan_, bool isGovernor_) external;
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external;
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external;
 
     function triggerCollateralLiquidation(address loan_) external;
 

@@ -439,11 +439,11 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
-        vm.expectRevert("LM:TDW:NOT_POOL_MANAGER");
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        vm.expectRevert("LM:TDW:NOT_PM");
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
     }
 
     function test_triggerDefaultWarning_success() public {
@@ -481,7 +481,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         });
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
         loanInfo = ILoanManagerLike(address(loanManager)).loans(loanId_);
 
@@ -542,6 +542,77 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         });
     }
 
+    function test_triggerDefaultWarning_success_byGovernor() public {
+        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
+
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        uint256 loanId_ = loanManager.loanIdOf(address(loan));
+        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
+
+        assertEq(loanInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
+        assertEq(loanInfo.refinanceInterest,   0);
+        assertEq(loanInfo.issuanceRate,        0.0080e30);
+        assertEq(loanInfo.startDate,           5_000_000);
+        assertEq(loanInfo.paymentDueDate,      5_010_000);
+
+        assertEq(loanManager.getAccruedInterest(),             48);  // 60 * (1 - (.05 + .15))
+        assertEq(loanManager.accountedInterest(),              0);
+        assertEq(loanManager.principalOut(),                   1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
+        assertEq(loanManager.issuanceRate(),                   0.0080e30);
+        assertEq(loanManager.domainStart(),                    5_000_000);
+        assertEq(loanManager.domainEnd(),                      5_010_000);
+        assertEq(loanManager.loanWithEarliestPaymentDueDate(), loanId_);
+
+        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       0,
+            interest:        0,
+            platformFees:    0,
+            liquidator:      address(0)
+        });
+
+        assertTrue(!liquidationInfo.triggeredByGovernor);
+
+        vm.prank(address(poolManager));
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+
+        loanInfo = ILoanManagerLike(address(loanManager)).loans(loanId_);
+
+        // Loan info doesn't change, in case we want to revert the default warning.
+        assertEq(loanInfo.incomingNetInterest, 80);
+        assertEq(loanInfo.refinanceInterest,   0);
+        assertEq(loanInfo.issuanceRate,        0.0080e30);
+        assertEq(loanInfo.startDate,           5_000_000);
+        assertEq(loanInfo.paymentDueDate,      5_010_000);
+
+        assertEq(loanManager.getAccruedInterest(),             0);
+        assertEq(loanManager.accountedInterest(),              48);
+        assertEq(loanManager.principalOut(),                   1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
+        assertEq(loanManager.issuanceRate(),                   0);
+        assertEq(loanManager.domainStart(),                    5_006_000);
+        assertEq(loanManager.domainEnd(),                      5_006_000);
+        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
+        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+
+        liquidationInfo = loanManager_.liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       1_000_000,
+            interest:        48,
+            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            liquidator:      address(0)
+        });
+
+        assertTrue(liquidationInfo.triggeredByGovernor);
+    }
+
 }
 
 contract RemoveDefaultWarningTests is LoanManagerBaseTest {
@@ -573,16 +644,45 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
-        vm.expectRevert("LM:RDW:NOT_POOL_MANAGER");
-        loanManager.removeDefaultWarning(address(loan));
+        vm.expectRevert("LM:RDW:NOT_PM");
+        loanManager.removeDefaultWarning(address(loan), false);
 
         vm.prank(address(poolManager));
-        loanManager.removeDefaultWarning(address(loan));
+        loanManager.removeDefaultWarning(address(loan), false);
     }
 
-    function test_removeDefaultWarning_success() public {
+    function test_removeDefaultWarning_calledByGovernor() public {
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        vm.prank(address(poolManager));
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+
+        vm.expectRevert("LM:RDW:NOT_PM");
+        loanManager.removeDefaultWarning(address(loan), true);
+
+        vm.prank(address(poolManager));
+        loanManager.removeDefaultWarning(address(loan), true);
+    }
+
+    function test_removeDefaultWarning_delegateNotAuthorizedToRemoveGovernors() public {
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        vm.prank(address(poolManager));
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true); // Trigger was called by governor.
+
+        vm.expectRevert("LM:RDW:NOT_AUTHORIZED");
+        vm.prank(address(poolManager));
+        loanManager.removeDefaultWarning(address(loan), false); // PD can't remove it.
+
+        vm.prank(address(poolManager));
+        loanManager.removeDefaultWarning(address(loan), true); // Governor can remove it.
+    }
+
+    function test_removeDefaultWarning_successWithPD() public {
         ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
 
         uint256 loanId_ = loanManager.loanIdOf(address(loan));
@@ -591,7 +691,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
         LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
 
@@ -620,8 +720,10 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidator:      address(0)
         });
 
+        assertTrue(!liquidationInfo.triggeredByGovernor);
+
         vm.prank(address(poolManager));
-        loanManager.removeDefaultWarning(address(loan));
+        loanManager.removeDefaultWarning(address(loan), false);
 
         assertEq(loanInfo.incomingNetInterest, 80);
         assertEq(loanInfo.refinanceInterest,   0);
@@ -648,6 +750,8 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidator:      address(0)
         });
 
+        assertTrue(!liquidationInfo.triggeredByGovernor);
+
         vm.warp(START + 10_000);
 
         assertEq(loanInfo.incomingNetInterest, 80);
@@ -665,6 +769,95 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_010_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
     }
+
+    function test_removeDefaultWarning_successWithGovernor() public {
+        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
+
+        uint256 loanId_ = loanManager.loanIdOf(address(loan));
+
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        vm.prank(address(poolManager));
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+
+        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
+
+        assertEq(loanInfo.incomingNetInterest, 80);
+        assertEq(loanInfo.refinanceInterest,   0);
+        assertEq(loanInfo.issuanceRate,        0.0080e30);
+        assertEq(loanInfo.startDate,           5_000_000);
+        assertEq(loanInfo.paymentDueDate,      5_010_000);
+
+        assertEq(loanManager.getAccruedInterest(),             0);
+        assertEq(loanManager.accountedInterest(),              48);
+        assertEq(loanManager.principalOut(),                   1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
+        assertEq(loanManager.issuanceRate(),                   0);
+        assertEq(loanManager.domainStart(),                    5_006_000);
+        assertEq(loanManager.domainEnd(),                      5_006_000);
+        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
+
+        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       1_000_000,
+            interest:        48,
+            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            liquidator:      address(0)
+        });
+
+        assertTrue(liquidationInfo.triggeredByGovernor);
+
+        vm.prank(address(poolManager));
+        loanManager.removeDefaultWarning(address(loan), true);
+
+        assertEq(loanInfo.incomingNetInterest, 80);
+        assertEq(loanInfo.refinanceInterest,   0);
+        assertEq(loanInfo.issuanceRate,        0.0080e30);
+        assertEq(loanInfo.startDate,           5_000_000);
+        assertEq(loanInfo.paymentDueDate,      5_010_000);
+
+        assertEq(loanManager.getAccruedInterest(),             0);
+        assertEq(loanManager.accountedInterest(),              48);
+        assertEq(loanManager.principalOut(),                   1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
+        assertEq(loanManager.issuanceRate(),                   0.0080e30);
+        assertEq(loanManager.domainStart(),                    5_006_000);
+        assertEq(loanManager.domainEnd(),                      5_010_000);
+        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+
+        liquidationInfo = loanManager_.liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       0,
+            interest:        0,
+            platformFees:    0,
+            liquidator:      address(0)
+        });
+
+        assertTrue(!liquidationInfo.triggeredByGovernor);
+
+        vm.warp(START + 10_000);
+
+        assertEq(loanInfo.incomingNetInterest, 80);
+        assertEq(loanInfo.refinanceInterest,   0);
+        assertEq(loanInfo.issuanceRate,        0.0080e30);
+        assertEq(loanInfo.startDate,           5_000_000);
+        assertEq(loanInfo.paymentDueDate,      5_010_000);
+
+        assertEq(loanManager.getAccruedInterest(),             32);
+        assertEq(loanManager.accountedInterest(),              48);
+        assertEq(loanManager.principalOut(),                   1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),          1_000_080);
+        assertEq(loanManager.issuanceRate(),                   0.0080e30);
+        assertEq(loanManager.domainStart(),                    5_006_000);
+        assertEq(loanManager.domainEnd(),                      5_010_000);
+        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+    }
+
 }
 
 contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
@@ -2630,7 +2823,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000);
+        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
         assertEq(loanManager.getAccruedInterest(),             0);
         assertEq(loanManager.accountedInterest(),              48);

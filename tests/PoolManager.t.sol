@@ -659,6 +659,106 @@ contract TriggerCollateralLiquidation is PoolManagerBase {
 
 }
 
+contract TriggerDefaultWarning is PoolManagerBase {
+
+    address LP   = address(new Address());
+    address LOAN = address(new Address());
+
+    MockLoanManager loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.addLoanManager(address(loanManager));
+        poolManager.__setLoanManagerForLoan(LOAN, address(loanManager));
+        vm.stopPrank();
+    }
+
+    function test_triggerDefaultWarning_notPoolDelegate() external {
+        vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+    }
+
+    function test_triggerDefaultWarning_notGovernor() external {
+        vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+
+        vm.prank(GOVERNOR);
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+    }
+
+    function test_triggerDefaultWarning_successCalledByPoolDelegate() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+
+        assertTrue(!loanManager.wasTDWCalledByGovernor());
+    }
+
+    function test_triggerDefaultWarning_successCalledByGovernor() external {
+        vm.prank(GOVERNOR);
+        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+
+        assertTrue(loanManager.wasTDWCalledByGovernor());
+    }
+
+}
+
+contract RemoveDefaultWarning is PoolManagerBase {
+
+    address LP   = address(new Address());
+    address LOAN = address(new Address());
+
+    MockLoanManager loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.addLoanManager(address(loanManager));
+        poolManager.__setLoanManagerForLoan(LOAN, address(loanManager));
+        vm.stopPrank();
+    }
+    
+    function test_removeDefaultWarning_notPoolDelegate() external {
+        vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
+        poolManager.removeDefaultWarning(LOAN);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.removeDefaultWarning(LOAN);
+    }
+
+    function test_removeDefaultWarning_notGovernor() external {
+        vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
+        poolManager.removeDefaultWarning(LOAN);
+
+        vm.prank(GOVERNOR);
+        poolManager.removeDefaultWarning(LOAN);
+    }
+
+    function test_removeDefaultWarning_successCalledByPoolDelegate() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.removeDefaultWarning(LOAN);
+
+        assertTrue(!loanManager.wasRDWCalledByGovernor());
+    }
+
+    function test_removeDefaultWarning_successCalledByGovernor() external {
+        vm.prank(GOVERNOR);
+        poolManager.removeDefaultWarning(LOAN);
+
+        assertTrue(loanManager.wasRDWCalledByGovernor());
+    }
+
+}
+
 contract FinishCollateralLiquidation is PoolManagerBase {
 
     address BORROWER = address(new Address());

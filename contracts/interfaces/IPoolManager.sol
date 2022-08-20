@@ -119,8 +119,6 @@ interface IPoolManager is IPoolManagerStorage {
 
     function factory() external view returns (address factory_);
 
-    function governor() external view returns (address governor_);
-
     function hasSufficientCover() external view returns (bool hasSufficientCover_);
 
     function implementation() external view returns (address implementation_);

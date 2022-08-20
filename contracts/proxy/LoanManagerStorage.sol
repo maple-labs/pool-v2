@@ -43,6 +43,7 @@ abstract contract LoanManagerStorage {
         uint256 interest;
         uint256 platformFees;
         address liquidator;
+        bool    triggeredByGovernor;
     }
 
 }

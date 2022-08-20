@@ -202,8 +202,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Default Functions ***/
     /*************************/
 
-    function removeDefaultWarning(address loan_) external {
-        require(msg.sender == poolManager, "LM:RDW:NOT_POOL_MANAGER");
+    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external {
+        require(msg.sender == poolManager, "LM:RDW:NOT_PM");
 
         _advanceLoanAccounting();
 
@@ -211,6 +211,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         uint256 loanId_ = loanIdOf[loan_];
         LoanInfo memory loanInfo_ = loans[loanId_];
+
+        // TODO: Storage is also read within _revertDefaultWarning function, so can be optimized. But the following reversion should be in this function (JG's opinion)
+        if (liquidationInfo[loan_].triggeredByGovernor) require(isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
 
         _revertDefaultWarning(loan_);
 
@@ -223,8 +226,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
     }
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external {
-        require(msg.sender == poolManager, "LM:TDW:NOT_POOL_MANAGER");
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external {
+        require(msg.sender == poolManager, "LM:TDW:NOT_PM");
 
         _advanceLoanAccounting();
 
@@ -251,10 +254,11 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 accruedPlatformManagementFee_ = accruedGrossInterest_ * loanInfo_.platformManagementFeeRate / SCALED_ONE;
 
         liquidationInfo[loan_] = LiquidationInfo({
-            principal:    principal_,
-            interest:     accruedNetInterest_,
-            platformFees: accruedPlatformManagementFee_ + accruedPlatformServiceFee_,
-            liquidator:   address(0)  // This will be set during triggerCollateralLiquidation.
+            principal:           principal_,
+            interest:            accruedNetInterest_,
+            platformFees:        accruedPlatformManagementFee_ + accruedPlatformServiceFee_,
+            liquidator:          address(0),  // This will be set during triggerCollateralLiquidation.
+            triggeredByGovernor: isGovernor_
         });
 
         unrealizedLosses += (principal_ + accruedNetInterest_);
@@ -372,10 +376,11 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
 
             liquidationInfo[loan_] = LiquidationInfo({
-                principal:    principal_,
-                interest:     netInterest_,
-                platformFees: platformManagementFee_ + platformServiceFee_,
-                liquidator:   liquidator
+                principal:           principal_,
+                interest:            netInterest_,
+                platformFees:        platformManagementFee_ + platformServiceFee_,
+                liquidator:          liquidator,
+                triggeredByGovernor: false
             });
 
         } else {

@@ -224,9 +224,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*****************************/
 
     function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external override {
-        require(msg.sender == poolDelegate, "PM:TDW:NOT_PD");
+        bool isGovernor_ = msg.sender == governor();
 
-        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, newPaymentDueDate_);
+        require(msg.sender == poolDelegate || isGovernor_, "PM:TDW:NOT_AUTHORIZED");
+
+        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, newPaymentDueDate_, isGovernor_);
     }
 
     function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
@@ -256,8 +258,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function removeDefaultWarning(address loan_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:RDW:NOT_PD");
-        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_);
+        bool isGovernor_ = msg.sender == governor();
+
+        require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
+
+        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_, isGovernor_);
     }
 
     /**********************/
@@ -352,10 +357,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function factory() external view override returns (address factory_) {
-        return _factory();
+        factory_ = _factory();
     }
 
-    function governor() public view override returns (address governor_) {
+    function governor() public view returns (address governor_) {
         governor_ = IMapleGlobalsLike(globals).governor();
     }
 
@@ -364,7 +369,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function implementation() external view override returns (address implementation_) {
-        return _implementation();
+        implementation_ = _implementation();
     }
 
     function totalAssets() public view override returns (uint256 totalAssets_) {
