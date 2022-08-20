@@ -56,7 +56,7 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), poolName_, poolSymbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(globals), POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
         poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
@@ -122,9 +122,9 @@ contract ConstructorTests is PoolBase {
         address asset = address(new MockERC20("Asset", "AT", 18));
 
         vm.expectRevert("P:C:ZERO_ADDRESS");
-        new Pool(address(0), asset, "Pool", "POOL1");
+        new Pool(address(0), asset, address(0), 0, "Pool", "POOL1");
 
-        new Pool(address(new Address()), asset, "Pool", "POOL1");
+        new Pool(address(new Address()), asset, address(0), 0, "Pool", "POOL1");
     }
 
     function test_constructor_invalidDecimals() public {
@@ -134,10 +134,10 @@ contract ConstructorTests is PoolBase {
         address poolDelegate = address(new Address());
 
         vm.expectRevert("ERC20:D:REVERT");
-        new Pool(poolDelegate, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, address(0), 0, "Pool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(poolDelegate, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, address(0), 0, "Pool", "POOL1");
     }
 
     function test_constructor_invalidApproval() public {
@@ -147,10 +147,10 @@ contract ConstructorTests is PoolBase {
         address poolDelegate = address(new Address());
 
         vm.expectRevert("ERC20:A:REVERT");
-        new Pool(poolDelegate, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, address(0), 0, "Pool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(poolDelegate, asset, "Pool", "POOL1");
+        new Pool(poolDelegate, asset, address(0), 0, "Pool", "POOL1");
     }
 
 }

@@ -36,6 +36,7 @@ contract PoolDeployer {
      *                         [2]: coverAmountRequired
      *                         [3]: cycleDuration
      *                         [4]: windowDuration
+     *                         [5]: initialSupply
      */
     function deployPool(
         address[3] memory factories_,
@@ -43,7 +44,7 @@ contract PoolDeployer {
         address asset_,
         string memory name_,
         string memory symbol_,
-        uint256[5] memory configParams_
+        uint256[6] memory configParams_
     ) external returns (
         address poolManager_,
         address loanManager_,
@@ -56,7 +57,7 @@ contract PoolDeployer {
         bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
 
         // Deploy Pool Manager
-        bytes memory arguments = IPoolManagerInitializer(initializers_[0]).encodeArguments(globals, poolDelegate_, asset_, name_, symbol_);
+        bytes memory arguments = IPoolManagerInitializer(initializers_[0]).encodeArguments(globals, poolDelegate_, asset_, configParams_[5], name_, symbol_);
         poolManager_           = IMapleProxyFactory(factories_[0]).createInstance(arguments, salt_);
         address pool_          = IPoolManager(poolManager_).pool();
 
@@ -65,7 +66,7 @@ contract PoolDeployer {
         loanManager_ = IMapleProxyFactory(factories_[1]).createInstance(arguments, salt_);
 
         // Deploy Withdrawal Manager
-        arguments = abi.encode(pool_, configParams_[3], configParams_[4]);
+        arguments          = abi.encode(pool_, configParams_[3], configParams_[4]);
         withdrawalManager_ = IMapleProxyFactory(factories_[2]).createInstance(arguments, salt_);
 
         // Configure Pool Manager

@@ -14,12 +14,13 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         address globals_,
         address poolDelegate_,
         address asset_,
+        uint256 intialSupply_,
         string memory name_,
         string memory symbol_
     )
         external pure override returns (bytes memory encodedArguments_)
     {
-        encodedArguments_ = abi.encode(globals_, poolDelegate_, asset_, name_, symbol_);
+        encodedArguments_ = abi.encode(globals_, poolDelegate_, asset_, intialSupply_, name_, symbol_);
     }
 
     function decodeArguments(bytes calldata encodedArguments_) public pure override
@@ -27,11 +28,12 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
             address globals_,
             address poolDelegate_,
             address asset_,
+            uint256 intialSupply_,
             string memory name_,
             string memory symbol_
         )
     {
-        ( globals_, poolDelegate_, asset_, name_, symbol_ ) = abi.decode(encodedArguments_, (address, address, address, string, string));
+        ( globals_, poolDelegate_, asset_, intialSupply_, name_, symbol_ ) = abi.decode(encodedArguments_, (address, address, address, uint256, string, string));
     }
 
     fallback() external {
@@ -39,14 +41,15 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
             address globals_,
             address poolDelegate_,
             address asset_,
+            uint256 initialSupply_,
             string memory name_,
             string memory symbol_
         ) = decodeArguments(msg.data);
 
-        _initialize(globals_, poolDelegate_, asset_, name_, symbol_);
+        _initialize(globals_, poolDelegate_, asset_, initialSupply_,  name_, symbol_);
     }
 
-    function _initialize(address globals_, address poolDelegate_, address asset_, string memory name_, string memory symbol_) internal {
+    function _initialize(address globals_, address poolDelegate_, address asset_, uint256 intialSupply_, string memory name_, string memory symbol_) internal {
         // TODO: Perform all checks on globals.
 
         require((globals = globals_)           != address(0), "PMI:I:ZERO_GLOBALS");
@@ -57,7 +60,9 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require(IMapleGlobalsLike(globals_).ownedPoolManager(poolDelegate_) == address(0), "PMI:I:POOL_OWNER");
         require(IMapleGlobalsLike(globals_).isPoolAsset(asset_),                           "PMI:I:ASSET_NOT_ALLOWED");
 
-        pool              = address(new Pool(address(this), asset_, name_, symbol_));
+        address migrationAdmin_ = IMapleGlobalsLike(globals_).migrationAdmin();
+
+        pool              = address(new Pool(address(this), asset_, migrationAdmin_, intialSupply_, name_, symbol_));
         poolDelegateCover = address(new PoolDelegateCover(address(this), asset));
 
         emit Initialized(globals_, poolDelegate_, asset_, address(pool));

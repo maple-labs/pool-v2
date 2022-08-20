@@ -14,8 +14,19 @@ contract Pool is IPool, ERC20 {
 
     uint256 private locked = 1;  // Used when checking for reentrancy.
 
-    constructor(address manager_, address asset_, string memory name_, string memory symbol_) ERC20(name_, symbol_, ERC20(asset_).decimals()) {
+    constructor(
+        address manager_,
+        address asset_,
+        address destination_,
+        uint256 initialSupply_,
+        string memory name_,
+        string memory symbol_
+    )
+        ERC20(name_, symbol_, ERC20(asset_).decimals())
+    {
         require((manager = manager_) != address(0), "P:C:ZERO_ADDRESS");
+
+        _mint(destination_, initialSupply_);
 
         asset = asset_;
         ERC20(asset_).approve(manager_, type(uint256).max);

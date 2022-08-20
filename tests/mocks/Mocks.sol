@@ -28,7 +28,7 @@ contract ConstructablePoolManager is PoolManager {
         require((poolDelegate = poolDelegate_) != address(0), "PMI:I:ZERO_PD");
         require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
 
-        pool = address(new Pool(address(this), asset_, "PoolName", "PoolSymbol"));
+        pool = address(new Pool(address(this), asset_, address(0), 0, "PoolName", "PoolSymbol"));
     }
 
 }
@@ -49,7 +49,7 @@ contract MockProxied is MapleProxiedInternals {
 contract MockERC20Pool is Pool {
 
     constructor(address manager_, address asset_, string memory name_, string memory symbol_)
-        Pool(manager_, asset_, name_, symbol_) {
+        Pool(manager_, asset_, address(0), 0, name_, symbol_) {
             MockERC20(asset_).approve(manager_, type(uint256).max);
         }
 
@@ -72,6 +72,7 @@ contract MockGlobals {
 
     address public governor;
     address public mapleTreasury;
+    address public migrationAdmin;
 
     bool public protocolPaused;
 
@@ -113,6 +114,10 @@ contract MockGlobals {
 
     function setGovernor(address governor_) external {
         governor = governor_;
+    }
+
+    function setMigrationAdmin(address migrationAdmin_) external {
+        migrationAdmin = migrationAdmin_;
     }
 
     function setPlatformManagementFeeRate(address poolManager_, uint256 platformManagementFeeRate_) external {
@@ -673,14 +678,14 @@ contract MockMigrator {
 
 contract MockPoolManagerInitializer is MockMigrator {
 
-    function encodeArguments(address globals_, address owner_, address asset_, string memory name_, string memory symbol_) external pure
+    function encodeArguments(address globals_, address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) external pure
         returns (bytes memory encodedArguments_) {
 
         encodedArguments_ = new bytes(0);
     }
 
     function decodeArguments(bytes calldata encodedArguments_) external pure
-        returns (address globals_, address owner_, address asset_, string memory name_, string memory symbol_) {
+        returns (address globals_, address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) {
         // Do nothing.
     }
 }

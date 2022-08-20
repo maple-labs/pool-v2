@@ -35,6 +35,8 @@ interface IMapleGlobalsLike {
 
     function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
 
+    function migrationAdmin() external view returns (address migrationAdmin_);
+
     // TODO: Update name to coverAmountRequired in separate PR
     function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
@@ -91,7 +93,16 @@ interface ILiquidatorLike {
 
 }
 
+interface ILoanV3Like {
+
+    // TOOD: Investigate why this works, update to V3 - potentiall V2
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+
+}
+
 interface ILoanLike {
+
+    function acceptLender() external;
 
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
