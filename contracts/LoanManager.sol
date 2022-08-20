@@ -122,6 +122,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
         issuanceRate = issuanceRate + newRate_ - previousRate_;
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
 
     function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external {
@@ -182,6 +184,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
         issuanceRate = issuanceRate + newRate_ - previousRate_;
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
 
     function fund(address loanAddress_) external {
@@ -196,6 +200,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         principalOut += ILoanLike(loanAddress_).principal();
         issuanceRate += newRate_;
         domainEnd     = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
 
     /*************************/
@@ -224,6 +230,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         issuanceRate      += loanInfo_.issuanceRate;
 
         domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
+        emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
     function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external {
@@ -275,6 +284,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         } else {
             domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
         }
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
+        emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
     // TODO: Reorder funcs alphabetically.
@@ -330,6 +342,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (recoveredFunds_ != 0) {
             require(ERC20Helper.transfer(fundsAsset, ILoanLike(loan_).borrower(), recoveredFunds_));
         }
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
+        emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
     /// @dev Trigger Default on a loan
@@ -395,6 +410,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         } else {
             domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
         }
+
+        emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
+        emit UnrealizedLossesUpdated(unrealizedLosses);
 
         // TODO: need to clean up loan contract accounting, since it has defaulted.
     }

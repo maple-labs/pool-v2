@@ -123,16 +123,19 @@ contract Pool is IPool, ERC20 {
 
     function removeShares(uint256 shares_) external override returns (uint256 sharesReturned_) {
         sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, msg.sender);
+        emit SharesRemoved(msg.sender, shares_);
     }
 
     function requestWithdraw(uint256 assets_) external override returns (uint256 escrowShares_) {
         escrowShares_ = _requestRedeem(convertToExitShares(assets_));
+        emit WithdrawRequested(msg.sender, assets_);
     }
 
     // TODO: Add user and approvals
     // TODO: Revert on zero
     function requestRedeem(uint256 shares_) external override returns (uint256 escrowShares_) {
         escrowShares_ = _requestRedeem(shares_);
+        emit RedemptionRequested(msg.sender, shares_);
     }
 
     /**************************/

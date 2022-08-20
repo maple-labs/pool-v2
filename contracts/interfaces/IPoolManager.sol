@@ -5,6 +5,56 @@ import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
 
 interface IPoolManager is IPoolManagerStorage {
 
+    /**************/
+    /*** Events ***/
+    /**************/
+
+    event AllowedLenderSet(address indexed lender_, bool isValid_);
+
+    event CollateralLiquidationTriggered(address indexed loan);
+
+    event CollateralLiquidationFinished(address indexed loan_, uint256 unrealizedLosses_);
+
+    event CoverDeposited(uint256 amount_);
+
+    event CoverWithdrawn(uint256 amount_);
+
+    event DefaultWarningRemoved(address indexed loan_);
+
+    event DefaultWarningTriggered(address indexed loan_, uint256 newPaymentDueDate_);
+
+    event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
+
+    event LoanManagerAdded(address indexed loanManager_);
+
+    event LiquidityCapSet(uint256 liquidityCap_);
+
+    event LoanFunded(address indexed loan_, address indexed loanManager_, uint256 amount_);
+
+    event LoanManagerRemoved(address indexed loanManager_);
+
+    event LoanRefinanced(address indexed loan_, address refinancer_, uint256 deadline_, bytes[] calls_, uint256 principalIncrease_);
+
+    event OpenToPublic();
+
+    event PendingDelegateAccepted(address indexed previousDelegate_, address indexed newDelegate_);
+
+    event PendingDelegateSet(address indexed previousDelegate_, address indexed newDelegate_);
+
+    event PoolConfigured(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 delegateManagementFeeRate_);
+
+    event RedeemProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
+
+    event RedeemRequested(address indexed owner_, uint256 shares_);
+
+    event SetAsActive(bool active_);
+
+    event SharesRemoved(address indexed owner_, uint256 shares_);
+
+    event WithdrawalManagerSet(address indexed withdrawalManager_);
+
+    event WithdrawalProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
+
     /***************************/
     /*** Migration Functions ***/
     /***************************/

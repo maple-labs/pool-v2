@@ -78,14 +78,20 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         IMapleGlobalsLike(globals).transferOwnedPoolManager(poolDelegate, msg.sender);
 
+        emit PendingDelegateAccepted(poolDelegate, pendingPoolDelegate);
+
         poolDelegate        = pendingPoolDelegate;
         pendingPoolDelegate = address(0);
     }
 
     function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:SPA:NOT_PD");
+        address poolDelegate_ = poolDelegate;
+
+        require(msg.sender == poolDelegate_, "PM:SPA:NOT_PD");
 
         pendingPoolDelegate = pendingPoolDelegate_;
+
+        emit PendingDelegateSet(poolDelegate_, pendingPoolDelegate_);
     }
 
     /********************************/
@@ -103,6 +109,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         delegateManagementFeeRate   = delegateManagementFeeRate_;
 
         loanManagerList.push(loanManager_);
+
+        emit PoolConfigured(loanManager_, withdrawalManager_, liquidityCap_, delegateManagementFeeRate_);
     }
 
     function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
@@ -112,6 +120,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         isLoanManager[loanManager_] = true;
 
         loanManagerList.push(loanManager_);
+
+        emit LoanManagerAdded(loanManager_);
     }
 
     function removeLoanManager(address loanManager_) external override whenProtocolNotPaused {
@@ -126,24 +136,32 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         // Move last element to index of removed loan manager and pop last element.
         loanManagerList[i] = loanManagerList[loanManagerList.length - 1];
         loanManagerList.pop();
+
+        emit LoanManagerRemoved(loanManager_);
     }
 
     function setActive(bool active_) external override whenProtocolNotPaused {
         require(msg.sender == globals, "PM:SA:NOT_GLOBALS");
 
         active = active_;
+
+        emit SetAsActive(active_);
     }
 
     function setAllowedLender(address lender_, bool isValid_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SAL:NOT_PD");
 
         isValidLender[lender_] = isValid_;
+
+        emit AllowedLenderSet(lender_, isValid_);
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
 
         liquidityCap = liquidityCap_;  // TODO: Add range check call to globals
+
+        emit LiquidityCapSet(liquidityCap_);
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
@@ -151,18 +169,24 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         delegateManagementFeeRate = delegateManagementFeeRate_;
+
+        emit DelegateManagementFeeRateSet(delegateManagementFeeRate_);
     }
 
     function setOpenToPublic() external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SOTP:NOT_PD");
 
         openToPublic = true;
+
+        emit OpenToPublic();
     }
 
     function setWithdrawalManager(address withdrawalManager_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SWM:NOT_PD");
 
         withdrawalManager = withdrawalManager_;
+
+        emit WithdrawalManagerSet(withdrawalManager_);
     }
 
     /**********************/
@@ -193,6 +217,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "P:F:TRANSFER_FAIL");
 
         ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_, principalIncrease_);
+
+        emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
     }
 
     // TODO: Investigate why gas costs are so high for funding
@@ -217,11 +243,20 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(remainingLiquidity_ >= lockedLiquidity_, "PM:F:LOCKED_LIQUIDITY");
 
         ILoanManagerLike(loanManager_).fund(loan_);
+
+        emit LoanFunded(loan_, loanManager_, principal_);
     }
 
     /*****************************/
     /*** Liquidation Functions ***/
     /*****************************/
+
+    function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
+        ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_);
+
+        emit CollateralLiquidationTriggered(loan_);
+    }
 
     function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external override {
         bool isGovernor_ = msg.sender == governor();
@@ -229,11 +264,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate || isGovernor_, "PM:TDW:NOT_AUTHORIZED");
 
         ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, newPaymentDueDate_, isGovernor_);
-    }
 
-    function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
-        ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_);
+        emit DefaultWarningTriggered(loan_, newPaymentDueDate_);
     }
 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused {
@@ -255,6 +287,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         if (toPool_ != 0) {
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
+
+        emit CollateralLiquidationFinished(loan_, losses_);
     }
 
     function removeDefaultWarning(address loan_) external override whenProtocolNotPaused {
@@ -263,6 +297,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
 
         ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_, isGovernor_);
+
+        emit DefaultWarningRemoved(loan_);
     }
 
     /**********************/
@@ -272,17 +308,23 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function processRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused returns (uint256 redeemableShares_, uint256 resultingAssets_) {
         require(msg.sender == pool, "PM:PR:NOT_POOL");
         ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, shares_);
+
+        emit RedeemProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 
     function processWithdraw(uint256 assets_, address owner_) external override whenProtocolNotPaused returns (uint256 redeemableShares_, uint256 resultingAssets_) {
         require(msg.sender == pool, "PM:PW:NOT_POOL");
         ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, convertToExitShares(assets_));
+
+        emit WithdrawalProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 
     function removeShares(uint256 shares_, address owner_) external override whenProtocolNotPaused returns (uint256 sharesReturned_) {
         require(msg.sender == pool, "PM:RS:NOT_POOL");
 
         sharesReturned_ = IWithdrawalManagerLike(withdrawalManager).removeShares(shares_, owner_);
+
+        emit SharesRemoved(owner_, sharesReturned_);
     }
 
     function requestRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused {
@@ -291,6 +333,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IPoolLike(pool).approve(withdrawalManager, shares_);
 
         IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
+
+        emit RedeemRequested(owner_, shares_);
     }
 
     /***********************/
@@ -300,6 +344,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     // TODO: implement deposit cover with permit
     function depositCover(uint256 amount_) external override whenProtocolNotPaused {
         require(ERC20Helper.transferFrom(asset, msg.sender, poolDelegateCover, amount_), "PM:DC:TRANSFER_FAIL");
+
+        emit CoverDeposited(amount_);
     }
 
     function withdrawCover(uint256 amount_, address recipient_) external override whenProtocolNotPaused {
@@ -312,6 +358,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         recipient_ = recipient_ == address(0) ? msg.sender : recipient_;
 
         IPoolDelegateCoverLike(poolDelegateCover).moveFunds(amount_, recipient_);
+
+        emit CoverWithdrawn(amount_);
     }
 
     /**********************/
@@ -472,5 +520,3 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
 }
-
-// TODO: Add emission of events.

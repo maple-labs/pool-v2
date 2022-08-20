@@ -25,6 +25,22 @@ interface IPool is IERC20, IERC4626 {
      */
     event PendingOwnerSet(address indexed owner_, address indexed pendingOwner_);
 
+    /**
+     *  @dev   A new redemption request has been made.
+     *  @param owner_  The owner of shares.
+     *  @param shares_ The amount of shares_ requested to redeem.
+     */
+    event RedemptionRequested(address indexed owner_, uint256 shares_);
+
+    event SharesRemoved(address indexed owner_, uint256 shares_);
+
+    /**
+     *  @dev   A new withdrawal request has been made.
+     *  @param owner_  The owner of shares.
+     *  @param assets_ The amount of assets_ requested to withdraw.
+     */
+    event WithdrawRequested(address indexed owner_, uint256 assets_);
+
     /***********************/
     /*** State Variables ***/
     /***********************/
