@@ -21,17 +21,9 @@ import { LoanManager } from "../contracts/LoanManager.sol";
 import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 
-// import { ILoanManagerLike } from "./interfaces/Interfaces.sol";  // TODO: use ILoanManager once it's filled out.
+import { ILoanManagerStructs } from "./interfaces/ILoanManagerStructs.sol";
 
 import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
-
-interface ILoanManagerLike {
-
-    function loans(uint256 loanId_) external view returns (LoanManager.LoanInfo memory loanInfo_);  // Used to avoid stack too deep issues.
-
-    function liquidationInfo(address loan_) external view returns (LoanManager.LiquidationInfo memory liquidationInfo_);  // Used to avoid stack too deep issues.
-
-}
 
 // TODO: Can we add tests for 2 claims on the same loan without any payments between them?
 
@@ -90,7 +82,7 @@ contract LoanManagerBaseTest is TestUtils {
     }
 
     function _assertLiquidationInfo(
-        LoanManager.LiquidationInfo memory liquidationInfo,
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo,
         uint256 principal,
         uint256 interest,
         uint256 platformFees,
@@ -344,8 +336,6 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
     }
 
     function test_finishCollateralLiquidation_success_noCollateral() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         // Assume this is past the payment due date and grace period.
         vm.warp(START + 11_000);
 
@@ -366,7 +356,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),               1_000_080);
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -396,7 +386,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),               0);
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         // NOTE: Liquidation info is cleared after liquidations occur.
         _assertLiquidationInfo({
@@ -447,13 +437,11 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
     }
 
     function test_triggerDefaultWarning_success() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
         uint256 loanId_ = loanManager.loanIdOf(address(loan));
-        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         assertEq(loanInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
         assertEq(loanInfo.refinanceInterest,   0);
@@ -470,7 +458,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_010_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), loanId_);
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -483,7 +471,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
 
-        loanInfo = ILoanManagerLike(address(loanManager)).loans(loanId_);
+        loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         // Loan info doesn't change, in case we want to revert the default warning.
         assertEq(loanInfo.incomingNetInterest, 80);
@@ -502,7 +490,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
         assertEq(loanManager.unrealizedLosses(),               1_000_048);
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -531,7 +519,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),               1_000_048);
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -540,16 +528,16 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
+
+        assertTrue(!liquidationInfo.triggeredByGovernor);
     }
 
     function test_triggerDefaultWarning_success_byGovernor() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
         uint256 loanId_ = loanManager.loanIdOf(address(loan));
-        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         assertEq(loanInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
         assertEq(loanInfo.refinanceInterest,   0);
@@ -566,7 +554,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_010_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), loanId_);
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -581,7 +569,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
 
-        loanInfo = ILoanManagerLike(address(loanManager)).loans(loanId_);
+        loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         // Loan info doesn't change, in case we want to revert the default warning.
         assertEq(loanInfo.incomingNetInterest, 80);
@@ -600,7 +588,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
         assertEq(loanManager.unrealizedLosses(),               1_000_048);
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -683,17 +671,14 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
     }
 
     function test_removeDefaultWarning_successWithPD() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         uint256 loanId_ = loanManager.loanIdOf(address(loan));
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
-
-        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
 
         assertEq(loanInfo.incomingNetInterest, 80);
         assertEq(loanInfo.refinanceInterest,   0);
@@ -710,7 +695,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_006_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -740,7 +725,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_010_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -771,8 +756,6 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
     }
 
     function test_removeDefaultWarning_successWithGovernor() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         uint256 loanId_ = loanManager.loanIdOf(address(loan));
 
         // Warp 60% into the payment interval
@@ -781,7 +764,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
 
-        LoanManager.LoanInfo memory loanInfo = loanManager_.loans(loanId_);
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
         assertEq(loanInfo.incomingNetInterest, 80);
         assertEq(loanInfo.refinanceInterest,   0);
@@ -798,7 +781,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_006_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -828,7 +811,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         assertEq(loanManager.domainEnd(),                      5_010_000);
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -2817,8 +2800,6 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
     }
 
     function test_triggerCollateralLiquidation_success_noCollateral_inDefaultWarning() public {
-        ILoanManagerLike loanManager_ = ILoanManagerLike(address(loanManager));
-
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
@@ -2835,7 +2816,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),               1_000_048);
 
-        LoanManager.LiquidationInfo memory liquidationInfo = loanManager_.liquidationInfo(loan);
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -2858,7 +2839,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),               1_000_048);
 
-        liquidationInfo = loanManager_.liquidationInfo(loan);
+        liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,

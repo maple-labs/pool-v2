@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, console, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
@@ -408,7 +406,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         factory_ = _factory();
     }
 
-    function governor() public view returns (address governor_) {
+    function governor() public view override returns (address governor_) {
         governor_ = IMapleGlobalsLike(globals).governor();
     }
 

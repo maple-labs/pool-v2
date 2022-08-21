@@ -12,7 +12,7 @@ contract Pool is IPool, ERC20 {
     address public override asset;    // Underlying ERC-20 asset handled by the ERC-4626 contract.
     address public override manager;  // Address of the contract that manages administrative functionality.
 
-    uint256 private locked = 1;  // Used when checking for reentrancy.
+    uint256 private _locked = 1;  // Used when checking for reentrancy.
 
     constructor(
         address manager_,
@@ -45,13 +45,13 @@ contract Pool is IPool, ERC20 {
     }
 
     modifier nonReentrant() {
-        require(locked == 1, "P:LOCKED");
+        require(_locked == 1, "P:LOCKED");
 
-        locked = 2;
+        _locked = 2;
 
         _;
 
-        locked = 1;
+        _locked = 1;
     }
 
     /********************/

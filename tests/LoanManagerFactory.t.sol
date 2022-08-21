@@ -63,7 +63,6 @@ contract LoanManagerFactoryBase is TestUtils {
         LoanManager loanManager_ = LoanManager(factory.createInstance(abi.encode(address(pool)), "SALT"));
 
         assertEq(loanManager_.pool(),        address(pool));
-        assertEq(loanManager_.liquidator(),  address(0));
         assertEq(loanManager_.fundsAsset(),  address(1));
         assertEq(loanManager_.poolManager(), address(2));
     }

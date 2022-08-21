@@ -1,29 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-abstract contract LoanManagerStorage {
+import { ILoanManagerStorage } from "../interfaces/ILoanManagerStorage.sol";
 
-    address public fundsAsset;
-    address public liquidator;
-    address public pool;
-    address public poolManager;
-
-    uint256 public accountedInterest;
-    uint256 public domainStart;
-    uint256 public domainEnd;
-    uint256 public issuanceRate;
-    uint256 public loanCounter;
-    uint256 public loanWithEarliestPaymentDueDate;
-    uint256 public principalOut;
-    uint256 public unrealizedLosses;
-
-    mapping(address => uint256) public loanIdOf;
-    mapping(address => uint256) public allowedSlippageFor;
-    mapping(address => uint256) public minRatioFor;
-
-    mapping(address => LiquidationInfo) public liquidationInfo;
-
-    mapping(uint256 => LoanInfo) public loans;
+abstract contract LoanManagerStorage is ILoanManagerStorage {
 
     // TODO: Can this struct be optimized?
     struct LoanInfo {
@@ -45,5 +25,26 @@ abstract contract LoanManagerStorage {
         address liquidator;
         bool    triggeredByGovernor;
     }
+
+    address public override fundsAsset;
+    address public override pool;
+    address public override poolManager;
+
+    uint256 public override accountedInterest;
+    uint256 public override domainStart;
+    uint256 public override domainEnd;
+    uint256 public override issuanceRate;
+    uint256 public override loanCounter;
+    uint256 public override loanWithEarliestPaymentDueDate;
+    uint256 public override principalOut;
+    uint256 public override unrealizedLosses;
+
+    mapping(address => uint256) public override loanIdOf;
+    mapping(address => uint256) public override allowedSlippageFor;
+    mapping(address => uint256) public override minRatioFor;
+
+    mapping(address => LiquidationInfo) public override liquidationInfo;
+
+    mapping(uint256 => LoanInfo) public override loans;
 
 }

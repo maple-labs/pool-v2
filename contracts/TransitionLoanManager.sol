@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { ILoanManager } from "./interfaces/ILoanManager.sol";
+import { ITransitionLoanManager } from "./interfaces/ITransitionLoanManager.sol";
 import {
     IERC20Like,
     IMapleGlobalsLike,
@@ -17,35 +17,35 @@ import {
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
 // Carbon copy of LM, but witht modified fund/claim to allow for bootstrapping the pool.
-contract TransitionLoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
+contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals, LoanManagerStorage {
 
-    uint256 constant PRECISION  = 1e30;
-    uint256 constant SCALED_ONE = 1e18;
+    uint256 public override constant PRECISION  = 1e30;
+    uint256 public override constant SCALED_ONE = 1e18;
 
     /***************************/
     /*** Migration Functions ***/
     /***************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external {
+    function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "LM:M:FAILED");
     }
 
-    function setImplementation(address implementation_) external {
+    function setImplementation(address implementation_) external override {
         require(msg.sender == _factory(), "LM:SI:NOT_FACTORY");
 
         _setImplementation(implementation_);
     }
 
     // TODO: Investigate using migration admin here.
-    function upgrade(uint256 version_, bytes calldata arguments_) external {
+    function upgrade(uint256 version_, bytes calldata arguments_) external override {
         require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:U:NOT_PD");
 
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
     // TODO: Add unit tests
-    function add(address loanAddress_) external {
+    function add(address loanAddress_) external override {
         // TODO add ACL: globals.MIGRATION_ADMIN()?
 
         uint256 dueDate_ = ILoanLike(loanAddress_).nextPaymentDueDate();
@@ -62,7 +62,7 @@ contract TransitionLoanManager is ILoanManager, MapleProxiedInternals, LoanManag
     }
 
     // TODO: Add bulk removeOwnership function.
-    function takeOwnership(address[] calldata loanAddress_) external {
+    function takeOwnership(address[] calldata loanAddress_) external override {
         // TODO add ACL: globals.MIGRATION_ADMIN()?
 
         for (uint256 i = 0; i < loanAddress_.length; i++) {
@@ -161,18 +161,15 @@ contract TransitionLoanManager is ILoanManager, MapleProxiedInternals, LoanManag
     /*** View Functions ***/
     /**********************/
 
-    function assetsUnderManagement() public view virtual returns (uint256 assetsUnderManagement_) {
-        // TODO: Figure out better approach for this
-        uint256 accruedInterest = domainStart == block.timestamp ? 0 : getAccruedInterest();
-
-        return principalOut + accountedInterest + accruedInterest;
+    function assetsUnderManagement() public view override returns (uint256 assetsUnderManagement_) {
+        return principalOut + accountedInterest + getAccruedInterest();
     }
 
-    function factory() external view returns (address factory_) {
+    function factory() external view override returns (address factory_) {
         return _factory();
     }
 
-    function getAccruedInterest() public view returns (uint256 accruedInterest_) {
+    function getAccruedInterest() public view override returns (uint256 accruedInterest_) {
         uint256 issuanceRate_ = issuanceRate;
 
         if (issuanceRate_ == 0) return uint256(0);
@@ -181,26 +178,16 @@ contract TransitionLoanManager is ILoanManager, MapleProxiedInternals, LoanManag
         accruedInterest_ = issuanceRate_ * (_min(block.timestamp, domainEnd) - domainStart) / PRECISION;
     }
 
-    function globals() public view returns (address globals_) {
+    function globals() public view override returns (address globals_) {
         return IPoolManagerLike(poolManager).globals();
     }
 
-    function implementation() external view returns (address implementation_) {
+    function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
 
-    function isLiquidationActive(address loan_) public view returns (bool isActive_) {
-        address liquidatorAddress = liquidationInfo[loan_].liquidator;
-
-        return (liquidatorAddress != address(0)) && (IERC20Like(ILoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress) != uint256(0));
-    }
-
-    function poolDelegate() public view returns (address poolDelegate_) {
+    function poolDelegate() public view override returns (address poolDelegate_) {
         return IPoolManagerLike(poolManager).poolDelegate();
-    }
-
-    function mapleTreasury() public view returns (address treasury_) {
-        return IMapleGlobalsLike(globals()).mapleTreasury();
     }
 
     /*********************************/

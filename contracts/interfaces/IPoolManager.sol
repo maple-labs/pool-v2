@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
+import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
+
 import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
 
-interface IPoolManager is IPoolManagerStorage {
+interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     /**************/
     /*** Events ***/
@@ -54,16 +56,6 @@ interface IPoolManager is IPoolManagerStorage {
     event WithdrawalManagerSet(address indexed withdrawalManager_);
 
     event WithdrawalProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
-
-    /***************************/
-    /*** Migration Functions ***/
-    /***************************/
-
-    function migrate(address migrator_, bytes calldata arguments_) external;
-
-    function setImplementation(address implementation_) external;
-
-    function upgrade(uint256 version_, bytes calldata arguments_) external;
 
     /************************************/
     /*** Ownership Transfer Functions ***/
@@ -167,13 +159,12 @@ interface IPoolManager is IPoolManagerStorage {
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
 
-    function factory() external view returns (address factory_);
+    function governor() external view returns (address governor_);
 
     function hasSufficientCover() external view returns (bool hasSufficientCover_);
-
-    function implementation() external view returns (address implementation_);
 
     function totalAssets() external view returns (uint256 totalAssets_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
 }

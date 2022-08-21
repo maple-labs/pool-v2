@@ -9,9 +9,8 @@ import { ERC20BaseTest }   from "../modules/erc20/contracts/test/ERC20.t.sol";
 import { ERC20PermitTest } from "../modules/erc20/contracts/test/ERC20.t.sol";
 import { MockERC20 }       from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { PoolManager }            from "../contracts/PoolManager.sol";
-import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
-import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
+import { IPoolManager }        from "../contracts/interfaces/IPoolManager.sol";
+import { IPoolManagerFactory } from "../contracts/interfaces/IPoolManagerFactory.sol";
 
 import { ConstructablePoolManager, MockERC20Pool, MockGlobals } from "./mocks/Mocks.sol";
 
@@ -20,11 +19,11 @@ contract Pool_ERC20TestBase {
 
     address POOL_DELEGATE = address(new Address());
 
-    MockERC20          asset;
-    MockERC20Pool      pool;
-    MockGlobals        globals;
-    PoolManager        poolManager;
-    PoolManagerFactory factory;
+    MockERC20           asset;
+    MockERC20Pool       pool;
+    MockGlobals         globals;
+    IPoolManager        poolManager;
+    IPoolManagerFactory factory;
 
     function _setupPoolWithERC20() internal {
         asset       = new MockERC20("Asset", "AT", 18);

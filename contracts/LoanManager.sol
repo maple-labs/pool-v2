@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../modules/contract-test-utils/contracts/test.sol";
-
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { Liquidator }            from "../modules/liquidations/contracts/Liquidator.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -15,7 +13,6 @@ import {
     ILoanLike,
     IMapleGlobalsLike,
     IMapleLoanFeeManagerLike,
-    IPoolLike,
     IPoolManagerLike
 } from "./interfaces/Interfaces.sol";
 
@@ -23,40 +20,25 @@ import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
-    /**
-     * @dev   Emitted when `setAllowedSlippage` is called.
-     * @param collateralAsset_  Address of a collateral asset.
-     * @param newSlippage_      New value for `allowedSlippage`.
-     */
-    event AllowedSlippageSet(address collateralAsset_, uint256 newSlippage_);
-
-    /**
-     * @dev   Emitted when `setMinRatio` is called.
-     * @param collateralAsset_ Address of a collateral asset.
-     * @param newMinRatio_     New value for `minRatio`.
-     */
-    event MinRatioSet(address collateralAsset_, uint256 newMinRatio_);
-
-    uint256 constant PRECISION  = 1e30;
-    uint256 constant SCALED_ONE = 1e18;
-    uint256 constant ONE_HUNDRED_PERCENT_BASIS = 10_000;
+    uint256 public override constant PRECISION  = 1e30;
+    uint256 public override constant SCALED_ONE = 1e18;
 
     /***************************/
     /*** Migration Functions ***/
     /***************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external {
+    function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "LM:M:FAILED");
     }
 
-    function setImplementation(address implementation_) external {
+    function setImplementation(address implementation_) external override {
         require(msg.sender == _factory(), "LM:SI:NOT_FACTORY");
 
         _setImplementation(implementation_);
     }
 
-    function upgrade(uint256 version_, bytes calldata arguments_) external {
+    function upgrade(uint256 version_, bytes calldata arguments_) external override {
         address poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
 
         require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NOT_AUTHORIZED");
@@ -76,13 +58,15 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Administrative Functions ***/
     /********************************/
 
-    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external {
-        require(msg.sender == poolManager,                     "LM:SAS:NOT_POOL_MANAGER");
-        require(allowedSlippage_ <= ONE_HUNDRED_PERCENT_BASIS, "LM:SAS:INVALID_SLIPPAGE");
+    // TODO: Add test coverage
+    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external override {
+        require(msg.sender == poolManager,      "LM:SAS:NOT_POOL_MANAGER");
+        require(allowedSlippage_ <= SCALED_ONE, "LM:SAS:INVALID_SLIPPAGE");
+
         emit AllowedSlippageSet(collateralAsset_, allowedSlippageFor[collateralAsset_] = allowedSlippage_);
     }
 
-    function setMinRatio(address collateralAsset_, uint256 minRatio_) external {
+    function setMinRatio(address collateralAsset_, uint256 minRatio_) external override {
         require(msg.sender == poolManager, "LM:SMR:NOT_POOL_MANAGER");
         emit MinRatioSet(collateralAsset_, minRatioFor[collateralAsset_] = minRatio_);
     }
@@ -91,7 +75,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Loan Accounting Functions ***/
     /*********************************/
 
-    function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
+    function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override {
         require(msg.sender == poolManager, "LM:ANT:NOT_ADMIN");
 
         _advanceLoanAccounting();
@@ -126,7 +110,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
 
-    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external {
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external override {
         require(loanIdOf[msg.sender] != 0, "LM:C:NOT_LOAN");
 
         _advanceLoanAccounting();
@@ -188,7 +172,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
 
-    function fund(address loanAddress_) external {
+    function fund(address loanAddress_) external override {
         require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
 
         _advanceLoanAccounting();
@@ -208,7 +192,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Default Functions ***/
     /*************************/
 
-    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external {
+    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external override {
         require(msg.sender == poolManager, "LM:RDW:NOT_PM");
 
         _advanceLoanAccounting();
@@ -235,7 +219,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external {
+    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external override {
         require(msg.sender == poolManager, "LM:TDW:NOT_PM");
 
         _advanceLoanAccounting();
@@ -289,11 +273,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
-    // TODO: Reorder funcs alphabetically.
-    // TODO: Refactor `recoveredFunds` logic, especially in the case of multiple simultaneous liquidations.
-    // TODO: Look into aggregating the recovered funds into the liquidator and then pull those funds in this function.
-    // TODO: Look into making a single transfer to the treasury.
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 platformFees_) {
+    // TODO: Reorder functions alphabetically.
+    function finishCollateralLiquidation(address loan_) external override returns (uint256 remainingLosses_, uint256 platformFees_) {
         require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
         require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
 
@@ -331,24 +312,16 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         delete loanIdOf[loan_];
         delete loans[loanId_];
 
-        if (toTreasury_ != 0) {
-            require(ERC20Helper.transfer(fundsAsset, IMapleGlobalsLike(globals()).mapleTreasury(), toTreasury_));
-        }
-
-        if (toPool_ != 0) {
-            require(ERC20Helper.transfer(fundsAsset, pool, toPool_));
-        }
-
-        if (recoveredFunds_ != 0) {
-            require(ERC20Helper.transfer(fundsAsset, ILoanLike(loan_).borrower(), recoveredFunds_));
-        }
+        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset, IMapleGlobalsLike(globals()).mapleTreasury(), toTreasury_), "LM:FCL:MT_TRANSFER");
+        require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset, pool, toPool_),                                             "LM:FCL:POOL_TRANSFER");
+        require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset, ILoanLike(loan_).borrower(), recoveredFunds_),              "LM:FCL:B_TRANSFER");
 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
     /// @dev Trigger Default on a loan
-    function triggerCollateralLiquidation(address loan_) external {
+    function triggerCollateralLiquidation(address loan_) external override {
         require(msg.sender == poolManager, "LM:TCL:NOT_POOL_MANAGER");
 
         _advanceLoanAccounting();
@@ -361,8 +334,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         address collateralAsset = loan.collateralAsset();
 
+        address liquidator_;
+
         if (collateralAsset != fundsAsset && collateralAssetAmount != uint256(0)) {
-            liquidator = address(
+            liquidator_ = address(
                 new Liquidator({
                     owner_:           address(this),
                     collateralAsset_: collateralAsset,
@@ -373,8 +348,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 })
             );
 
-            require(ERC20Helper.transfer(collateralAsset,   liquidator, collateralAssetAmount), "LM:TD:CA_TRANSFER");
-            require(ERC20Helper.transfer(loan.fundsAsset(), liquidator, fundsAssetAmount),      "LM:TD:FA_TRANSFER");
+            require(ERC20Helper.transfer(collateralAsset,   liquidator_, collateralAssetAmount), "LM:TD:CA_TRANSFER");
+            require(ERC20Helper.transfer(loan.fundsAsset(), liquidator_, fundsAssetAmount),      "LM:TD:FA_TRANSFER");
         }
 
         if (!loan.isInDefaultWarning()) {
@@ -394,13 +369,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 principal:           principal_,
                 interest:            netInterest_,
                 platformFees:        platformManagementFee_ + platformServiceFee_,
-                liquidator:          liquidator,
+                liquidator:          liquidator_,
                 triggeredByGovernor: false
             });
-
         } else {
             // Liquidation info was already set in trigger default warning.
-            liquidationInfo[loan_].liquidator = liquidator;
+            liquidationInfo[loan_].liquidator = liquidator_;
         }
 
         // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
@@ -549,9 +523,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         require(ERC20Helper.transfer(fundsAsset, mapleTreasury(), platformFee_), "LM:CL:MT_TRANSFER");
 
-        if (hasSufficientCover_) {
-            require(ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_), "LM:CL:PD_TRANSFER");
-        }
+        require(!hasSufficientCover_ || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_), "LM:CL:PD_TRANSFER");
     }
 
     function _getLoanAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 loanIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
@@ -647,18 +619,15 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** View Functions ***/
     /**********************/
 
-    function assetsUnderManagement() public view virtual returns (uint256 assetsUnderManagement_) {
-        // TODO: Figure out better approach for this
-        uint256 accruedInterest = domainStart == block.timestamp ? 0 : getAccruedInterest();
-
-        return principalOut + accountedInterest + accruedInterest;
+    function assetsUnderManagement() public view virtual override returns (uint256 assetsUnderManagement_) {
+        return principalOut + accountedInterest + getAccruedInterest();
     }
 
-    function factory() external view returns (address factory_) {
+    function factory() external view override returns (address factory_) {
         return _factory();
     }
 
-    function getAccruedInterest() public view returns (uint256 accruedInterest_) {
+    function getAccruedInterest() public view override returns (uint256 accruedInterest_) {
         uint256 issuanceRate_ = issuanceRate;
 
         if (issuanceRate_ == 0) return uint256(0);
@@ -667,19 +636,19 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         accruedInterest_ = issuanceRate_ * (_min(block.timestamp, domainEnd) - domainStart) / PRECISION;
     }
 
-    function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) public view returns (uint256 returnAmount_) {
+    function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) public view override returns (uint256 returnAmount_) {
         address globals_ = globals();
 
         uint8 collateralAssetDecimals = IERC20Like(collateralAsset_).decimals();
 
         uint256 oracleAmount =
             swapAmount_
-                * IMapleGlobalsLike(globals_).getLatestPrice(collateralAsset_)        // Convert from `fromAsset` value.
-                * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())           // Convert to `toAsset` decimal precision.
-                * (ONE_HUNDRED_PERCENT_BASIS - allowedSlippageFor[collateralAsset_])  // Multiply by allowed slippage basis points
-                / IMapleGlobalsLike(globals_).getLatestPrice(fundsAsset)              // Convert to `toAsset` value.
-                / uint256(10) ** uint256(collateralAssetDecimals)                     // Convert from `fromAsset` decimal precision.
-                / ONE_HUNDRED_PERCENT_BASIS;                                          // Divide basis points for slippage.
+                * IMapleGlobalsLike(globals_).getLatestPrice(collateralAsset_) // Convert from `fromAsset` value.
+                * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())    // Convert to `toAsset` decimal precision.
+                * (SCALED_ONE - allowedSlippageFor[collateralAsset_])          // Multiply by allowed slippage basis points
+                / IMapleGlobalsLike(globals_).getLatestPrice(fundsAsset)       // Convert to `toAsset` value.
+                / uint256(10) ** uint256(collateralAssetDecimals)              // Convert from `fromAsset` decimal precision.
+                / SCALED_ONE;                                                  // Divide basis points for slippage.
 
         // TODO: Document precision of minRatioFor is decimal representation of min ratio in fundsAsset decimal precision.
         uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / (uint256(10) ** collateralAssetDecimals);
@@ -687,29 +656,29 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         return oracleAmount > minRatioAmount ? oracleAmount : minRatioAmount;
     }
 
-    function globals() public view returns (address globals_) {
+    function globals() public view override returns (address globals_) {
         return IPoolManagerLike(poolManager).globals();
     }
 
-    function governor() public view returns (address governor_) {
+    function governor() public view override returns (address governor_) {
         governor_ = IMapleGlobalsLike(globals()).governor();
     }
 
-    function implementation() external view returns (address implementation_) {
+    function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
 
-    function isLiquidationActive(address loan_) public view returns (bool isActive_) {
+    function isLiquidationActive(address loan_) public view override returns (bool isActive_) {
         address liquidatorAddress = liquidationInfo[loan_].liquidator;
 
         return (liquidatorAddress != address(0)) && (IERC20Like(ILoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress) != uint256(0));
     }
 
-    function poolDelegate() public view returns (address poolDelegate_) {
+    function poolDelegate() public view override returns (address poolDelegate_) {
         return IPoolManagerLike(poolManager).poolDelegate();
     }
 
-    function mapleTreasury() public view returns (address treasury_) {
+    function mapleTreasury() public view override returns (address treasury_) {
         return IMapleGlobalsLike(globals()).mapleTreasury();
     }
 
@@ -734,7 +703,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************/
 
     // TODO: Remove
-    function protocolPaused() external view returns (bool protocolPaused_) {
+    function protocolPaused() external view override returns (bool protocolPaused_) {
         return false;
     }
 

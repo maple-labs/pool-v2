@@ -4,40 +4,19 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { IPoolManager }            from "./interfaces/IPoolManager.sol";
-import { IPoolManagerInitializer } from "./interfaces/IPoolManagerInitializer.sol";
+import { IPoolDeployer }                             from "./interfaces/IPoolDeployer.sol";
+import { IPoolManager }                              from "./interfaces/IPoolManager.sol";
+import { IPoolManagerInitializer }                   from "./interfaces/IPoolManagerInitializer.sol";
+import { IMapleGlobalsLike, ILoanManagerInitializerLike } from "./interfaces/Interfaces.sol";
 
-import {
-    ILoanManagerInitializerLike,
-    IMapleGlobalsLike
-} from "./interfaces/Interfaces.sol";
+contract PoolDeployer is IPoolDeployer {
 
-contract PoolDeployer {
-
-    address globals;
+    address public override globals;
 
     constructor(address globals_) {
         globals = globals_;
     }
 
-    /**
-     *  @dev   Deploys a pool along with its dependencies.
-     *  @param factories_    Array of deployer addresses. Array used to avoid stack too deep issues.
-     *                         [0]: poolManagerFactory
-     *                         [1]: loanManagerFactory
-     *                         [2]: withdrawalManagerFactory
-     *  @param initializers_ Array of initializer addresses.
-     *                         [0]: poolManagerInitializer
-     *                         [1]: loanManagerInitializer
-     *                         [2]: withdrawalManagerInitializer
-     *  @param configParams_ Array of uint256 config parameters. Array used to avoid stack too deep issues.
-     *                         [0]: liquidityCap
-     *                         [1]: delegateManagementFeeRate
-     *                         [2]: coverAmountRequired
-     *                         [3]: cycleDuration
-     *                         [4]: windowDuration
-     *                         [5]: initialSupply
-     */
     function deployPool(
         address[3] memory factories_,
         address[3] memory initializers_,
@@ -45,7 +24,7 @@ contract PoolDeployer {
         string memory name_,
         string memory symbol_,
         uint256[6] memory configParams_
-    ) external returns (
+    ) external override returns (
         address poolManager_,
         address loanManager_,
         address withdrawalManager_
