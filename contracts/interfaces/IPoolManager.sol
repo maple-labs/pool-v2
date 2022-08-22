@@ -159,6 +159,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
 
+    function globals() external view returns (address globals_);
+
     function governor() external view returns (address governor_);
 
     function hasSufficientCover() external view returns (bool hasSufficientCover_);

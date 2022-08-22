@@ -15,43 +15,6 @@ interface IERC20Like {
 
 }
 
-interface IMapleGlobalsLike {
-
-    function getLatestPrice(address asset_) external view returns (uint256 price_);
-
-    function governor() external view returns (address governor_);
-
-    function isBorrower(address account_) external view returns (bool isBorrower_);
-
-    function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
-
-    function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
-
-    function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
-
-    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_) external view returns (bool isValid_);
-
-    function platformManagementFeeRate(address poolManager_) external view returns (uint256 platformManagementFeeRate_);
-
-    function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
-
-    function migrationAdmin() external view returns (address migrationAdmin_);
-
-    // TODO: Update name to coverAmountRequired in separate PR
-    function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
-
-    function mapleTreasury() external view returns (address mapleTreasury_);
-
-    function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
-
-    function protocolPaused() external view returns (bool protocolPaused_);
-
-    function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
-
-    function unscheduleCall(address caller_, bytes32 functionId_, bytes calldata callData_) external;
-
-}
-
 interface ILoanManagerLike {
 
     function acceptNewTerms(
@@ -153,9 +116,53 @@ interface ILoanLike {
     function prewarningPaymentDueDate() external view returns (uint256 prewarningPaymentDueDate_);
 }
 
+interface IMapleGlobalsLike {
+
+    function getLatestPrice(address asset_) external view returns (uint256 price_);
+
+    function governor() external view returns (address governor_);
+
+    function isBorrower(address account_) external view returns (bool isBorrower_);
+
+    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
+
+    function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
+
+    function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_);
+
+    function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
+
+    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_) external view returns (bool isValid_);
+
+    function platformManagementFeeRate(address poolManager_) external view returns (uint256 platformManagementFeeRate_);
+
+    function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
+
+    function migrationAdmin() external view returns (address migrationAdmin_);
+
+    function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
+
+    function mapleTreasury() external view returns (address mapleTreasury_);
+
+    function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
+
+    function protocolPaused() external view returns (bool protocolPaused_);
+
+    function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
+
+    function unscheduleCall(address caller_, bytes32 functionId_, bytes calldata callData_) external;
+
+}
+
 interface IMapleLoanFeeManagerLike  {
 
     function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee);
+
+}
+
+interface IMapleProxyFactoryLike {
+
+    function mapleGlobals() external view returns (address mapleGlobals_);
 
 }
 

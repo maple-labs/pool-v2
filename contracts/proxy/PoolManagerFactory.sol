@@ -16,4 +16,5 @@ contract PoolManagerFactory is IPoolManagerFactory, MapleProxyFactory {
 
         instance_ = super.createInstance(arguments_, salt_);
     }
+
 }

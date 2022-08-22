@@ -12,24 +12,24 @@ import { MockERC20 }       from "../modules/erc20/contracts/test/mocks/MockERC20
 import { IPoolManager }        from "../contracts/interfaces/IPoolManager.sol";
 import { IPoolManagerFactory } from "../contracts/interfaces/IPoolManagerFactory.sol";
 
-import { ConstructablePoolManager, MockERC20Pool, MockGlobals } from "./mocks/Mocks.sol";
+import { Pool } from "../contracts/Pool.sol";
 
-// TODO: Investigate using GlobalsBootstrapper for this base, there's an inheritance issue, most likely due to a different version of TestUtils being used in ERC20 module
+import { MockERC20Pool, MockGlobals, MockPoolManager } from "./mocks/Mocks.sol";
+
 contract Pool_ERC20TestBase {
 
-    address POOL_DELEGATE = address(new Address());
+    address pool;
 
-    MockERC20           asset;
-    MockERC20Pool       pool;
-    MockGlobals         globals;
-    IPoolManager        poolManager;
-    IPoolManagerFactory factory;
+    MockERC20 asset;
 
     function _setupPoolWithERC20() internal {
-        asset       = new MockERC20("Asset", "AT", 18);
-        globals     = new MockGlobals(address(this));
-        poolManager = new ConstructablePoolManager(address(globals), POOL_DELEGATE, address(asset));
-        pool        = new MockERC20Pool(address(poolManager), address(asset), "TKN", "Token");
+        asset = new MockERC20("Asset", "AT", 18);
+
+        MockPoolManager poolManager = new MockPoolManager();
+
+        poolManager.__setCanCall(true, "");
+
+        pool = address(new MockERC20Pool(address(poolManager), address(asset), "Pool", "POOL"));
     }
 
 }
@@ -41,10 +41,7 @@ contract Pool_ERC20Test is ERC20BaseTest, Pool_ERC20TestBase {
 
         _setupPoolWithERC20();
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        _token = MockERC20(address(pool));  // Pool does not contain `mint` and `burn` functions
+        _token = MockERC20(pool);  // Pool does not contain `mint` and `burn` functions
     }
 
 }
@@ -56,14 +53,11 @@ contract Pool_ERC20PermitTest is ERC20PermitTest, Pool_ERC20TestBase {
 
         _setupPoolWithERC20();
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        _token = MockERC20(poolManager.pool());  // Pool does not contain `mint` and `burn` functions
+        _token = MockERC20(pool);  // Pool does not contain `mint` and `burn` functions
     }
 
     function test_domainSeparator() public override {
-        assertEq(_token.DOMAIN_SEPARATOR(), 0x3f755d8ef1a1b85565f0b1f2101d5f21e141daf9df1e2dfc2693c2c62f2a5d27);
+        assertEq(_token.DOMAIN_SEPARATOR(), 0x233732c5451884c63767dff7d8430a974eef0cdba2cb822cd72da4c03deab397);
     }
 
 }

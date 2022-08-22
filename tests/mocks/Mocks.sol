@@ -20,18 +20,6 @@ interface ILiquidatorLike {
 
 }
 
-contract ConstructablePoolManager is PoolManager {
-
-    constructor(address globals_, address poolDelegate_, address asset_) {
-        require((globals = globals_)           != address(0), "PMI:I:ZERO_GLOBALS");
-        require((poolDelegate = poolDelegate_) != address(0), "PMI:I:ZERO_PD");
-        require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
-
-        pool = address(new Pool(address(this), asset_, address(0), 0, "PoolName", "PoolSymbol"));
-    }
-
-}
-
 contract MockProxied is MapleProxiedInternals {
 
     function factory() external view returns (address factory_) {
@@ -66,8 +54,11 @@ contract MockGlobals {
 
     uint256 public constant HUNDRED_PERCENT = 1e18;
 
+    bool internal _factorySet;
     bool internal _failTransferOwnedPoolManager;
     bool internal _isValidScheduledCall;
+
+    mapping(bytes32 => mapping(address => bool)) public _validFactory;
 
     address public governor;
     address public mapleTreasury;
@@ -111,6 +102,13 @@ contract MockGlobals {
         getLatestPrice[asset_] = latestPrice_;
     }
 
+    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_) {
+        isValid_ = true;
+        if (_factorySet) {
+            isValid_ = _validFactory[factoryId_][factory_];
+        }
+    }
+
     function setGovernor(address governor_) external {
         governor = governor_;
     }
@@ -143,6 +141,11 @@ contract MockGlobals {
 
     function setValidBorrower(address borrower_, bool isValid_) external {
         isBorrower[borrower_] = isValid_;
+    }
+
+    function setValidFactory(bytes32 factoryId_, address factory_, bool isValid_) external {
+        _factorySet = true;
+        _validFactory[factoryId_][factory_] = isValid_;
     }
 
     function setValidPoolDeployer(address poolDeployer_, bool isValid_) external {
@@ -486,6 +489,8 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     uint256 internal _redeemableAssets;
     uint256 internal _redeemableShares;
 
+    address public globals;
+
     uint256 public totalAssets;
     uint256 public unrealizedLosses;
 
@@ -677,7 +682,7 @@ contract MockMigrator {
 
 contract MockPoolManagerInitializer is MockMigrator {
 
-    function encodeArguments(address globals_, address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) external pure
+    function encodeArguments(address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) external pure
         returns (bytes memory encodedArguments_) {
 
         encodedArguments_ = new bytes(0);

@@ -9,8 +9,6 @@ interface IPoolManagerStorage {
 
     function configured() external view returns (bool configured_);
 
-    function globals() external view returns (address globals_);
-
     function isLoanManager(address loan_) external view returns (bool isLoanManager_);
 
     function isValidLender(address lender) external view returns (bool isValidLender_);

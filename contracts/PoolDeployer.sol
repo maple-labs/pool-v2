@@ -4,9 +4,9 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { IPoolDeployer }                             from "./interfaces/IPoolDeployer.sol";
-import { IPoolManager }                              from "./interfaces/IPoolManager.sol";
-import { IPoolManagerInitializer }                   from "./interfaces/IPoolManagerInitializer.sol";
+import { IPoolDeployer }                                  from "./interfaces/IPoolDeployer.sol";
+import { IPoolManager }                                   from "./interfaces/IPoolManager.sol";
+import { IPoolManagerInitializer }                        from "./interfaces/IPoolManagerInitializer.sol";
 import { IMapleGlobalsLike, ILoanManagerInitializerLike } from "./interfaces/Interfaces.sol";
 
 contract PoolDeployer is IPoolDeployer {
@@ -24,19 +24,26 @@ contract PoolDeployer is IPoolDeployer {
         string memory name_,
         string memory symbol_,
         uint256[6] memory configParams_
-    ) external override returns (
-        address poolManager_,
-        address loanManager_,
-        address withdrawalManager_
-    ) {
+    )
+        external override returns (
+            address poolManager_,
+            address loanManager_,
+            address withdrawalManager_
+        )
+    {
         address poolDelegate_ = msg.sender;
 
-        require(IMapleGlobalsLike(globals).isPoolDelegate(poolDelegate_), "PD:DP:INVALID_PD");
+        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals);
+
+        require(globals_.isPoolDelegate(poolDelegate_),  "PD:DP:INVALID_PD");
+        require(globals_.isFactory("POOL_MANAGER",       factories_[0]), "PD:DP:INVALID_PM_FACTORY");
+        require(globals_.isFactory("LOAN_MANAGER",       factories_[1]), "PD:DP:INVALID_LM_FACTORY");
+        require(globals_.isFactory("WITHDRAWAL_MANAGER", factories_[2]), "PD:DP:INVALID_WM_FACTORY");
 
         bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
 
         // Deploy Pool Manager
-        bytes memory arguments = IPoolManagerInitializer(initializers_[0]).encodeArguments(globals, poolDelegate_, asset_, configParams_[5], name_, symbol_);
+        bytes memory arguments = IPoolManagerInitializer(initializers_[0]).encodeArguments(poolDelegate_, asset_, configParams_[5], name_, symbol_);
         poolManager_           = IMapleProxyFactory(factories_[0]).createInstance(arguments, salt_);
         address pool_          = IPoolManager(poolManager_).pool();
 
