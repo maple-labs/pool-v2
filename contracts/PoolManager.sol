@@ -325,9 +325,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function requestRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused {
-        require(msg.sender == pool, "PM:RR:NOT_POOL");
+        address pool_ = pool;
 
-        IPoolLike(pool).approve(withdrawalManager, shares_);
+        require(msg.sender == pool_, "PM:RR:NOT_POOL");
+
+        require(ERC20Helper.approve(pool_, withdrawalManager, shares_), "PM:RR:APPROVE_FAIL");
 
         IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
 

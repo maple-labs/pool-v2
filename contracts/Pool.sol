@@ -29,7 +29,7 @@ contract Pool is IPool, ERC20 {
         _mint(destination_, initialSupply_);
 
         asset = asset_;
-        ERC20(asset_).approve(manager_, type(uint256).max);
+        require(ERC20Helper.approve(asset_, manager_, type(uint256).max), "P:C:FAILED_APPROVE");
     }
 
     /*****************/

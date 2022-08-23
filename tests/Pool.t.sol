@@ -146,7 +146,7 @@ contract ConstructorTests is PoolBase {
 
         address poolDelegate = address(new Address());
 
-        vm.expectRevert("ERC20:A:REVERT");
+        vm.expectRevert("P:C:FAILED_APPROVE");
         new Pool(poolDelegate, asset, address(0), 0, "Pool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
