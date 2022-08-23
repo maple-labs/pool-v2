@@ -40,8 +40,8 @@ contract LoanManagerBaseTest is TestUtils {
 
     address feeManager = address(new MockMapleLoanFeeManager());
 
-    uint256 platformManagementFeeRate = 0.05e18;
-    uint256 delegateManagementFeeRate = 0.15e18;
+    uint256 platformManagementFeeRate = 5_0000;
+    uint256 delegateManagementFeeRate = 15_0000;
 
     MockERC20       asset;
     MockGlobals     globals;
@@ -207,7 +207,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 incomingNetInterest_, uint256 refinanceInterest_, , uint256 startDate_, uint256 paymentDueDate_, , ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
+        ( , , , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -3063,18 +3063,18 @@ contract FundLoanTests is LoanManagerBaseTest {
             uint256 delegateManagementFeeRate_
         ) = loanManager.loans(1);
 
-        assertEq(incomingNetInterest_,         0);
-        assertEq(refinanceInterest_,           0);
-        assertEq(startDate_,                   0);
-        assertEq(paymentDueDate_,              0);
-        assertEq(platformManagementFeeRate_,   0);
-        assertEq(delegateManagementFeeRate_,   0);
+        assertEq(incomingNetInterest_,       0);
+        assertEq(refinanceInterest_,         0);
+        assertEq(startDate_,                 0);
+        assertEq(paymentDueDate_,            0);
+        assertEq(platformManagementFeeRate_, 0);
+        assertEq(delegateManagementFeeRate_, 0);
 
-        assertEq(loanManager.principalOut(),        0);
-        assertEq(loanManager.accountedInterest(),   0);
-        assertEq(loanManager.issuanceRate(),        0);
-        assertEq(loanManager.domainEnd(), 0);
-        assertEq(loanManager.domainStart(),         0);
+        assertEq(loanManager.principalOut(),      0);
+        assertEq(loanManager.accountedInterest(), 0);
+        assertEq(loanManager.issuanceRate(),      0);
+        assertEq(loanManager.domainEnd(),         0);
+        assertEq(loanManager.domainStart(),       0);
 
         loan.__setPrincipal(principalRequested);  // Simulate intermediate state from funding
 
@@ -3083,15 +3083,15 @@ contract FundLoanTests is LoanManagerBaseTest {
 
         assertEq(loanManager.loanIdOf(address(loan)), 1);
 
-        (   ,
+        (
             ,
-            incomingNetInterest_,
-            refinanceInterest_,
             ,
+            platformManagementFeeRate_,
+            delegateManagementFeeRate_,
             startDate_,
             paymentDueDate_,
-            platformManagementFeeRate_,
-            delegateManagementFeeRate_
+            incomingNetInterest_,
+            refinanceInterest_,
         ) = loanManager.loans(1);
 
         // Check loan information
@@ -3104,7 +3104,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         assertEq(loanManager.principalOut(),        principalRequested);
         assertEq(loanManager.accountedInterest(),   0);
         assertEq(loanManager.issuanceRate(),        0.8e46);  // 0.7e18 * 1e30 / 100 = 0.7e46
-        assertEq(loanManager.domainEnd(), START + 100);
+        assertEq(loanManager.domainEnd(),           START + 100);
         assertEq(loanManager.domainStart(),         START);
     }
 
@@ -3658,8 +3658,8 @@ contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
     }
 
     function test_queueNextLoanPayment_fees() external {
-        uint256 platformManagementFeeRate_ = 0.75e18;
-        uint256 delegateManagementFeeRate_ = 0.50e18;
+        uint256 platformManagementFeeRate_ = 75_0000;
+        uint256 delegateManagementFeeRate_ = 50_0000;
 
         MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
@@ -3667,16 +3667,15 @@ contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
         loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
 
         uint256 loanId = loanManager.loanIdOf(address(loan));
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId);
 
-        ( , , , , , , , uint256 platformManagementFeeRate, uint256 delegateManagementFeeRate ) = loanManager.loans(loanId);
-
-        assertEq(platformManagementFeeRate, 0.75e18);
-        assertEq(delegateManagementFeeRate, 0.25e18);  // Gets reduced to 0.25 so sum is less than 100%
+        assertEq(loanInfo.platformManagementFeeRate, 75_0000);
+        assertEq(loanInfo.delegateManagementFeeRate, 25_0000);  // Gets reduced to 0.25 so sum is less than 100%
     }
 
     function testFuzz_queueNextLoanPayment_fees(uint256 platformManagementFeeRate_, uint256 delegateManagementFeeRate_) external {
-        platformManagementFeeRate_ = constrictToRange(platformManagementFeeRate_, 0, 1e18);
-        delegateManagementFeeRate_ = constrictToRange(delegateManagementFeeRate_, 0, 1e18);
+        platformManagementFeeRate_ = constrictToRange(platformManagementFeeRate_, 0, 100_0000);
+        delegateManagementFeeRate_ = constrictToRange(delegateManagementFeeRate_, 0, 100_0000);
 
         MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
@@ -3684,11 +3683,11 @@ contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
         loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
 
         uint256 loanId = loanManager.loanIdOf(address(loan));
+        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId);
 
-        ( , , , , , , , uint256 platformManagementFeeRate, uint256 delegateManagementFeeRate ) = loanManager.loans(loanId);
+        assertEq(loanInfo.platformManagementFeeRate, platformManagementFeeRate_);
 
-        assertEq(platformManagementFeeRate, platformManagementFeeRate_);
-        assertTrue(platformManagementFeeRate + delegateManagementFeeRate <= 1e18);
+        assertTrue(loanInfo.platformManagementFeeRate + loanInfo.delegateManagementFeeRate <= 100_0000);
     }
 
 }

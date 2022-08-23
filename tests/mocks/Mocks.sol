@@ -376,7 +376,7 @@ contract MockLoanManager is LoanManagerStorage {
     uint256 poolAmount;
 
     uint256 remainingLosses;
-    uint256 increasedUnrealizedLosses;
+    uint128 increasedUnrealizedLosses;
     uint256 serviceFee;  // Management + Platform
 
     constructor(address pool_, address treasury_, address poolDelegate_) {
@@ -440,17 +440,21 @@ contract MockLoanManager is LoanManagerStorage {
     }
 
     function __setTriggerCollateralLiquidationReturn(uint256 increasedUnrealizedLosses_) external {
-        increasedUnrealizedLosses = increasedUnrealizedLosses_;
+        increasedUnrealizedLosses = _uint128(increasedUnrealizedLosses_);
     }
 
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
-        unrealizedLosses = unrealizedLosses_;
+        unrealizedLosses = _uint128(unrealizedLosses_);
     }
+
+    function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
+        require(value_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        castedValue_ = uint128(value_);
+    }
+
 }
 
-contract MockLoanManagerMigrator {
-
-    address fundsAsset;
+contract MockLoanManagerMigrator is LoanManagerStorage {
 
     fallback() external {
         fundsAsset = abi.decode(msg.data, (address));

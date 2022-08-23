@@ -53,7 +53,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     function PRECISION() external returns (uint256 precision_);
 
-    function SCALED_ONE() external returns (uint256 scaledOne_);
+    function HUNDRED_PERCENT() external returns (uint256 hundredPercent_);
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 

@@ -8,7 +8,7 @@ import { LoanManager } from "../../contracts/LoanManager.sol";
 contract LoanManagerHarness is LoanManager {
 
     function addLoanToList(address loanAddress_, LoanInfo memory loanInfo_) external {
-        uint256 loanId_ = loanIdOf[loanAddress_] = ++loanCounter;
+        uint24 loanId_ = loanIdOf[loanAddress_] = ++loanCounter;
 
         _addLoanToList(loanId_, loanInfo_);
     }
@@ -22,7 +22,7 @@ contract LoanManagerHarness is LoanManager {
     }
 
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
-        unrealizedLosses = unrealizedLosses_;
+        unrealizedLosses = _uint128(unrealizedLosses_);
     }
 
     function __queueNextLoanPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) external returns (uint256 newRate_) {

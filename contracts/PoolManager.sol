@@ -22,7 +22,7 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
 contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
 
-    uint256 public constant HUNDRED_PERCENT = 1e18;
+    uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision
 
     /*****************/
     /*** Modifiers ***/

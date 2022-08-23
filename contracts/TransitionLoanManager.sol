@@ -55,9 +55,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         uint256 startDate_ = dueDate_ - ILoanLike(loanAddress_).paymentInterval();
         uint256 newRate_   = _queueNextLoanPayment(loanAddress_, startDate_, dueDate_);
 
-        principalOut += ILoanLike(loanAddress_).principal();
+        principalOut += _uint128(ILoanLike(loanAddress_).principal());
         issuanceRate += newRate_;
-        domainStart   = block.timestamp;
+        domainStart   = _uint48(block.timestamp);
         domainEnd     = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
     }
 
@@ -74,9 +74,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /*** Internal Loan Sorting Functions ***/
     /***************************************/
 
-    function _addLoanToList(uint256 loanId_, LoanInfo memory loan_) internal {
-        uint256 current = 0;
-        uint256 next    = loanWithEarliestPaymentDueDate;
+    function _addLoanToList(uint24 loanId_, LoanInfo memory loan_) internal {
+        uint24 current = 0;
+        uint24 next    = loanWithEarliestPaymentDueDate;
 
         while (next != 0 && loan_.paymentDueDate >= loans[next].paymentDueDate) {
             current = next;
@@ -99,7 +99,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         loans[loanId_] = loan_;
     }
 
-    function _removeLoanFromList(uint256 previous_, uint256 next_, uint256 loanId_) internal {
+    function _removeLoanFromList(uint24 previous_, uint24 next_, uint24 loanId_) internal {
         if (loanWithEarliestPaymentDueDate == loanId_) {
             loanWithEarliestPaymentDueDate = next_;
         }
@@ -125,6 +125,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         ( , uint256 incomingNetInterest_ ) = ILoanV3Like(loan_).getNextPaymentBreakdown();
 
         // Some of the loans aren't upgraded to have the refinance interest and even if they did, the refinance interest doesn't matter for the transition loan manager.
+        // TODO: Investigate if having refinance interest is possible.
         uint256 refinanceInterest_ = 0;
 
         // Interest used for issuance rate calculation is:
@@ -134,27 +135,25 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         newRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
         // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-        uint256 loanId_ = loanIdOf[loan_] = ++loanCounter;
+        uint24 loanId_ = loanIdOf[loan_] = ++loanCounter;
 
         // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
         _addLoanToList(loanId_, LoanInfo({
-            // Previous and next will be overriden within _addLoan function
-            previous:                  0,
-            next:                      0,
-            incomingNetInterest:       incomingNetInterest_,
-            refinanceInterest:         refinanceInterest_,
-            issuanceRate:              newRate_,
-            startDate:                 startDate_,
-            paymentDueDate:            nextPaymentDueDate_,
-            platformManagementFeeRate: platformManagementFeeRate_,
-            delegateManagementFeeRate: delegateManagementFeeRate_
+            // Previous and next will be overridden within _addLoan function.
+            previous:                  uint24(0),
+            next:                      uint24(0),
+            platformManagementFeeRate: _uint24(platformManagementFeeRate_),
+            delegateManagementFeeRate: _uint24(delegateManagementFeeRate_),
+            startDate:                 _uint48(startDate_),
+            paymentDueDate:            _uint48(nextPaymentDueDate_),
+            incomingNetInterest:       _uint128(incomingNetInterest_),
+            refinanceInterest:         _uint128(refinanceInterest_),
+            issuanceRate:              newRate_
         }));
 
-        // Update the accounted interest to reflect what is present in the loan.
-        accountedInterest += refinanceInterest_;
 
-        // Discretely update accrued interest in this payment interval.
-        accountedInterest += newRate_ * (block.timestamp - startDate_) / PRECISION;
+        // Update the accounted interest to reflect what is present in the loan.
+        accountedInterest += _uint112(refinanceInterest_) + _uint112(newRate_ * (block.timestamp - startDate_) / PRECISION);
     }
 
     /**********************/
@@ -200,6 +199,36 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         return a_ < b_ ? a_ : b_;
+    }
+
+    function _uint24(uint256 value_) internal pure returns (uint24 castedValue_) {
+        require(value_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
+        castedValue_ = uint24(value_);
+    }
+
+    function _uint48(uint256 value_) internal pure returns (uint32 castedValue_) {
+        require(value_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
+        castedValue_ = uint32(value_);
+    }
+
+    function _uint96(uint256 value_) internal pure returns (uint96 castedValue_) {
+        require(value_ <= type(uint96).max, "LM:UINT96_CAST_OOB");
+        castedValue_ = uint96(value_);
+    }
+
+    function _uint112(uint256 value_) internal pure returns (uint112 castedValue_) {
+        require(value_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
+        castedValue_ = uint112(value_);
+    }
+
+    function _uint120(uint256 value_) internal pure returns (uint120 castedValue_) {
+        require(value_ <= type(uint120).max, "LM:UINT120_CAST_OOB");
+        castedValue_ = uint120(value_);
+    }
+
+    function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
+        require(value_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        castedValue_ = uint128(value_);
     }
 
 }

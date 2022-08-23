@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
+import { console } from "../modules/contract-test-utils/contracts/test.sol";
+
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { Liquidator }            from "../modules/liquidations/contracts/Liquidator.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -20,8 +22,8 @@ import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
-    uint256 public override constant PRECISION  = 1e30;
-    uint256 public override constant SCALED_ONE = 1e18;
+    uint256 public override constant PRECISION       = 1e30;
+    uint256 public override constant HUNDRED_PERCENT = 1e6;  // 100_0000%
 
     /***************************/
     /*** Migration Functions ***/
@@ -61,7 +63,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     // TODO: Add test coverage
     function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external override {
         require(msg.sender == poolManager,      "LM:SAS:NOT_POOL_MANAGER");
-        require(allowedSlippage_ <= SCALED_ONE, "LM:SAS:INVALID_SLIPPAGE");
+        require(allowedSlippage_ <= HUNDRED_PERCENT, "LM:SAS:INVALID_SLIPPAGE");
 
         emit AllowedSlippageSet(collateralAsset_, allowedSlippageFor[collateralAsset_] = allowedSlippage_);
     }
@@ -91,9 +93,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 principal_ = ILoanLike(loan_).principal();
 
         if (principal_ > previousPrincipal) {
-            principalOut += principal_ - previousPrincipal;
+            principalOut += _uint128(principal_ - previousPrincipal);
         } else {
-            principalOut -= previousPrincipal - principal_;
+            principalOut -= _uint128(previousPrincipal - principal_);
         }
 
         uint256 newRate_ = _queueNextLoanPayment(loan_, block.timestamp, ILoanLike(loan_).nextPaymentDueDate());
@@ -105,7 +107,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
         // and the commencement of the new rate for this loan.
-        issuanceRate = issuanceRate + newRate_ - previousRate_;
+        issuanceRate = _uint128(issuanceRate + newRate_ - previousRate_);
 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
     }
@@ -149,7 +151,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
                 ( uint256 accountedInterestIncrease_, ) = _accountToEndOfLoan(loanId_, loans[loanId_].issuanceRate, previousPaymentDueDate_, nextPaymentDueDate_);
 
-                accountedInterest += accountedInterestIncrease_;
+                accountedInterest += _uint112(accountedInterestIncrease_);
 
                 // `newRate_` always equals `issuanceRateReduction_`
                 newRate_ = 0;
@@ -158,7 +160,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             // If the current timestamp is greater than the previous payment due date, then the next payment must be
             // PARTIALLY accounted for, using the new loan's issuance rate and the time passed in the new interval.
             else if (block.timestamp > previousPaymentDueDate_) {
-                accountedInterest += (block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION;
+                accountedInterest += _uint112((block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION);
             }
         }
 
@@ -181,7 +183,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         uint256 newRate_ = _queueNextLoanPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate());
 
-        principalOut += ILoanLike(loanAddress_).principal();
+        principalOut += _uint128(ILoanLike(loanAddress_).principal());
         issuanceRate += newRate_;
         domainEnd     = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
 
@@ -199,7 +201,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ILoanLike(loan_).removeDefaultWarning();
 
-        uint256 loanId_ = loanIdOf[loan_];
+        uint24 loanId_ = loanIdOf[loan_];
         LoanInfo memory loanInfo_ = loans[loanId_];
 
         // TODO: Storage is also read within _revertDefaultWarning function, so can be optimized. But the following reversion should be in this function (JG's opinion)
@@ -210,7 +212,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _addLoanToList(loanId_, loanInfo_);
 
         // Discretely update missing interest as if loan was always part of the list.
-        accountedInterest += _getLoanAccruedInterest(loanInfo_.startDate, domainStart, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
+        accountedInterest += _uint112(_getLoanAccruedInterest(loanInfo_.startDate, domainStart, loanInfo_.issuanceRate, loanInfo_.refinanceInterest));
         issuanceRate      += loanInfo_.issuanceRate;
 
         domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
@@ -244,17 +246,17 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 accruedGrossInterest_         = _getAccruedAmount(grossInterest_,                loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
         uint256 accruedNetInterest_           = _getAccruedAmount(loanInfo_.incomingNetInterest, loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
         uint256 accruedPlatformServiceFee_    = _getAccruedAmount(platformServiceFee_,           loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
-        uint256 accruedPlatformManagementFee_ = accruedGrossInterest_ * loanInfo_.platformManagementFeeRate / SCALED_ONE;
+        uint256 accruedPlatformManagementFee_ = accruedGrossInterest_ * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
 
         liquidationInfo[loan_] = LiquidationInfo({
-            principal:           principal_,
-            interest:            accruedNetInterest_,
-            platformFees:        accruedPlatformManagementFee_ + accruedPlatformServiceFee_,
-            liquidator:          address(0),  // This will be set during triggerCollateralLiquidation.
-            triggeredByGovernor: isGovernor_
+            triggeredByGovernor: isGovernor_,
+            principal:           _uint128(principal_),
+            interest:            _uint120(accruedNetInterest_),
+            platformFees:        _uint96(accruedPlatformManagementFee_ + accruedPlatformServiceFee_),
+            liquidator:          address(0)  // This will be set during triggerCollateralLiquidation.
         });
 
-        unrealizedLosses += (principal_ + accruedNetInterest_);
+        unrealizedLosses += _uint128(principal_ + accruedNetInterest_);
 
         // Update `loanInfo_` with new values reflecting a loan that is expected to default.
         _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
@@ -264,7 +266,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
         // Otherwise, set it to the next upcoming payment.
         if (loanWithEarliestPaymentDueDate == 0) {
-            domainEnd = block.timestamp;
+            domainEnd = _uint48(block.timestamp);
         } else {
             domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
         }
@@ -290,7 +292,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         platformFees_    = liquidationInfo_.platformFees;
 
         // Realize the loss following the liquidation.
-        unrealizedLosses -= remainingLosses_;
+        unrealizedLosses -= _uint128(remainingLosses_);
 
         uint256 toTreasury_ = _min(recoveredFunds_, platformFees_);
 
@@ -306,7 +308,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         principalOut -= liquidationInfo_.principal;
 
         // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
-        accountedInterest -= liquidationInfo_.interest;
+        accountedInterest -= _uint112(liquidationInfo_.interest);
 
         delete liquidationInfo[loan_];
         delete loanIdOf[loan_];
@@ -327,7 +329,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _advanceLoanAccounting();
 
         ILoanLike loan            = ILoanLike(loan_);
-        uint256 loanId_           = loanIdOf[loan_];
+        uint24 loanId_            = loanIdOf[loan_];
         LoanInfo memory loanInfo_ = loans[loanId_];
 
         ( uint256 collateralAssetAmount, uint256 fundsAssetAmount ) = loan.repossess(address(this));
@@ -356,21 +358,21 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             uint256 principal_             = ILoanLike(loan_).principal();
             ( , uint256 grossInterest_, )  = ILoanLike(loan_).getNextPaymentBreakdown();
             uint256 netInterest_           = _getNetInterest(grossInterest_, loanInfo_.delegateManagementFeeRate + loanInfo_.platformManagementFeeRate);
-            uint256 platformManagementFee_ = grossInterest_ * loanInfo_.platformManagementFeeRate / SCALED_ONE;
+            uint256 platformManagementFee_ = grossInterest_ * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
             uint256 platformServiceFee_    = IMapleLoanFeeManagerLike(ILoanLike(loan_).feeManager()).platformServiceFee(loan_);
 
             // Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
-            unrealizedLosses += principal_ + netInterest_;
+            unrealizedLosses += _uint128(principal_ + netInterest_);
 
             // Loan Info is removed from actively accruing payments, because this function confirms that the payment will not be made and that it is recognized as a loss.
             _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
 
             liquidationInfo[loan_] = LiquidationInfo({
-                principal:           principal_,
-                interest:            netInterest_,
-                platformFees:        platformManagementFee_ + platformServiceFee_,
-                liquidator:          liquidator_,
-                triggeredByGovernor: false
+                triggeredByGovernor: false,
+                principal:           _uint128(principal_),
+                interest:            _uint120(netInterest_),
+                platformFees:        _uint96(platformManagementFee_ + platformServiceFee_),
+                liquidator:          liquidator_
             });
         } else {
             // Liquidation info was already set in trigger default warning.
@@ -380,7 +382,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
         // Otherwise, set it to the next upcoming payment.
         if (loanWithEarliestPaymentDueDate == 0) {
-            domainEnd = block.timestamp;
+            domainEnd = _uint48(block.timestamp);
         } else {
             domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
         }
@@ -396,9 +398,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /***************************************/
 
     // TODO: Should domain end be set here to the end date of loanWithEarliestPaymentDueDate.
-    function _addLoanToList(uint256 loanId_, LoanInfo memory loan_) internal {
-        uint256 current = 0;
-        uint256 next    = loanWithEarliestPaymentDueDate;
+    function _addLoanToList(uint24 loanId_, LoanInfo memory loan_) internal {
+        uint24 current = uint24(0);
+        uint24 next    = loanWithEarliestPaymentDueDate;
 
         while (next != 0 && loan_.paymentDueDate >= loans[next].paymentDueDate) {
             current = next;
@@ -421,7 +423,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         loans[loanId_] = loan_;
     }
 
-    function _removeLoanFromList(uint256 previous_, uint256 next_, uint256 loanId_) internal {
+    function _removeLoanFromList(uint24 previous_, uint24 next_, uint256 loanId_) internal {
         if (loanWithEarliestPaymentDueDate == loanId_) {
             loanWithEarliestPaymentDueDate = next_;
         }
@@ -492,9 +494,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
 
         // Update global accounting.
-        accountedInterest = accountedInterest_;
-        domainStart       = domainStart_;
-        domainEnd         = domainEnd_;
+        accountedInterest = _uint112(accountedInterest_);
+        domainStart       = _uint24(domainStart_);
+        domainEnd         = _uint24(domainEnd_);
         issuanceRate      = issuanceRate_;
     }
 
@@ -503,21 +505,21 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _accountPreviousDomains();
 
         // Accrue interest to the current timestamp.
-        accountedInterest += getAccruedInterest();
-        domainStart        = block.timestamp;
+        accountedInterest += _uint112(getAccruedInterest());
+        domainStart        = _uint48(block.timestamp);
     }
 
     // TODO: Change return vars after management fees are properly implemented.
     function _claimLoan(address loanAddress_, uint256 principal_, uint256 interest_) internal {
-        principalOut -= principal_;
+        principalOut -= _uint128(principal_);
 
         uint256 loanId_ = loanIdOf[loanAddress_];
 
         bool hasSufficientCover_ = IPoolManagerLike(poolManager).hasSufficientCover();
 
-        uint256 platformFee_ = interest_ * loans[loanId_].platformManagementFeeRate / SCALED_ONE;
+        uint256 platformFee_ = interest_ * loans[loanId_].platformManagementFeeRate / HUNDRED_PERCENT;
 
-        uint256 delegateFee_ = hasSufficientCover_ ? interest_ * loans[loanId_].delegateManagementFeeRate / SCALED_ONE : 0;
+        uint256 delegateFee_ = hasSufficientCover_ ? interest_ * loans[loanId_].delegateManagementFeeRate / HUNDRED_PERCENT : 0;
 
         require(ERC20Helper.transfer(fundsAsset, pool, principal_ + interest_ - platformFee_ - delegateFee_), "LM:CL:POOL_TRANSFER");
 
@@ -551,7 +553,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 : loanInfo_.incomingNetInterest;
 
         // Add any interest owed prior to a refinance and reduce AUM accordingly.
-        accountedInterest -= (loanAccruedInterest_ + loanInfo_.refinanceInterest);
+        accountedInterest -= _uint24(loanAccruedInterest_ + loanInfo_.refinanceInterest);
 
         // Loan Info is deleted, because the payment has been fully recognized in the pool accounting, and will never be used again.
         delete loanIdOf[loan_];
@@ -570,8 +572,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function _revertDefaultWarning(address loan_) internal {
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
 
-        accountedInterest -= liquidationInfo_.interest;
-        unrealizedLosses  -= (liquidationInfo_.principal + liquidationInfo_.interest);
+        accountedInterest -= _uint112(liquidationInfo_.interest);
+        unrealizedLosses  -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
 
         delete liquidationInfo[loan_];
     }
@@ -582,9 +584,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 managementFeeRate_         = platformManagementFeeRate_ + delegateManagementFeeRate_;
 
         // NOTE: If combined fee is greater than 100%, then cap delegate fee and clamp management fee.
-        if (managementFeeRate_ > SCALED_ONE) {
-            delegateManagementFeeRate_ = SCALED_ONE - platformManagementFeeRate_;
-            managementFeeRate_ = SCALED_ONE;
+        if (managementFeeRate_ > HUNDRED_PERCENT) {
+            delegateManagementFeeRate_ = HUNDRED_PERCENT - platformManagementFeeRate_;
+            managementFeeRate_         = HUNDRED_PERCENT;
         }
 
         ( , uint256 interest_, )   = ILoanLike(loan_).getNextPaymentBreakdown();
@@ -596,23 +598,23 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         newRate_ = (netInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
         // Add the LoanInfo to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-        uint256 loanId_ = loanIdOf[loan_] = ++loanCounter;
+        uint24 loanId_ = loanIdOf[loan_] = ++loanCounter;
 
         _addLoanToList(loanId_, LoanInfo({
             // Previous and next will be overridden within _addLoan function.
-            previous:                  0,
-            next:                      0,
-            incomingNetInterest:       netInterest_,
-            refinanceInterest:         netRefinanceInterest_,
-            issuanceRate:              newRate_,
-            startDate:                 startDate_,
-            paymentDueDate:            nextPaymentDueDate_,
-            platformManagementFeeRate: platformManagementFeeRate_,
-            delegateManagementFeeRate: delegateManagementFeeRate_
+            previous:                  uint24(0),
+            next:                      uint24(0),
+            platformManagementFeeRate: _uint24(platformManagementFeeRate_),
+            delegateManagementFeeRate: _uint24(delegateManagementFeeRate_),
+            startDate:                 _uint48(startDate_),
+            paymentDueDate:            _uint48(nextPaymentDueDate_),
+            incomingNetInterest:       _uint128(netInterest_),
+            refinanceInterest:         _uint128(netRefinanceInterest_),
+            issuanceRate:              newRate_
         }));
 
         // Update the accounted interest to reflect what is present in the loan.
-        accountedInterest += netRefinanceInterest_;
+        accountedInterest += _uint112(netRefinanceInterest_);
     }
 
     /**********************/
@@ -645,10 +647,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             swapAmount_
                 * IMapleGlobalsLike(globals_).getLatestPrice(collateralAsset_) // Convert from `fromAsset` value.
                 * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())    // Convert to `toAsset` decimal precision.
-                * (SCALED_ONE - allowedSlippageFor[collateralAsset_])          // Multiply by allowed slippage basis points
+                * (HUNDRED_PERCENT - allowedSlippageFor[collateralAsset_])          // Multiply by allowed slippage basis points
                 / IMapleGlobalsLike(globals_).getLatestPrice(fundsAsset)       // Convert to `toAsset` value.
                 / uint256(10) ** uint256(collateralAssetDecimals)              // Convert from `fromAsset` decimal precision.
-                / SCALED_ONE;                                                  // Divide basis points for slippage.
+                / HUNDRED_PERCENT;                                                  // Divide basis points for slippage.
 
         // TODO: Document precision of minRatioFor is decimal representation of min ratio in fundsAsset decimal precision.
         uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / (uint256(10) ** collateralAssetDecimals);
@@ -687,7 +689,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*********************************/
 
     function _getNetInterest(uint256 interest_, uint256 feeRate_) internal pure returns (uint256 netInterest_) {
-        netInterest_ = interest_ * (SCALED_ONE - feeRate_) / SCALED_ONE;
+        netInterest_ = interest_ * (HUNDRED_PERCENT - feeRate_) / HUNDRED_PERCENT;
     }
 
     function _max(uint256 a_, uint256 b_) internal pure returns (uint256 maximum_) {
@@ -696,6 +698,36 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         return a_ < b_ ? a_ : b_;
+    }
+
+    function _uint24(uint256 value_) internal pure returns (uint24 castedValue_) {
+        require(value_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
+        castedValue_ = uint24(value_);
+    }
+
+    function _uint48(uint256 value_) internal pure returns (uint32 castedValue_) {
+        require(value_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
+        castedValue_ = uint32(value_);
+    }
+
+    function _uint96(uint256 value_) internal pure returns (uint96 castedValue_) {
+        require(value_ <= type(uint96).max, "LM:UINT96_CAST_OOB");
+        castedValue_ = uint96(value_);
+    }
+
+    function _uint112(uint256 value_) internal pure returns (uint112 castedValue_) {
+        require(value_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
+        castedValue_ = uint112(value_);
+    }
+
+    function _uint120(uint256 value_) internal pure returns (uint120 castedValue_) {
+        require(value_ <= type(uint120).max, "LM:UINT120_CAST_OOB");
+        castedValue_ = uint120(value_);
+    }
+
+    function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
+        require(value_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        castedValue_ = uint128(value_);
     }
 
     /******************************/

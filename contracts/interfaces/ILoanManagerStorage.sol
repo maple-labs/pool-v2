@@ -9,46 +9,46 @@ interface ILoanManagerStorage {
 
     function poolManager() external view returns (address poolManager_);
 
-    function accountedInterest() external view returns (uint256 accountedInterest_);
+    function accountedInterest() external view returns (uint112 accountedInterest_);
 
-    function domainStart() external view returns (uint256 domainStart_);
+    function domainStart() external view returns (uint48 domainStart_);
 
-    function domainEnd() external view returns (uint256 domainEnd_);
+    function domainEnd() external view returns (uint48 domainEnd_);
 
     function issuanceRate() external view returns (uint256 issuanceRate_);
 
-    function loanCounter() external view returns (uint256 loanCounter_);
+    function loanCounter() external view returns (uint24 loanCounter_);
 
-    function loanWithEarliestPaymentDueDate() external view returns (uint256 loanWithEarliestPaymentDueDate_);
+    function loanWithEarliestPaymentDueDate() external view returns (uint24 loanWithEarliestPaymentDueDate_);
 
-    function principalOut() external view returns (uint256 principalOut_);
+    function principalOut() external view returns (uint128 principalOut_);
 
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+    function unrealizedLosses() external view returns (uint128 unrealizedLosses_);
 
-    function loanIdOf(address loan_) external view returns (uint256 loanId_);
+    function loanIdOf(address loan_) external view returns (uint24 loanId_);
 
     function allowedSlippageFor(address collateralAsset_) external view returns (uint256 allowedSlippage_);
 
     function minRatioFor(address collateralAsset_) external view returns (uint256 minRatio_);
 
     function liquidationInfo(address loan_) external view returns (
-        uint256 principal,
-        uint256 interest,
-        uint256 platformFees,
-        address liquidator,
-        bool    triggeredByGovernor
+        bool    triggeredByGovernor,
+        uint128 principal,
+        uint120 interest,
+        uint96  platformFees,
+        address liquidator
     );
 
     function loans(uint256 loanId_) external view returns (
-        uint256 previous,
-        uint256 next,
-        uint256 incomingNetInterest,
-        uint256 refinanceInterest,
-        uint256 issuanceRate,
-        uint256 startDate,
-        uint256 paymentDueDate,
-        uint256 platformManagementFeeRate,
-        uint256 delegateManagementFeeRate
+        uint24  previous,
+        uint24  next,
+        uint24  platformManagementFeeRate,
+        uint24  delegateManagementFeeRate,
+        uint48  startDate,
+        uint48  paymentDueDate,
+        uint128 incomingNetInterest,
+        uint128 refinanceInterest,
+        uint256 issuanceRate
     );
 
 }

@@ -420,7 +420,7 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
 
-    uint256 newManagementFeeRate = uint256(0.1e18);
+    uint256 newManagementFeeRate = 10_0000;
 
     function test_setDelegateManagementFeeRate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -439,9 +439,9 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
     function test_setDelegateManagementFeeRate_oob() external {
         vm.startPrank(POOL_DELEGATE);
         vm.expectRevert("PM:SDMFR:OOB");
-        poolManager.setDelegateManagementFeeRate(1e18 + 1);
+        poolManager.setDelegateManagementFeeRate(100_0001);
 
-        poolManager.setDelegateManagementFeeRate(1e18);
+        poolManager.setDelegateManagementFeeRate(100_0000);
     }
 
     function test_setDelegateManagementFeeRate_success() external {
@@ -935,7 +935,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
     function test_finishCollateralLiquidation_success_exceedMaxCoverLiquidationPercentAmount() external {
         MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 0.5e18);
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 50_0000);
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         assertEq(poolManager.unrealizedLosses(), 0);
