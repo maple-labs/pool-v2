@@ -1874,7 +1874,178 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
 }
 
-contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
+contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
+
+    MockLoan loan1;
+    MockLoan loan2;
+    MockLoan loan3;
+
+    function setUp() public override {
+        super.setUp();
+
+        loan1 = new MockLoan(address(asset), address(asset));
+        loan2 = new MockLoan(address(asset), address(asset));
+        loan3 = new MockLoan(address(asset), address(asset));
+
+        // Set next payment information for loanManager to use.
+        loan1.__setPrincipal(1_000_000);
+        loan2.__setPrincipal(1_000_000);
+        loan3.__setPrincipal(1_000_000);
+
+        loan1.__setPrincipalRequested(1_000_000);
+        loan2.__setPrincipalRequested(1_000_000);
+        loan3.__setPrincipalRequested(1_000_000);
+
+        loan1.__setNextPaymentInterest(100);  // Net interest: 80
+        loan2.__setNextPaymentInterest(125);  // Net interest: 100
+        loan3.__setNextPaymentInterest(150);  // Net interest: 120
+
+        loan1.__setNextPaymentDueDate(START + 10_000);
+        loan2.__setNextPaymentDueDate(START + 16_000);  // 10_000 second interval
+        loan3.__setNextPaymentDueDate(START + 18_000);  // 10_000 second interval
+
+        vm.startPrank(address(poolManager));
+
+        loanManager.fund(address(loan1));
+
+        vm.warp(START + 6_000);
+        loanManager.fund(address(loan2));
+
+        vm.warp(START + 8_000);
+        loanManager.fund(address(loan3));
+
+        vm.stopPrank();
+
+        /**
+         *  Loan 1
+         *    Start date:    0
+         *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
+         *  Loan 2
+         *    Start date:    6_000
+         *    Issuance rate: 0.01e30 (125 * 0.8 / 10_000)
+         *  Loan 3
+         *    Start date:    8_000
+         *    Issuance rate: 0.012e30 (150 * 0.8 / 10_000)
+         */
+    }
+
+    function test_claim_loan3_loan1NotPaid_loan2NotPaid() external {
+        /**
+         *  ***********************************
+         *  *** Loan 3 Payment (t = 18_000) ***
+         *  ***********************************
+         *  --- Post-Claim ---
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000 * 0.008 = 80 (Accounted up to DE1)
+         *  Loan 2:
+         *    First payment net interest accounted: 10_000 * 0.01 = 100 (Move DE to DE2 and account to DE2)
+         *  Loan 3:
+         *    First  payment net interest claimed:   10_000 * 0.012 = 120
+         *    Second payment net interest accounted: 0      * 0.012 = 0
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accountedInterest + accruedInterest + cash
+         *  Resulting total assets(t = 18_000): 3_000_000 + (80 + 100) + 0 + 120 = 3_000_300
+         */
+
+        vm.warp(START + 18_000);
+
+        _makePayment({
+            loanAddress:         address(loan3),
+            interestAmount:      150,
+            principalAmount:     0,
+            nextInterestPayment: 150,
+            nextPaymentDueDate:  START + 28_000
+        });
+
+        _assertLoanInfo({
+            loanAddress:         address(loan3),
+            incomingNetInterest: 120,
+            refinanceInterest:   0,
+            startDate:           START + 18_000,
+            paymentDueDate:      START + 28_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     80 + 100,  // Full interest accounted for loans 1 and 2
+            principalOut:          3_000_000,
+            assetsUnderManagement: 3_000_180,
+            issuanceRate:          0.012e30,   // Since loan1 and loan2 no longer are accruing interest, IR is reduced
+            domainStart:           START + 18_000,
+            domainEnd:             START + 28_000  // End of loan1 payment interval
+        });
+
+        _assertBalances({
+            poolBalance:         120 + 1,  // Rounding error is sent to pool
+            treasuryBalance:     7,
+            poolDelegateBalance: 22
+        });
+
+        _assertTotalAssets(3_000_301);  // Rounding error is sent to pool
+    }
+
+    function test_claim_loan1NotPaid_loan2NotPaid_loan3PaidLate() external {
+        /**
+         *  Loan1 is paid late after the payment and claim of loan3, which is also late. Loan2 is never paid.
+         *
+         *  ****************************************
+         *  *** Loan 3 late Payment (t = 19_000) ***
+         *  ****************************************
+         *  DE1 = 10_000
+         *  DE2 = 16_000
+         *  DE2 = 18_000
+         *  Loan 1:
+         *    First  payment net interest accounted: 10_000 * 0.008 = 80 (Accounted up to DE1)
+         *  Loan 2:
+         *    First payment net interest accounted: 10_000 * 0.01 = 100 (Move DE to DE2 and account to DE2)
+         *  Loan 3:
+         *    First  payment net interest claimed:   10_000 * 0.012 = 120
+         *    Second payment net interest accounted: 1_000  * 0.012 = 12
+         *  --------------------------------------------------------------
+         *  TA = principalOut + accountedInterest + accruedInterest + cash
+         *  Resulting total assets (t = 19_000): 3_000_000 + (80 + 100 + 12) + 0 + 120 = 3_000_312
+         */
+
+        vm.warp(START + 19_000);
+
+        _makePayment({
+            loanAddress:         address(loan3),
+            interestAmount:      150,
+            principalAmount:     0,
+            nextInterestPayment: 150,
+            nextPaymentDueDate:  START + 28_000
+        });
+
+        _assertLoanInfo({
+            loanAddress:         address(loan3),
+            incomingNetInterest: 120,
+            refinanceInterest:   0,
+            startDate:           START + 18_000,
+            paymentDueDate:      START + 28_000
+        });
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     80 + 100 + 12,  // Full interest accounted for loans 1 and 2 + 1_000sec of loan3 at 0.012
+            principalOut:          3_000_000,
+            assetsUnderManagement: 3_000_192,
+            issuanceRate:          0.012e30,   // Since loan1 and loan2 no longer are accruing interest, IR is reduced
+            domainStart:           START + 19_000,
+            domainEnd:             START + 28_000  // End of loan3 payment interval
+        });
+
+        _assertBalances({
+            poolBalance:         120 + 1, // Rounding error is sent to pool
+            treasuryBalance:     7,
+            poolDelegateBalance: 22
+        });
+
+        _assertTotalAssets(3_000_313);  // Rounding error is sent to pool
+    }
+
+}
+
+contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
     MockLoan loan1;
     MockLoan loan2;
@@ -1916,10 +2087,10 @@ contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
          *  --- Pre-Fund ---
          *  Loan 1:
          *    First  payment net interest accounted: 0
-         *    First  payment net interest accrued:   10_000sec * 0.008 = 80 (Accrues up to VPF)
+         *    First  payment net interest accrued:   10_000sec * 0.008 = 80 (Accrues up to DE)
          *  --- Post-Fund ---
          *  Loan 1:
-         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF using `_accountPreviousLoans`)
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after DE using `_accountPreviousLoans`)
          *    Second payment net interest accrued:   0                      (Second payment not recognized)
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
@@ -1930,15 +2101,15 @@ contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after DE)
          *    Second payment net interest accrued:   0                      (Second payment not recognized)
          *  Loan 2:
          *    First  payment net interest accounted: 0
-         *    First  payment net interest accrued:   10_000sec * 0.01 = 100 (Accrues up to VPF)
+         *    First  payment net interest accrued:   10_000sec * 0.01 = 100 (Accrues up to DE)
          *    Second payment net interest accrued:   0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after DE)
          *    Second payment net interest accrued:   0                      (Second payment not recognized)
          *  Loan 2:
          *    First  payment net interest claimed:   10_000sec * 0.01 = 100
@@ -1948,11 +2119,11 @@ contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
          *  Starting  total assets: 2_000_000 + 100 + 80        + 0   = 2_000_180
          *  Resulting total assets: 2_000_000 + 0   + (80 + 20) + 100 = 2_000_200
          *  *****************************************************************************
-         *  *** Loan 1 Payment 1 (t = 27_000) (LU = 24_000, VPF from Loan 1 = 20_000) ***
+         *  *** Loan 1 Payment 1 (t = 27_000) (LU = 24_000, DE from Loan 1 = 20_000) ***
          *  *****************************************************************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after VPF)
+         *    First  payment net interest accounted: 10_000sec * 0.008 = 80 (Accounted during loan2 funding, after DE)
          *    Second payment net interest accrued:   0                      (Second payment not recognized)
          *  Loan 2:
          *    Second payment net interest accounted: 2_000sec * 0.01 = 20
@@ -2054,7 +2225,7 @@ contract ClaimDomainStartGtVPF is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000  // In the past - LU > VPF
+            paymentDueDate:      START + 20_000  // In the past - LU > DE
         });
 
         // Loan 2 (No change)
