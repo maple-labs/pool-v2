@@ -21,8 +21,7 @@ interface ILoanManagerLike {
         address loan_,
         address refinancer_,
         uint256 deadline_,
-        bytes[] calldata calls_,
-        uint256 principalIncrease_
+        bytes[] calldata calls_
     ) external;
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
