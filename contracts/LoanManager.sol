@@ -494,8 +494,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Update global accounting.
         accountedInterest = _uint112(accountedInterest_);
-        domainStart       = _uint24(domainStart_);
-        domainEnd         = _uint24(domainEnd_);
+        domainStart       = _uint48(domainStart_);
+        domainEnd         = _uint48(domainEnd_);
         issuanceRate      = issuanceRate_;
     }
 
@@ -577,7 +577,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 : loanInfo_.incomingNetInterest;
 
         // Add any interest owed prior to a refinance and reduce AUM accordingly.
-        accountedInterest -= _uint24(loanAccruedInterest_ + loanInfo_.refinanceInterest);
+        accountedInterest -= _uint112(loanAccruedInterest_ + loanInfo_.refinanceInterest);
 
         // Loan Info is deleted, because the payment has been fully recognized in the pool accounting, and will never be used again.
         delete loanIdOf[loan_];
