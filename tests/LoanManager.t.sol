@@ -449,10 +449,10 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.expectRevert("LM:TDW:NOT_PM");
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
     }
 
     function test_triggerDefaultWarning_success() public {
@@ -489,7 +489,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         });
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
@@ -590,7 +590,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         assertTrue(!liquidationInfo.triggeredByGovernor);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+        loanManager.triggerDefaultWarning(address(loan), true);
 
         loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
@@ -653,7 +653,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         vm.expectRevert("LM:RDW:NOT_PM");
         loanManager.removeDefaultWarning(address(loan), false);
@@ -667,7 +667,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+        loanManager.triggerDefaultWarning(address(loan), true);
 
         vm.expectRevert("LM:RDW:NOT_PM");
         loanManager.removeDefaultWarning(address(loan), true);
@@ -681,7 +681,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true); // Trigger was called by governor.
+        loanManager.triggerDefaultWarning(address(loan), true); // Trigger was called by governor.
 
         vm.expectRevert("LM:RDW:NOT_AUTHORIZED");
         vm.prank(address(poolManager));
@@ -699,7 +699,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         assertEq(loanInfo.incomingNetInterest, 80);
         assertEq(loanInfo.refinanceInterest,   0);
@@ -785,7 +785,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, true);
+        loanManager.triggerDefaultWarning(address(loan), true);
 
         ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
 
@@ -3000,7 +3000,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(START + 6_000);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefaultWarning(address(loan), START + 6_000, false);
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         assertEq(loanManager.getAccruedInterest(),             0);
         assertEq(loanManager.accountedInterest(),              48);

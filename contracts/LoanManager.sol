@@ -221,14 +221,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external override {
+    function triggerDefaultWarning(address loan_, bool isGovernor_) external override {
         require(msg.sender == poolManager, "LM:TDW:NOT_PM");
 
         _advanceLoanAccounting();
 
         ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
 
-        ILoanLike(loan_).triggerDefaultWarning(newPaymentDueDate_);
+        ILoanLike(loan_).triggerDefaultWarning();
 
         // Get necessary data structures.
         uint256 loanId_           = loanIdOf[loan_];

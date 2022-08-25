@@ -255,14 +255,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CollateralLiquidationTriggered(loan_);
     }
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_) external override {
+    function triggerDefaultWarning(address loan_) external override {
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:TDW:NOT_AUTHORIZED");
 
-        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, newPaymentDueDate_, isGovernor_);
+        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, isGovernor_);
 
-        emit DefaultWarningTriggered(loan_, newPaymentDueDate_);
+        emit DefaultWarningTriggered(loan_, block.timestamp);
     }
 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused {

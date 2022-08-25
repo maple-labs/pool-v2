@@ -43,7 +43,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     function setMinRatio(address collateralAsset_, uint256 minRatio_) external;
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external;
+    function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
     function triggerCollateralLiquidation(address loan_) external;
 

@@ -679,30 +679,30 @@ contract TriggerDefaultWarning is PoolManagerBase {
 
     function test_triggerDefaultWarning_notPoolDelegate() external {
         vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
     }
 
     function test_triggerDefaultWarning_notGovernor() external {
         vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
 
         vm.prank(GOVERNOR);
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
     }
 
     function test_triggerDefaultWarning_successCalledByPoolDelegate() external {
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
 
         assertTrue(!loanManager.wasTDWCalledByGovernor());
     }
 
     function test_triggerDefaultWarning_successCalledByGovernor() external {
         vm.prank(GOVERNOR);
-        poolManager.triggerDefaultWarning(LOAN, block.timestamp + 1);
+        poolManager.triggerDefaultWarning(LOAN);
 
         assertTrue(loanManager.wasTDWCalledByGovernor());
     }

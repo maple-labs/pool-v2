@@ -33,7 +33,7 @@ interface ILoanManagerLike {
 
     function removeDefaultWarning(address loan_, bool isGovernor_) external;
 
-    function triggerDefaultWarning(address loan_, uint256 newPaymentDueDate_, bool isGovernor_) external;
+    function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
     function triggerCollateralLiquidation(address loan_) external;
 
@@ -130,7 +130,7 @@ interface ILoanLike {
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
-    function triggerDefaultWarning(uint256 newPaymentDueDate_) external;
+    function triggerDefaultWarning() external;
 
     function prewarningPaymentDueDate() external view returns (uint256 prewarningPaymentDueDate_);
 }

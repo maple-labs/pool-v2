@@ -294,11 +294,9 @@ contract MockLoan {
         isInDefaultWarning = false;
     }
 
-    function triggerDefaultWarning(uint256 newPaymentDueDate_) external {
-        require(newPaymentDueDate_ < nextPaymentDueDate);
-
+    function triggerDefaultWarning() external {
         prewarningPaymentDueDate = nextPaymentDueDate;
-        nextPaymentDueDate       = newPaymentDueDate_;
+        nextPaymentDueDate       = block.timestamp;
         isInDefaultWarning       = true;
     }
 
@@ -431,7 +429,7 @@ contract MockLoanManager is LoanManagerStorage {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
-    function triggerDefaultWarning(address, uint256, bool isGovernor_) external {
+    function triggerDefaultWarning(address , bool isGovernor_) external {
         wasTDWCalledByGovernor = isGovernor_;
     }
 
