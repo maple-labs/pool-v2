@@ -94,12 +94,16 @@ interface ILoanLike {
         uint256 platformServiceFee_
     );
 
+    function getNextPaymentDetailedBreakdown() external view returns (
+        uint256 principal_,
+        uint256[3] memory interest_,
+        uint256[2] memory fees_
+    );
+
     function getNextPaymentBreakdown() external view returns (
         uint256 principal_,
         uint256 interest_,
-        uint256 lateInterest_,
-        uint256 delegateServiceFee_,
-        uint256 platformServiceFee_
+        uint256 fees_
     );
 
     function gracePeriod() external view returns (uint256 gracePeriod_);

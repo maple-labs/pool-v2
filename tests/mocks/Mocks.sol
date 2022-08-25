@@ -255,20 +255,31 @@ contract MockLoan {
         // Do nothing
     }
 
+    function getNextPaymentDetailedBreakdown() external view returns (
+        uint256 principal_,
+        uint256[3] memory interest_,
+        uint256[2] memory fees_
+    ) {
+        principal_ = nextPaymentPrincipal;
+
+        interest_[0] = nextPaymentInterest;
+        interest_[1] = nextPaymentLateInterest;
+        interest_[2] = refinanceInterest;
+
+        fees_[0] = delegateServiceFee;
+        fees_[1] = platformServiceFee;
+    }
+
     function getNextPaymentBreakdown()
         external view returns (
             uint256 principal_,
             uint256 interest_,
-            uint256 lateInterest_,
-            uint256 delegateServiceFee_,
-            uint256 platformServiceFee_
+            uint256 fees_
         )
     {
-        principal_          = nextPaymentPrincipal;
-        interest_           = nextPaymentInterest + refinanceInterest;
-        lateInterest_       = nextPaymentLateInterest;
-        delegateServiceFee_ = delegateServiceFee;
-        platformServiceFee_ = platformServiceFee;
+        principal_ = nextPaymentPrincipal;
+        interest_  = nextPaymentInterest + refinanceInterest + nextPaymentLateInterest;
+        fees_      = delegateServiceFee + platformServiceFee;
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {

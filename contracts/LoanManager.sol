@@ -226,7 +226,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advanceLoanAccounting();
 
-        ( , uint256 grossInterest_, , , uint256 platformServiceFee_ ) = ILoanLike(loan_).getNextPaymentBreakdown();
+        ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
 
         ILoanLike(loan_).triggerDefaultWarning(newPaymentDueDate_);
 
@@ -242,9 +242,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Principal + payment accrued interest + refinance interest.
         uint256 principal_ = ILoanLike(loan_).principal();
 
-        uint256 accruedGrossInterest_      = _getAccruedAmount(grossInterest_,                loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
+        // NOTE: `grossInterest_[0]` = payment interest, `serviceFees_[1]` = platform service fee.
+        uint256 accruedGrossInterest_      = _getAccruedAmount(grossInterest_[0],             loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
         uint256 accruedNetInterest_        = _getAccruedAmount(loanInfo_.incomingNetInterest, loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
-        uint256 accruedPlatformServiceFee_ = _getAccruedAmount(platformServiceFee_,           loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
+        uint256 accruedPlatformServiceFee_ = _getAccruedAmount(serviceFees_[1],               loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
 
         uint256 accruedPlatformManagementFee_ = accruedGrossInterest_ * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
 
@@ -356,15 +357,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (!ILoanLike(loan_).isInDefaultWarning()) {
             uint256 principal_ = ILoanLike(loan_).principal();
 
-            ( , uint256 grossInterest_, uint256 grossLateInterest_, , uint256 platformServiceFee_ ) = ILoanLike(loan_).getNextPaymentBreakdown();
-
-            // Calculate the accrued interest on the loan using IR to capture rounding errors.
-            uint256 netInterest_ = _getLoanAccruedInterest(loanInfo_.startDate, loanInfo_.paymentDueDate, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
-
-            // Calculate the net late interest by using the management fees.
-            uint256 netLateInterest_ = _getNetInterest(grossLateInterest_, loanInfo_.platformManagementFeeRate + loanInfo_.delegateManagementFeeRate);
-
-            uint256 platformManagementFee_ = (grossInterest_ + grossLateInterest_) * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
+            ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformManagementFee_, uint256 platformServiceFee_ ) = _getLiquidationInfoAmounts(loan_, loanInfo_);
 
             // Impair the loan with the default amount.
             // NOTE: Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
@@ -534,6 +527,31 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(!hasSufficientCover_ || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_), "LM:CL:PD_TRANSFER");
     }
 
+    function _getLiquidationInfoAmounts(address loan_, LoanInfo memory loanInfo_)
+        internal view returns (
+            uint256 netInterest_,
+            uint256 netLateInterest_,
+            uint256 platformManagementFee_,
+            uint256 platformServiceFee_
+        )
+    {
+        ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
+
+        uint256 grossPaymentInterest_ = grossInterest_[0];
+        uint256 grossLateInterest_    = grossInterest_[1];
+
+        // Calculate the accrued interest on the loan using IR to capture rounding errors.
+        netInterest_ = _getLoanAccruedInterest(loanInfo_.startDate, loanInfo_.paymentDueDate, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
+
+        // Calculate the net late interest by using the management fees.
+        netLateInterest_ = _getNetInterest(grossLateInterest_, loanInfo_.platformManagementFeeRate + loanInfo_.delegateManagementFeeRate);
+
+        // Calculate the platform management fee based on the interest amounts
+        platformManagementFee_ = (grossPaymentInterest_ + grossLateInterest_) * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
+
+        platformServiceFee_ = serviceFees_[1];
+    }
+
     function _getLoanAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 loanIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
         accruedInterest_ = (endTime_ - startTime_) * loanIssuanceRate_ / PRECISION + refinanceInterest_;
     }
@@ -595,10 +613,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             managementFeeRate_         = HUNDRED_PERCENT;
         }
 
-        ( , uint256 interest_, , , )  = ILoanLike(loan_).getNextPaymentBreakdown();
-        uint256 refinanceInterest_    = ILoanLike(loan_).refinanceInterest();
-        uint256 netRefinanceInterest_ = _getNetInterest(refinanceInterest_,             managementFeeRate_);
-        uint256 netInterest_          = _getNetInterest(interest_ - refinanceInterest_, managementFeeRate_);
+        ( , uint256[3] memory interest_, )  = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
+
+        uint256 netInterest_          = _getNetInterest(interest_[0], managementFeeRate_);
+        uint256 netRefinanceInterest_ = _getNetInterest(interest_[2], managementFeeRate_);
 
         newRate_ = (netInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
