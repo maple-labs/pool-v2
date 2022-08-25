@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../modules/contract-test-utils/contracts/test.sol";
-
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { Liquidator }            from "../modules/liquidations/contracts/Liquidator.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -208,7 +206,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (liquidationInfo[loan_].triggeredByGovernor) require(isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
 
         _revertDefaultWarning(loan_);
-
         _addLoanToList(loanId_, loanInfo_);
 
         // Discretely update missing interest as if loan was always part of the list.
@@ -221,57 +218,34 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
+    // TODO: Ensure that the default warning can not be triggered after the payment due date.
     function triggerDefaultWarning(address loan_, bool isGovernor_) external override {
         require(msg.sender == poolManager, "LM:TDW:NOT_PM");
 
         _advanceLoanAccounting();
 
-        ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
-
-        ILoanLike(loan_).triggerDefaultWarning();
-
-        // Get necessary data structures.
+        uint256 principal_        = ILoanLike(loan_).principal();
         uint256 loanId_           = loanIdOf[loan_];
         LoanInfo memory loanInfo_ = loans[loanId_];
 
-        // Remove payment's issuance rate from the LM issuance rate.
-        issuanceRate -= loanInfo_.issuanceRate;
-
-        // NOTE: Even though `nextPaymentDueDate` could be set to after `block.timestamp`, we still stop the interest accrual.
-        // NOTE: `platformManagementFee` is calculated from gross interest as to not use the `delegateManagementFeeRate` to save gas.
-        // Principal + payment accrued interest + refinance interest.
-        uint256 principal_ = ILoanLike(loan_).principal();
-
-        // NOTE: `grossInterest_[0]` = payment interest, `serviceFees_[1]` = platform service fee.
-        uint256 accruedGrossInterest_      = _getAccruedAmount(grossInterest_[0],             loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
-        uint256 accruedNetInterest_        = _getAccruedAmount(loanInfo_.incomingNetInterest, loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
-        uint256 accruedPlatformServiceFee_ = _getAccruedAmount(serviceFees_[1],               loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
-
-        uint256 accruedPlatformManagementFee_ = accruedGrossInterest_ * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
+        ( uint256 netInterest_, , uint256 platformManagementFee_, uint256 platformServiceFee_ ) = _getLiquidationInfoAmounts(loan_, loanInfo_, false);
 
         liquidationInfo[loan_] = LiquidationInfo({
             triggeredByGovernor: isGovernor_,
             principal:           _uint128(principal_),
-            interest:            _uint120(accruedNetInterest_),
-            lateInterest:        0,  // TODO: Cast
-            platformFees:        _uint96(accruedPlatformManagementFee_ + accruedPlatformServiceFee_),
-            liquidator:          address(0)  // This will be set during triggerCollateralLiquidation.
+            interest:            _uint120(netInterest_),
+            lateInterest:        0,
+            platformFees:        _uint96(platformManagementFee_ + platformServiceFee_),
+            liquidator:          address(0)
         });
 
-        unrealizedLosses += _uint128(principal_ + accruedNetInterest_);
+        issuanceRate     -= loanInfo_.issuanceRate;  // TODO: Is this supposed to be here?
+        unrealizedLosses += _uint128(principal_ + netInterest_);
 
-        // Update `loanInfo_` with new values reflecting a loan that is expected to default.
         _removeLoanFromList(loanInfo_.previous, loanInfo_.next, loanId_);
+        _updateDomainEnd();
 
-        // NOTE: `loanInfo_` state is not updated in case the default warning must be removed and previous state must be restored.
-
-        // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
-        // Otherwise, set it to the next upcoming payment.
-        if (loanWithEarliestPaymentDueDate == 0) {
-            domainEnd = _uint48(block.timestamp);
-        } else {
-            domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
-        }
+        ILoanLike(loan_).triggerDefaultWarning();
 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
         emit UnrealizedLossesUpdated(unrealizedLosses);
@@ -357,7 +331,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (!ILoanLike(loan_).isInDefaultWarning()) {
             uint256 principal_ = ILoanLike(loan_).principal();
 
-            ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformManagementFee_, uint256 platformServiceFee_ ) = _getLiquidationInfoAmounts(loan_, loanInfo_);
+            (
+                uint256 netInterest_,
+                uint256 netLateInterest_,
+                uint256 platformManagementFee_,
+                uint256 platformServiceFee_
+            ) = _getLiquidationInfoAmounts(loan_, loanInfo_, true);
 
             // Impair the loan with the default amount.
             // NOTE: Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
@@ -379,13 +358,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             liquidationInfo[loan_].liquidator = liquidator_;
         }
 
-        // If there are no more payments in the list, set domain end to block.timestamp (which equals `domainStart`, from `_advanceLoanAccounting`)
-        // Otherwise, set it to the next upcoming payment.
-        if (loanWithEarliestPaymentDueDate == 0) {
-            domainEnd = _uint48(block.timestamp);
-        } else {
-            domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
-        }
+        _updateDomainEnd();
 
         emit IssuanceParamsUpdated(principalOut, domainStart, domainEnd, issuanceRate, accountedInterest);  // TODO: Gas optimize
         emit UnrealizedLossesUpdated(unrealizedLosses);
@@ -527,7 +500,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(!hasSufficientCover_ || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_), "LM:CL:PD_TRANSFER");
     }
 
-    function _getLiquidationInfoAmounts(address loan_, LoanInfo memory loanInfo_)
+    function _getLiquidationInfoAmounts(address loan_, LoanInfo memory loanInfo_, bool isLate_)
         internal view returns (
             uint256 netInterest_,
             uint256 netLateInterest_,
@@ -535,21 +508,34 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             uint256 platformServiceFee_
         )
     {
+        // Calculate the accrued interest on the loan using IR to capture rounding errors.
+        // Accrue the interest only up to the current time if the payment due date has not been reached yet.
+        netInterest_ = _getLoanAccruedInterest({
+            startTime_:         loanInfo_.startDate,
+            endTime_:           isLate_ ? loanInfo_.paymentDueDate : block.timestamp,
+            loanIssuanceRate_:  loanInfo_.issuanceRate,
+            refinanceInterest_: loanInfo_.refinanceInterest
+        });
+
         ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
 
         uint256 grossPaymentInterest_ = grossInterest_[0];
         uint256 grossLateInterest_    = grossInterest_[1];
 
-        // Calculate the accrued interest on the loan using IR to capture rounding errors.
-        netInterest_ = _getLoanAccruedInterest(loanInfo_.startDate, loanInfo_.paymentDueDate, loanInfo_.issuanceRate, loanInfo_.refinanceInterest);
-
-        // Calculate the net late interest by using the management fees.
-        netLateInterest_ = _getNetInterest(grossLateInterest_, loanInfo_.platformManagementFeeRate + loanInfo_.delegateManagementFeeRate);
-
-        // Calculate the platform management fee based on the interest amounts
+        // Calculate the platform management and service fees.
         platformManagementFee_ = (grossPaymentInterest_ + grossLateInterest_) * loanInfo_.platformManagementFeeRate / HUNDRED_PERCENT;
+        platformServiceFee_    = serviceFees_[1];
 
-        platformServiceFee_ = serviceFees_[1];
+        // Scale the fees down if the default was triggered prematurely.
+        if (!isLate_) {
+            platformManagementFee_ = _getAccruedAmount(platformManagementFee_, loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
+            platformServiceFee_    = _getAccruedAmount(platformServiceFee_,    loanInfo_.startDate, loanInfo_.paymentDueDate, block.timestamp);
+        }
+
+        // Calculate the late interest if a late payment was made.
+        if (isLate_) {
+            netLateInterest_ = _getNetInterest(grossLateInterest_, loanInfo_.platformManagementFeeRate + loanInfo_.delegateManagementFeeRate);
+        }
     }
 
     function _getLoanAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 loanIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
@@ -638,6 +624,16 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Update the accounted interest to reflect what is present in the loan.
         accountedInterest += _uint112(netRefinanceInterest_);
+    }
+
+    function _updateDomainEnd() internal {
+        // If there are no more payments in the list, set domain end to block.timestamp.
+        // Otherwise, set it to the next upcoming payment.
+        if (loanWithEarliestPaymentDueDate == 0) {
+            domainEnd = _uint48(block.timestamp);
+        } else {
+            domainEnd = loans[loanWithEarliestPaymentDueDate].paymentDueDate;
+        }
     }
 
     /**********************/
