@@ -35,6 +35,7 @@ interface ILoanManagerStorage {
         bool    triggeredByGovernor,
         uint128 principal,
         uint120 interest,
+        uint256 lateInterest,  // TODO: Optimize
         uint96  platformFees,
         address liquidator
     );

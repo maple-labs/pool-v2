@@ -54,11 +54,13 @@ interface ILiquidatorLike {
 
     function liquidatePortion(uint256 swapAmount_, uint256 maxReturnAmount_, bytes calldata data_) external;
 
+    function pullFunds(address token_, address destination_, uint256 amount_) external;
+
 }
 
 interface ILoanV3Like {
 
-    // TOOD: Investigate why this works, update to V3 - potentiall V2
+    // TOOD: Investigate why this works, update to V3 - potentially V2
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
 }
@@ -75,6 +77,8 @@ interface ILoanLike {
 
     function claimFunds(uint256 amount_, address destination_) external;
 
+    function collateral() external view returns (uint256 collateral);
+
     function collateralAsset() external view returns(address asset_);
 
     function feeManager() external view returns (address feeManager_);
@@ -83,9 +87,20 @@ interface ILoanLike {
 
     function fundLoan(address lender_) external returns (uint256 fundsLent_);
 
-    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function getClosingPaymentBreakdown() external view returns (
+        uint256 principal_,
+        uint256 interest_,
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_
+    );
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
+    function getNextPaymentBreakdown() external view returns (
+        uint256 principal_,
+        uint256 interest_,
+        uint256 lateInterest_,
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_
+    );
 
     function gracePeriod() external view returns (uint256 gracePeriod_);
 

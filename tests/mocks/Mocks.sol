@@ -206,15 +206,17 @@ contract MockLoan {
 
     uint256 public collateral;
     uint256 public collateralRequired;
+    uint256 public delegateServiceFee;
     uint256 public nextPaymentInterest;
     uint256 public nextPaymentDueDate;
+    uint256 public nextPaymentLateInterest;
     uint256 public nextPaymentPrincipal;
     uint256 public paymentInterval;
+    uint256 public platformServiceFee;
     uint256 public prewarningPaymentDueDate;
     uint256 public principal;
     uint256 public principalRequested;
     uint256 public refinanceInterest;
-    uint256 public serviceFees;
 
     // Refinance Variables
     uint256 public refinanceNextPaymentInterest;
@@ -253,10 +255,20 @@ contract MockLoan {
         // Do nothing
     }
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        principal_ = nextPaymentPrincipal;
-        interest_  = nextPaymentInterest + refinanceInterest;
-        fees_      = serviceFees;
+    function getNextPaymentBreakdown()
+        external view returns (
+            uint256 principal_,
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        )
+    {
+        principal_          = nextPaymentPrincipal;
+        interest_           = nextPaymentInterest + refinanceInterest;
+        lateInterest_       = nextPaymentLateInterest;
+        delegateServiceFee_ = delegateServiceFee;
+        platformServiceFee_ = platformServiceFee;
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -291,9 +303,8 @@ contract MockLoan {
         collateralRequired = collateralRequired_;
     }
 
-    function __setServiceFees(uint256 fees_) external {
-        // This is the return `fees` variable from getNextPaymentBreakdown()
-        serviceFees = fees_;
+    function __setDelegateServiceFee(uint256 delegateServiceFee_) external {
+        delegateServiceFee = delegateServiceFee_;
     }
 
     function __setFeeManager(address feeManager_) external {
@@ -308,12 +319,20 @@ contract MockLoan {
         nextPaymentInterest = nextPaymentInterest_;
     }
 
+    function __setNextPaymentLateInterest(uint256 nextPaymentLateInterest_) external {
+        nextPaymentLateInterest = nextPaymentLateInterest_;
+    }
+
     function __setNextPaymentPrincipal(uint256 nextPaymentPrincipal_) external {
         nextPaymentPrincipal = nextPaymentPrincipal_;
     }
 
     function __setPaymentInterval(uint256 paymentInterval_) external {
         paymentInterval = paymentInterval_;
+    }
+
+    function __setPlatformServiceFee(uint256 platformServiceFee_) external {
+        platformServiceFee = platformServiceFee_;
     }
 
     function __setPrincipal(uint256 principal_) external {
@@ -352,15 +371,6 @@ contract MockLoan {
         refinancePaymentInterval = paymentInterval_;
     }
 
-}
-
-contract MockMapleLoanFeeManager {
-
-    mapping(address => uint256) public platformServiceFee;
-
-    function __setPlatformServiceFee(address loan_, uint256 serviceFee_) external {
-        platformServiceFee[loan_] = serviceFee_;
-    }
 }
 
 contract MockLoanManager is LoanManagerStorage {
@@ -410,7 +420,7 @@ contract MockLoanManager is LoanManagerStorage {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
-        function triggerDefaultWarning(address, uint256, bool isGovernor_) external {
+    function triggerDefaultWarning(address, uint256, bool isGovernor_) external {
         wasTDWCalledByGovernor = isGovernor_;
     }
 

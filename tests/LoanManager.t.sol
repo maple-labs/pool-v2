@@ -8,7 +8,6 @@ import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.so
 import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
 
 import {
-    MockMapleLoanFeeManager,
     MockGlobals,
     MockLiquidationStrategy,
     MockLoan,
@@ -37,8 +36,6 @@ contract LoanManagerBaseTest is TestUtils {
 
     address implementation = address(new LoanManagerHarness());
     address initializer    = address(new LoanManagerInitializer());
-
-    address feeManager = address(new MockMapleLoanFeeManager());
 
     uint256 platformManagementFeeRate = 5_0000;
     uint256 delegateManagementFeeRate = 15_0000;
@@ -85,11 +82,13 @@ contract LoanManagerBaseTest is TestUtils {
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo,
         uint256 principal,
         uint256 interest,
+        uint256 lateInterest,
         uint256 platformFees,
         address liquidator
     ) internal {
         assertEq(liquidationInfo.principal,    principal);
         assertEq(liquidationInfo.interest,     interest);
+        assertEq(liquidationInfo.lateInterest, lateInterest);
         assertEq(liquidationInfo.platformFees, platformFees);
         assertEq(liquidationInfo.liquidator,   liquidator);
     }
@@ -239,6 +238,31 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         assertEq(loanManager.assetsUnderManagement() + asset.balanceOf(address(pool)), totalAssets);
     }
 
+    function _makeLatePayment(
+        address loanAddress,
+        uint256 interestAmount,
+        uint256 lateInterestAmount,
+        uint256 principalAmount,
+        uint256 nextInterestPayment,
+        uint256 nextPaymentDueDate
+    )
+        public
+    {
+        MockLoan mockLoan = MockLoan(loanAddress);
+
+        MockERC20(asset).mint(address(loanManager), interestAmount + lateInterestAmount + principalAmount);
+        mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
+        mockLoan.__setNextPaymentInterest(nextInterestPayment);
+        mockLoan.__setNextPaymentLateInterest(lateInterestAmount);
+
+        uint256 previousPaymentDueDate = mockLoan.nextPaymentDueDate();
+
+        mockLoan.__setNextPaymentDueDate(nextPaymentDueDate);
+
+        vm.prank(loanAddress);
+        LoanManager(loanManager).claim(principalAmount, interestAmount + lateInterestAmount, previousPaymentDueDate, nextPaymentDueDate);
+    }
+
     function _makePayment(
         address loanAddress,
         uint256 interestAmount,
@@ -279,7 +303,6 @@ contract ClaimTests is LoanManagerClaimBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
-        loan_.__setFeeManager(feeManager);
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
@@ -312,10 +335,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
-        loan_.__setFeeManager(feeManager);
-
-        MockMapleLoanFeeManager feeManager_ = MockMapleLoanFeeManager(feeManager);
-        feeManager_.__setPlatformServiceFee(loan, 20);
+        loan_.__setPlatformServiceFee(20);
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
@@ -362,6 +382,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        80,
+            lateInterest:    0,
             platformFees:    20 + 5,
             liquidator:      address(0)
         });
@@ -393,6 +414,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       0,
             interest:        0,
+            lateInterest:    0,
             platformFees:    0,
             liquidator:      address(0)
         });
@@ -415,10 +437,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
-        loan_.__setFeeManager(feeManager);
-
-        MockMapleLoanFeeManager feeManager_ = MockMapleLoanFeeManager(feeManager);
-        feeManager_.__setPlatformServiceFee(loan, 20);
+        loan_.__setPlatformServiceFee(20);
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
@@ -464,6 +483,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       0,
             interest:        0,
+            lateInterest:    0,
             platformFees:    0,
             liquidator:      address(0)
         });
@@ -496,6 +516,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
@@ -525,6 +546,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
@@ -560,6 +582,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       0,
             interest:        0,
+            lateInterest:    0,
             platformFees:    0,
             liquidator:      address(0)
         });
@@ -594,6 +617,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
@@ -618,10 +642,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
-        loan_.__setFeeManager(feeManager);
-
-        MockMapleLoanFeeManager feeManager_ = MockMapleLoanFeeManager(feeManager);
-        feeManager_.__setPlatformServiceFee(loan, 20);
+        loan_.__setPlatformServiceFee(20);
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
@@ -701,6 +722,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
@@ -731,6 +753,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       0,
             interest:        0,
+            lateInterest:    0,
             platformFees:    0,
             liquidator:      address(0)
         });
@@ -787,6 +810,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
@@ -817,6 +841,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       0,
             interest:        0,
+            lateInterest:    0,
             platformFees:    0,
             liquidator:      address(0)
         });
@@ -1046,14 +1071,14 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        _makePayment({
+        _makeLatePayment({
             loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
+            interestAmount:      100,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
+            lateInterestAmount:  60,
             principalAmount:     0,
             nextInterestPayment: 100,
             nextPaymentDueDate:  START + 20_000
         });
-
 
         _assertLoanInfo({
             loanAddress:         address(loan),
@@ -1263,9 +1288,10 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(1_000_080);
 
-        _makePayment({
+        _makeLatePayment({
             loanAddress:         address(loan),
-            interestAmount:      160,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
+            interestAmount:      100,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
+            lateInterestAmount:  60,
             principalAmount:     200_000,
             nextInterestPayment: 100,
             nextPaymentDueDate:  START + 20_000
@@ -1771,9 +1797,10 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_120);
 
-        _makePayment({
+        _makeLatePayment({
             loanAddress:         address(loan1),
-            interestAmount:      130,  // ((10_000 * 0.008) + (2_000 * 0.012)) / 0.8 = 130 (gross late interest)
+            interestAmount:      100,  // ((10_000 * 0.008) + (2_000 * 0.012)) / 0.8 = 130 (gross late interest)
+            lateInterestAmount:  30,
             principalAmount:     0,
             nextInterestPayment: 100,
             nextPaymentDueDate:  START + 20_000
@@ -2950,12 +2977,10 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
-        loan_.__setFeeManager(feeManager);
+        loan_.__setPlatformServiceFee(20);
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
-
-        MockMapleLoanFeeManager(feeManager).__setPlatformServiceFee(loan, 20);
     }
 
     function test_triggerCollateralLiquidation_notManager() public {
@@ -2993,6 +3018,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,
             liquidator:      address(0)
         });
@@ -3016,6 +3042,7 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        48,
+            lateInterest:    0,
             platformFees:    15,
             liquidator:      address(0)  // No liquidator deployed because no collateral is to be liquidated.
         });

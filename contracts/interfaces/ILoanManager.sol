@@ -71,8 +71,6 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     function mapleTreasury() external view returns (address treasury_);
 
-    function protocolPaused() external view returns (bool protocolPaused_);
-
     /**************/
     /*** Events ***/
     /**************/
