@@ -115,22 +115,18 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advanceLoanAccounting();
 
-        // Claim loan and move funds into pool and to PM.
+        // Claim loan and send funds to the pool, treasury, and pool delegate.
         _claimLoan(msg.sender, principal_, interest_);
 
-        // Finalized the previous payment into the pool accounting.
+        uint256 newRate_;
         uint256 previousRate_;
 
-        // TODO: Should we clear the flag in the loan and pass in a bool to this function, or call this during a default warning payment, then clear the flag in the loan after this call returns?
-        if (!ILoanLike(msg.sender).isInDefaultWarning()) {
-            previousRate_ = _recognizeLoanPayment(msg.sender);
+        // Check if the default warning has been triggered.
+        if (liquidationInfo[msg.sender].principal != 0) {
+            _recognizeDefaultWarningLoanPayment(msg.sender);  // Don't set the previous rate since it will always be zero.
         } else {
-            // If we successfully claimed above, that means that the payment has been made through the default warning, and the loan did not default.
-            // NOTE: Previous rate will always be 0, so we don't set it here.
-            _recognizeDefaultWarningLoanPayment(msg.sender);
+            previousRate_ = _recognizeLoanPayment(msg.sender);
         }
-
-        uint256 newRate_;
 
         // The next rate will be over the course of the remaining time, or the payment interval, whichever is longer.
         // In other words, if the previous payment was early, then the next payment will start accruing from now,
