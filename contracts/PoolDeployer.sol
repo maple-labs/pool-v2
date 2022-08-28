@@ -14,7 +14,7 @@ contract PoolDeployer is IPoolDeployer {
     address public override globals;
 
     constructor(address globals_) {
-        globals = globals_;
+        require((globals = globals_) != address(0), "PD:C:ZERO_ADDRESS");
     }
 
     function deployPool(

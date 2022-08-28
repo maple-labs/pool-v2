@@ -26,6 +26,8 @@ abstract contract LoanManagerStorage is ILoanManagerStorage {
         uint256 issuanceRate;               // Slot 3: uint256 - 32 bytes: max = 1.1e77
     }
 
+    uint256 internal _locked;  // Used when checking for reentrancy.
+
     uint24  public override loanCounter;                     // Slot 1: uint24  -  3 bytes: max = 1.6e7
     uint24  public override loanWithEarliestPaymentDueDate;  //         uint24  -  3 bytes: max = 1.6e7
     uint48  public override domainStart;                     //         uint48  -  6 bytes: max = 2.8e14  (>8m years)

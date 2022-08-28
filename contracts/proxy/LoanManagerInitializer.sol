@@ -17,6 +17,8 @@ contract LoanManagerInitializer is ILoanManagerInitializer, LoanManagerStorage {
     }
 
     fallback() external {
+        _locked = 1;
+
         address pool_ = decodeArguments(msg.data);
 
         pool        = pool_;

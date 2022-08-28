@@ -984,33 +984,6 @@ contract ProcessRedeemTests is PoolManagerBase {
 
 }
 
-contract ProcessWithdrawTests is PoolManagerBase {
-
-    function setUp() public override {
-        super.setUp();
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(withdrawalManager);
-    }
-
-    function test_processWithdraw_protocolPaused() external {
-        MockGlobals(globals).setProtocolPause(true);
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.processWithdraw(1, address(1));
-    }
-
-    function test_processWithdraw_notWithdrawalManager() external {
-        vm.expectRevert("PM:PW:NOT_POOL");
-        poolManager.processWithdraw(1, address(1));
-    }
-
-    function test_processWithdraw_success() external {
-        vm.prank(poolManager.pool());
-        poolManager.processWithdraw(1, address(1));
-    }
-
-}
-
 contract AddLoanManager_SetterTests is PoolManagerBase {
 
     address LOAN_MANAGER      = address(new Address());
@@ -1595,6 +1568,21 @@ contract CanCallTests is PoolManagerBase {
     }
 
     function test_canCall_protocolPaused() external {
+        bytes32 functionId_ = bytes32("P:transfer");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_invalidFunctionId() external {
         address caller     = address(new Address());
         bytes32 functionId = bytes32("Fake Function");
 
@@ -1602,26 +1590,8 @@ contract CanCallTests is PoolManagerBase {
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId, caller, data);
 
-        // Call can be performed
-        assertTrue(canCall_);
-
-        // Set protocol paused
-        MockGlobals(globals).setProtocolPause(true);
-
-        // Call cannot be performed
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
-
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "PROTOCOL_PAUSED");
-
-        // Set protocol paused to false
-        MockGlobals(globals).setProtocolPause(false);
-
-        // Call can be performed again
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId, caller, data);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
+        assertEq(errorMessage_, "PM:CC:INVALID_FUNCTION_ID");
     }
 
 }

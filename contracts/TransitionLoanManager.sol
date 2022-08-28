@@ -5,18 +5,17 @@ import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import { ITransitionLoanManager } from "./interfaces/ITransitionLoanManager.sol";
+
 import {
-    IERC20Like,
     IMapleGlobalsLike,
     ILoanLike,
     ILoanV3Like,
-    IPoolLike,
     IPoolManagerLike
 } from "./interfaces/Interfaces.sol";
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
-// Carbon copy of LM, but witht modified fund/claim to allow for bootstrapping the pool.
+// Carbon copy of LM, but with modified fund/claim to allow for bootstrapping the pool.
 contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals, LoanManagerStorage {
 
     uint256 public override constant PRECISION  = 1e30;
@@ -33,14 +32,12 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
     function setImplementation(address implementation_) external override {
         require(msg.sender == _factory(), "LM:SI:NOT_FACTORY");
-
         _setImplementation(implementation_);
     }
 
     // TODO: Investigate using migration admin here.
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
         require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:U:NOT_PD");
-
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
@@ -65,8 +62,8 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     function takeOwnership(address[] calldata loanAddress_) external override {
         // TODO add ACL: globals.MIGRATION_ADMIN()?
 
-        for (uint256 i = 0; i < loanAddress_.length; i++) {
-            ILoanLike(loanAddress_[i]).acceptLender();
+        for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
+            ILoanLike(loanAddress_[i_]).acceptLender();
         }
     }
 
@@ -75,26 +72,26 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /***************************************/
 
     function _addLoanToList(uint24 loanId_, LoanInfo memory loan_) internal {
-        uint24 current = 0;
-        uint24 next    = loanWithEarliestPaymentDueDate;
+        uint24 current_ = 0;
+        uint24 next_    = loanWithEarliestPaymentDueDate;
 
-        while (next != 0 && loan_.paymentDueDate >= loans[next].paymentDueDate) {
-            current = next;
-            next    = loans[current].next;
+        while (next_ != 0 && loan_.paymentDueDate >= loans[next_].paymentDueDate) {
+            current_ = next_;
+            next_    = loans[current_].next;
         }
 
-        if (current != 0) {
-            loans[current].next = loanId_;
+        if (current_ != 0) {
+            loans[current_].next = loanId_;
         } else {
             loanWithEarliestPaymentDueDate = loanId_;
         }
 
-        if (next != 0) {
-            loans[next].previous = loanId_;
+        if (next_ != 0) {
+            loans[next_].previous = loanId_;
         }
 
-        loan_.next     = next;
-        loan_.previous = current;
+        loan_.next     = next_;
+        loan_.previous = current_;
 
         loans[loanId_] = loan_;
     }
@@ -151,7 +148,6 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
             issuanceRate:              newRate_
         }));
 
-
         // Update the accounted interest to reflect what is present in the loan.
         accountedInterest += _uint112(refinanceInterest_) + _uint112(newRate_ * (block.timestamp - startDate_) / PRECISION);
     }
@@ -161,11 +157,11 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /**********************/
 
     function assetsUnderManagement() public view override returns (uint256 assetsUnderManagement_) {
-        return principalOut + accountedInterest + getAccruedInterest();
+        assetsUnderManagement_ = principalOut + accountedInterest + getAccruedInterest();
     }
 
     function factory() external view override returns (address factory_) {
-        return _factory();
+        factory_ = _factory();
     }
 
     function getAccruedInterest() public view override returns (uint256 accruedInterest_) {
@@ -178,15 +174,15 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     }
 
     function globals() public view override returns (address globals_) {
-        return IPoolManagerLike(poolManager).globals();
+        globals_ = IPoolManagerLike(poolManager).globals();
     }
 
     function implementation() external view override returns (address implementation_) {
-        return _implementation();
+        implementation_ = _implementation();
     }
 
     function poolDelegate() public view override returns (address poolDelegate_) {
-        return IPoolManagerLike(poolManager).poolDelegate();
+        poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
     }
 
     /*********************************/
@@ -194,41 +190,41 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /*********************************/
 
     function _max(uint256 a_, uint256 b_) internal pure returns (uint256 maximum_) {
-        return a_ > b_ ? a_ : b_;
+        maximum_ = a_ > b_ ? a_ : b_;
     }
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
-        return a_ < b_ ? a_ : b_;
+        minimum_ = a_ < b_ ? a_ : b_;
     }
 
-    function _uint24(uint256 value_) internal pure returns (uint24 castedValue_) {
-        require(value_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
-        castedValue_ = uint24(value_);
+    function _uint24(uint256 input_) internal pure returns (uint24 output_) {
+        require(input_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
+        output_ = uint24(input_);
     }
 
-    function _uint48(uint256 value_) internal pure returns (uint32 castedValue_) {
-        require(value_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
-        castedValue_ = uint32(value_);
+    function _uint48(uint256 input_) internal pure returns (uint32 output_) {
+        require(input_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
+        output_ = uint32(input_);
     }
 
-    function _uint96(uint256 value_) internal pure returns (uint96 castedValue_) {
-        require(value_ <= type(uint96).max, "LM:UINT96_CAST_OOB");
-        castedValue_ = uint96(value_);
+    function _uint96(uint256 input_) internal pure returns (uint96 output_) {
+        require(input_ <= type(uint96).max, "LM:UINT96_CAST_OOB");
+        output_ = uint96(input_);
     }
 
-    function _uint112(uint256 value_) internal pure returns (uint112 castedValue_) {
-        require(value_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
-        castedValue_ = uint112(value_);
+    function _uint112(uint256 input_) internal pure returns (uint112 output_) {
+        require(input_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
+        output_ = uint112(input_);
     }
 
-    function _uint120(uint256 value_) internal pure returns (uint120 castedValue_) {
-        require(value_ <= type(uint120).max, "LM:UINT120_CAST_OOB");
-        castedValue_ = uint120(value_);
+    function _uint120(uint256 input_) internal pure returns (uint120 output_) {
+        require(input_ <= type(uint120).max, "LM:UINT120_CAST_OOB");
+        output_ = uint120(input_);
     }
 
-    function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
-        require(value_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
-        castedValue_ = uint128(value_);
+    function _uint128(uint256 input_) internal pure returns (uint128 output_) {
+        require(input_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        output_ = uint128(input_);
     }
 
 }

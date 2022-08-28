@@ -3,15 +3,11 @@ pragma solidity 0.8.7;
 
 interface IERC20Like {
 
-    function approve(address spender_, uint256 amount_) external;
-
     function balanceOf(address account_) external view returns (uint256 balance_);
 
     function decimals() external view returns (uint8 decimals_);
 
     function totalSupply() external view returns (uint256 totalSupply_);
-
-    function transfer(address destination_, uint256 amount_) external;
 
 }
 
@@ -59,7 +55,7 @@ interface ILiquidatorLike {
 
 interface ILoanV3Like {
 
-    // TOOD: Investigate why this works, update to V3 - potentially V2
+    // TODO: Investigate why this works, update to V3 - potentially V2
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
 }
@@ -174,7 +170,7 @@ interface IMapleGlobalsLike {
 
 interface IMapleLoanFeeManagerLike  {
 
-    function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee);
+    function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee_);
 
 }
 
@@ -190,9 +186,7 @@ interface IPoolDelegateCoverLike {
 
 }
 
-interface IPoolLike {
-
-    function approve(address spender_, uint256 amount_) external;
+interface IPoolLike is IERC20Like {
 
     function asset() external view returns (address asset_);
 
@@ -210,8 +204,6 @@ interface IPoolLike {
 
     function redeem(uint256 shares_, address receiver_, address owner_) external returns (uint256 assets_);
 
-    function totalSupply() external view returns (uint256 totalSupply_);
-
 }
 
 interface IPoolManagerLike {
@@ -228,7 +220,7 @@ interface IPoolManagerLike {
 
     function fund(uint256 principalAmount_, address loan_, address loanManager_) external;
 
-    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShres_, address escrow_);
+    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address escrow_);
 
     function globals() external view returns (address globals_);
 

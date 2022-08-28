@@ -685,9 +685,7 @@ contract MockRevertingERC20 {
 
 }
 
-contract MockPoolManagerMigrator {
-
-    address poolDelegate;
+contract MockPoolManagerMigrator is PoolManagerStorage {
 
     fallback() external {
         poolDelegate = abi.decode(msg.data, (address));

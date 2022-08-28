@@ -28,7 +28,7 @@ contract Pool is IPool, ERC20 {
 
         _mint(destination_, initialSupply_);
 
-        asset = asset_;
+        require((asset = asset_) != address(0), "P:C:ZERO_ADDRESS");
         require(ERC20Helper.approve(asset_, manager_, type(uint256).max), "P:C:FAILED_APPROVE");
     }
 
@@ -105,7 +105,7 @@ contract Pool is IPool, ERC20 {
     }
 
     function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 shares_) {
-        ( shares_, assets_ ) = IPoolManagerLike(manager).processWithdraw(assets_, owner_);
+        ( shares_, assets_ ) = IPoolManagerLike(manager).processRedeem(convertToExitShares(assets_), owner_);
         _burn(shares_, assets_, receiver_, owner_, msg.sender);
     }
 
@@ -115,7 +115,7 @@ contract Pool is IPool, ERC20 {
     )
         public override(IERC20, ERC20) checkCall("P:transfer") returns (bool success_)
     {
-        return super.transfer(recipient_, amount_);
+        success_ = super.transfer(recipient_, amount_);
     }
 
     function transferFrom(
@@ -125,28 +125,37 @@ contract Pool is IPool, ERC20 {
     )
         public override(IERC20, ERC20) checkCall("P:transferFrom") returns (bool success_)
     {
-        return super.transferFrom(owner_, recipient_, amount_);
+        success_ = super.transferFrom(owner_, recipient_, amount_);
     }
 
     /************************************/
     /*** Withdrawal Request Functions ***/
     /************************************/
 
-    function removeShares(uint256 shares_) external override returns (uint256 sharesReturned_) {
-        sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, msg.sender);
-        emit SharesRemoved(msg.sender, shares_);
+    function removeShares(uint256 shares_) external override nonReentrant returns (uint256 sharesReturned_) {
+        emit SharesRemoved(
+            msg.sender,
+            sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, msg.sender)
+        );
     }
 
-    function requestWithdraw(uint256 assets_) external override returns (uint256 escrowShares_) {
-        escrowShares_ = _requestRedeem(convertToExitShares(assets_));
-        emit WithdrawRequested(msg.sender, assets_);
+    // TODO: To be grammatically correct ths should be `requestWithdrawal` with a `WithdrawalRequested` event. Also, see `requestRedeem`.
+    function requestWithdraw(uint256 assets_) external override nonReentrant returns (uint256 escrowedShares_) {
+        emit WithdrawRequested(
+            msg.sender,
+            assets_,
+            escrowedShares_ = _requestRedeem(convertToExitShares(assets_))
+        );
     }
 
-    // TODO: Add user and approvals
-    // TODO: Revert on zero
-    function requestRedeem(uint256 shares_) external override returns (uint256 escrowShares_) {
-        escrowShares_ = _requestRedeem(shares_);
-        emit RedemptionRequested(msg.sender, shares_);
+    // TODO: Add user and approvals.
+    // TODO: To be grammatically correct ths should be `requestRedemption` since the event is `RedemptionRequested`.
+    function requestRedeem(uint256 shares_) external override nonReentrant returns (uint256 escrowedShares_) {
+        emit RedemptionRequested(
+            msg.sender,
+            shares_,
+            escrowedShares_ = _requestRedeem(shares_)
+        );
     }
 
     /**************************/
@@ -181,7 +190,10 @@ contract Pool is IPool, ERC20 {
         require(ERC20Helper.transferFrom(asset, caller_, address(this), assets_), "P:M:TRANSFER_FROM");
     }
 
+    // TODO: To be grammatically correct this should be `_requestRedemption`.
     function _requestRedeem(uint256 shares_) internal returns (uint256 escrowShares_) {
+        require(shares_ != 0, "P:RR:ZERO_SHARES");
+
         address destination_;
 
         ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(msg.sender, shares_);
@@ -194,7 +206,7 @@ contract Pool is IPool, ERC20 {
     }
 
     function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
-       return (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
+       result_ = (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
     }
 
     /*******************************/
@@ -202,23 +214,23 @@ contract Pool is IPool, ERC20 {
     /*******************************/
 
     function balanceOfAssets(address account_) external view virtual override returns (uint256 balanceOfAssets_) {
-        return convertToAssets(balanceOf[account_]);
+        balanceOfAssets_ = convertToAssets(balanceOf[account_]);
     }
 
     function maxDeposit(address receiver_) external view virtual override returns (uint256 maxAssets_) {
-        return IPoolManagerLike(manager).maxDeposit(receiver_);
+        maxAssets_ = IPoolManagerLike(manager).maxDeposit(receiver_);
     }
 
     function maxMint(address receiver_) external view virtual override returns (uint256 maxShares_) {
-        return IPoolManagerLike(manager).maxMint(receiver_);
+        maxShares_ = IPoolManagerLike(manager).maxMint(receiver_);
     }
 
     function maxRedeem(address owner_) external view virtual override returns (uint256 maxShares_) {
-        return IPoolManagerLike(manager).maxRedeem(owner_);
+        maxShares_ = IPoolManagerLike(manager).maxRedeem(owner_);
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
-        return IPoolManagerLike(manager).maxWithdraw(owner_);
+        maxAssets_ = IPoolManagerLike(manager).maxWithdraw(owner_);
     }
 
     function previewRedeem(uint256 shares_) external view virtual override returns (uint256 assets_) {
@@ -246,7 +258,7 @@ contract Pool is IPool, ERC20 {
     }
 
     function convertToExitShares(uint256 amount_) public view override returns (uint256 shares_) {
-        return _divRoundUp(amount_ * totalSupply, totalAssets() - unrealizedLosses());
+        shares_ = _divRoundUp(amount_ * totalSupply, totalAssets() - unrealizedLosses());
     }
 
     // TODO consider unrealized losses
@@ -265,12 +277,12 @@ contract Pool is IPool, ERC20 {
         assets_ = totalSupply_ == 0 ? shares_ : _divRoundUp(shares_ * totalAssets(), totalSupply_);
     }
 
-    function totalAssets() public view virtual override returns (uint256 totalManagedAssets_) {
-        return IPoolManagerLike(manager).totalAssets();
+    function totalAssets() public view virtual override returns (uint256 totalAssets_) {
+        totalAssets_ = IPoolManagerLike(manager).totalAssets();
     }
 
-    function unrealizedLosses() public view virtual override returns (uint256 totalManagedAssets_) {
-        return IPoolManagerLike(manager).unrealizedLosses();
+    function unrealizedLosses() public view virtual override returns (uint256 unrealizedLosses_) {
+        unrealizedLosses_ = IPoolManagerLike(manager).unrealizedLosses();
     }
 
 }

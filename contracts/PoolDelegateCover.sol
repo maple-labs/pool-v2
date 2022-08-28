@@ -11,8 +11,8 @@ contract PoolDelegateCover is IPoolDelegateCover {
     address public override poolManager;
 
     constructor(address poolManager_, address asset_) {
-        asset       = asset_;
-        poolManager = poolManager_;
+        require((poolManager = poolManager_) != address(0), "PDC:C:ZERO_PM_ADDRESS");
+        require((asset       = asset_)       != address(0), "PDC:C:ZERO_A_ADDRESS");
     }
 
     function moveFunds(uint256 amount_, address recipient_) external override {

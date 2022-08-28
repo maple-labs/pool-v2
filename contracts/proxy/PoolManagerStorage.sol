@@ -5,6 +5,8 @@ import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
 
 abstract contract PoolManagerStorage is IPoolManagerStorage {
 
+    uint256 internal _locked;  // Used when checking for reentrancy.
+
     address public override poolDelegate;
     address public override pendingPoolDelegate;
 

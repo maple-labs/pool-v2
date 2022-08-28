@@ -35,6 +35,8 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
     }
 
     fallback() external {
+        _locked = 1;
+
         (
             address poolDelegate_,
             address asset_,

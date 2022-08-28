@@ -27,19 +27,21 @@ interface IPool is IERC20, IERC4626 {
 
     /**
      *  @dev   A new redemption request has been made.
-     *  @param owner_  The owner of shares.
-     *  @param shares_ The amount of shares_ requested to redeem.
+     *  @param owner_          The owner of shares.
+     *  @param shares_         The amount of shares requested to redeem.
+     *  @param escrowedShares_ The amount of shares actually escrowed for this withdrawal request.
      */
-    event RedemptionRequested(address indexed owner_, uint256 shares_);
+    event RedemptionRequested(address indexed owner_, uint256 shares_, uint256 escrowedShares_);
 
     event SharesRemoved(address indexed owner_, uint256 shares_);
 
     /**
      *  @dev   A new withdrawal request has been made.
-     *  @param owner_  The owner of shares.
-     *  @param assets_ The amount of assets_ requested to withdraw.
+     *  @param owner_          The owner of shares.
+     *  @param assets_         The amount of assets requested to withdraw.
+     *  @param escrowedShares_ The amount of shares actually escrowed for this withdrawal request.
      */
-    event WithdrawRequested(address indexed owner_, uint256 assets_);
+    event WithdrawRequested(address indexed owner_, uint256 assets_, uint256 escrowedShares_);
 
     /***********************/
     /*** State Variables ***/
@@ -102,6 +104,6 @@ interface IPool is IERC20, IERC4626 {
 
     function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
 
-    function unrealizedLosses() external view returns (uint256 totalManagedAssets_);
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
 }

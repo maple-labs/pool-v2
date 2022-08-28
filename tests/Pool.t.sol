@@ -779,14 +779,6 @@ contract WithdrawTests is PoolBase {
         pool.withdraw(0, address(0), user);
     }
 
-    function test_withdraw_zeroAssets() external {
-        MockPoolManager(poolManager).__setRedeemableAssets(0);
-
-        vm.prank(user);
-        vm.expectRevert("P:B:ZERO_ASSETS");
-        pool.withdraw(0, user, user);
-    }
-
     function test_withdraw_zeroShares() external {
         MockPoolManager(poolManager).__setRedeemableShares(0);
 
