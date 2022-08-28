@@ -23,13 +23,15 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
 
     function takeOwnership(address[] calldata loanAddress_) external;
 
+    function setOwnershipTo(address[] calldata loanAddress_, address newLender_) external;
+
     /**********************/
     /*** View Functions ***/
     /**********************/
 
     function PRECISION() external view returns (uint256 precision_);
 
-    function SCALED_ONE() external view returns (uint256 scaledOne_);
+    function HUNDRED_PERCENT() external view returns (uint256 hundredPercent_);
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
@@ -37,6 +39,6 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
 
     function globals() external view returns (address globals_);
 
-    function poolDelegate() external view returns (address poolDelegate_);
+    function migrationAdmin() external view returns (address migrationAdmin_);
 
 }

@@ -88,7 +88,7 @@ contract ConfigureTests is PoolManagerBase {
     address loanManager = address(new Address());
 
     uint256 liquidityCap      = 1_000_000e18;
-    uint256 managementFeeRate = 0.1e18;
+    uint256 managementFeeRate = 0.1e6;
 
     function test_configure_notDeployer() public {
         vm.prank(POOL_DELEGATE);
@@ -96,6 +96,13 @@ contract ConfigureTests is PoolManagerBase {
         poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
 
         poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
+    }
+
+    function test_configure_delegateManagementFeeOOB() public {
+        vm.expectRevert("PM:CO:OOB");
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, 100_0001);
+
+        poolManager.configure(loanManager, withdrawalManager, liquidityCap, 100_0000);
     }
 
     function test_configure_alreadyConfigured() public {
