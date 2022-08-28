@@ -15,9 +15,7 @@ interface ILoanManagerStructs {
     }
 
 
-    struct LoanInfo {
-        uint24  previous;                   // Slot 1: uint24  -  3 bytes: max = 1.6e7
-        uint24  next;                       //         uint24  -  3 bytes: max = 1.6e7
+    struct PaymentInfo {
         uint24  platformManagementFeeRate;  //         uint24  -  3 bytes: max = 1.6e7  (1600%)
         uint24  delegateManagementFeeRate;  //         uint24  -  3 bytes: max = 1.6e7  (1600%)
         uint48  startDate;                  //         uint48  -  6 bytes: max = 2.8e14 (>8m years)
@@ -27,8 +25,16 @@ interface ILoanManagerStructs {
         uint256 issuanceRate;               // Slot 3: uint256 - 32 bytes: max = 1.1e77
     }
 
+    struct SortedPayment {
+        uint24  previous;
+        uint24  next;
+        uint48  paymentDueDate;
+    }
+
     function liquidationInfo(address loan_) external view returns (LiquidationInfo memory liquidationInfo_);
 
-    function loans(uint256 loanId_) external view returns (LoanInfo memory loanInfo_);
+    function payments(uint256 paymentId_) external view returns (PaymentInfo memory paymentInfo_);
+
+    function sortedPayments(uint256 paymentId_) external view returns (SortedPayment memory sortedPayment_);
 
 }

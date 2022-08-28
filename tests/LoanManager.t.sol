@@ -197,7 +197,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         assertEq(asset.balanceOf(address(poolDelegate)), poolDelegateBalance);
     }
 
-    function _assertLoanInfo(
+    function _assertPaymentInfo(
         address loanAddress,
         uint256 incomingNetInterest,
         uint256 refinanceInterest,
@@ -206,7 +206,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.loans(loanManager.loanIdOf(loanAddress));
+        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loanAddress));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -225,13 +225,13 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        assertEq(loanManager.getAccruedInterest(),     accruedInterest);
-        assertEq(loanManager.accountedInterest(),      accountedInterest);
-        assertEq(loanManager.principalOut(),           principalOut);
-        assertEq(loanManager.assetsUnderManagement(),  assetsUnderManagement);
-        assertEq(loanManager.issuanceRate(),           issuanceRate);
-        assertEq(loanManager.domainStart(),            domainStart);
-        assertEq(loanManager.domainEnd(),              domainEnd);
+        assertEq(loanManager.getAccruedInterest(),    accruedInterest);
+        assertEq(loanManager.accountedInterest(),     accountedInterest);
+        assertEq(loanManager.principalOut(),          principalOut);
+        assertEq(loanManager.assetsUnderManagement(), assetsUnderManagement);
+        assertEq(loanManager.issuanceRate(),          issuanceRate);
+        assertEq(loanManager.domainStart(),           domainStart);
+        assertEq(loanManager.domainEnd(),             domainEnd);
     }
 
     function _assertTotalAssets(uint256 totalAssets) internal {
@@ -362,19 +362,19 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerCollateralLiquidation(address(loan));
 
-        uint256 loanId = loanManager.loanIdOf(address(loan));
+        uint256 paymentId = loanManager.paymentIdOf(address(loan));
 
-        assertEq(loanId, 1);  // Loan should be deleted.
+        assertEq(paymentId, 1);  // Loan should be deleted.
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              80);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_080);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_011_000);
-        assertEq(loanManager.domainEnd(),                      5_011_000);  // TODO: This should never become 0, but does because there are no loans left.
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),               1_000_080);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          80);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_011_000);
+        assertEq(loanManager.domainEnd(),                  5_011_000);  // TODO: This should never become 0, but does because there are no loans left.
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_080);
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -390,22 +390,22 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         ( uint256 remainingLosses_, uint256 platformFee_ ) = loanManager.finishCollateralLiquidation(address(loan));
 
-        loanId = loanManager.loanIdOf(address(loan));
+        paymentId = loanManager.paymentIdOf(address(loan));
 
-        assertEq(loanId, 0);  // Loan should be deleted.
+        assertEq(paymentId, 0);  // Loan should be deleted.
 
         assertEq(remainingLosses_, 1_000_080);  // No collateral was liquidated because there is none.
         assertEq(platformFee_,     20 + 5);     // 20 (platform service fee) + 100 * 5% (platform management fee)
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              0);
-        assertEq(loanManager.principalOut(),                   0);
-        assertEq(loanManager.assetsUnderManagement(),          0);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_011_000);
-        assertEq(loanManager.domainEnd(),                      5_011_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),               0);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               0);
+        assertEq(loanManager.assetsUnderManagement(),      0);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_011_000);
+        assertEq(loanManager.domainEnd(),                  5_011_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           0);
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -459,23 +459,23 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
-        uint256 loanId_ = loanManager.loanIdOf(address(loan));
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        uint256 paymentId_ = loanManager.paymentIdOf(address(loan));
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
-        assertEq(loanInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             48);  // 60 * (1 - (.05 + .15))
-        assertEq(loanManager.accountedInterest(),              0);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_000_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), loanId_);
+        assertEq(loanManager.getAccruedInterest(),         48);         // 60 * (1 - (.05 + .15))
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_000_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), paymentId_);
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -491,24 +491,24 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), false);
 
-        loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
         // Loan info doesn't change, in case we want to revert the default warning.
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
-        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);          // Loan has been removed from list
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -517,28 +517,28 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
         // Warp ahead, asserting that the loan interest accruing has been paused.
         vm.warp(START + 9_000);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -547,7 +547,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -558,23 +558,23 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
-        uint256 loanId_ = loanManager.loanIdOf(address(loan));
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        uint256 paymentId_ = loanManager.paymentIdOf(address(loan));
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
-        assertEq(loanInfo.incomingNetInterest, 80);        // 100 * (1 - .05 + .15)
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);         // 100 * (1 - .05 + .15)
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             48);  // 60 * (1 - (.05 + .15))
-        assertEq(loanManager.accountedInterest(),              0);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_000_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), loanId_);
+        assertEq(loanManager.getAccruedInterest(),         48);         // 60 * (1 - (.05 + .15))
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_000_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), paymentId_);
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -592,24 +592,24 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), true);
 
-        loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
         // Loan info doesn't change, in case we want to revert the default warning.
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
-        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);          // Loan has been removed from list
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -618,7 +618,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -692,8 +692,8 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
     }
 
     function test_removeDefaultWarning_successWithPD() public {
-        uint256 loanId_ = loanManager.loanIdOf(address(loan));
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        uint256 paymentId_ = loanManager.paymentIdOf(address(loan));
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
@@ -701,20 +701,20 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), false);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);          // Loan has been removed from list
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -723,7 +723,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -732,20 +732,20 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.removeDefaultWarning(address(loan), false);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);          // Loan was re-added to list.
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -762,24 +762,24 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
 
         vm.warp(START + 10_000);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             32);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_080);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+        assertEq(loanManager.getAccruedInterest(),         32);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);          // Loan was re-added to list.
     }
 
     function test_removeDefaultWarning_successWithGovernor() public {
-        uint256 loanId_ = loanManager.loanIdOf(address(loan));
+        uint256 paymentId_ = loanManager.paymentIdOf(address(loan));
 
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
@@ -787,22 +787,22 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), true);
 
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId_);
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId_);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);  // Loan has been removed from list
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);          // Loan has been removed from list
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -811,7 +811,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -820,20 +820,20 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.removeDefaultWarning(address(loan), true);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);          // Loan was re-added to list.
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -850,20 +850,20 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
 
         vm.warp(START + 10_000);
 
-        assertEq(loanInfo.incomingNetInterest, 80);
-        assertEq(loanInfo.refinanceInterest,   0);
-        assertEq(loanInfo.issuanceRate,        0.0080e30);
-        assertEq(loanInfo.startDate,           5_000_000);
-        assertEq(loanInfo.paymentDueDate,      5_010_000);
+        assertEq(paymentInfo.incomingNetInterest, 80);
+        assertEq(paymentInfo.refinanceInterest,   0);
+        assertEq(paymentInfo.issuanceRate,        0.0080e30);
+        assertEq(paymentInfo.startDate,           5_000_000);
+        assertEq(paymentInfo.paymentDueDate,      5_010_000);
 
-        assertEq(loanManager.getAccruedInterest(),             32);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_080);
-        assertEq(loanManager.issuanceRate(),                   0.0080e30);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_010_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);  // Loan was re-added to list.
+        assertEq(loanManager.getAccruedInterest(),         32);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0.0080e30);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);          // Loan was re-added to list.
     }
 
 }
@@ -903,7 +903,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START+ 10_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -937,7 +937,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -974,7 +974,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START+ 4_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -983,7 +983,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertLoanManagerState({
-            accruedInterest:       32,  // 0.008 * 4_000 = 32
+            accruedInterest:       32,             // 0.008 * 4_000 = 32
             accountedInterest:     0,
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
@@ -1008,7 +1008,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1021,7 +1021,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             accountedInterest:     0,
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_000,
-            issuanceRate:          0.005e30,  // 80 / (10_000 + 4_000 remaining in interval) = 0.005
+            issuanceRate:          0.005e30,       // 80 / (10_000 + 4_000 remaining in interval) = 0.005
             domainStart:           START + 4_000,
             domainEnd:             START + 20_000
         });
@@ -1045,7 +1045,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START+ 14_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1080,7 +1080,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1090,10 +1090,10 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertLoanManagerState({
             accruedInterest:       0,
-            accountedInterest:     32,  // 4000 seconds into the next interval = 4000 * 0.008 = 32
+            accountedInterest:     32,              // 4000 seconds into the next interval = 4000 * 0.008 = 32
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
-            issuanceRate:          0.008e30,  // Same issuance rate as before.
+            issuanceRate:          0.008e30,        // Same issuance rate as before.
             domainStart:           START + 14_000,
             domainEnd:             START + 20_000
         });
@@ -1118,7 +1118,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 10_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1127,7 +1127,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertLoanManagerState({
-            accruedInterest:       80,  // 0.008 * 10_000 = 80
+            accruedInterest:       80,             // 0.008 * 10_000 = 80
             accountedInterest:     0,
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_080,
@@ -1152,7 +1152,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1190,7 +1190,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 4_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1199,7 +1199,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertLoanManagerState({
-            accruedInterest:       32,  // 0.008 * 6_000 = 32
+            accruedInterest:       32,             // 0.008 * 6_000 = 32
             accountedInterest:     0,
             principalOut:          1_000_000,
             assetsUnderManagement: 1_000_032,
@@ -1224,7 +1224,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1237,7 +1237,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             accountedInterest:     0,
             principalOut:          800_000,
             assetsUnderManagement: 800_000,
-            issuanceRate:          0.005e30,  // 80 / (10_000 + 6_000 remaining in current interval) = 0.005
+            issuanceRate:          0.005e30,       // 80 / (10_000 + 6_000 remaining in current interval) = 0.005
             domainStart:           START + 4_000,
             domainEnd:             START + 20_000
         });
@@ -1262,7 +1262,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 14_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1290,14 +1290,14 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _makeLatePayment({
             loanAddress:         address(loan),
-            interestAmount:      100,             // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
+            interestAmount:      100,            // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
             lateInterestAmount:  60,
             principalAmount:     200_000,
             nextInterestPayment: 100,
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1307,10 +1307,10 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertLoanManagerState({
             accruedInterest:       0,
-            accountedInterest:     32,  // 4000 seconds into the next interval = 4000 * 0.008 = 28
+            accountedInterest:     32,              // 4000 seconds into the next interval = 4000 * 0.008 = 28
             principalOut:          800_000,
             assetsUnderManagement: 800_032,
-            issuanceRate:          0.008e30,  // Same issuance rate as before.
+            issuanceRate:          0.008e30,        // Same issuance rate as before.
             domainStart:           START + 14_000,
             domainEnd:             START + 20_000
         });
@@ -1357,10 +1357,10 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         /**
          *  Loan 1
-         *    Start date:    0secsec
+         *    Start date:    0sec
          *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
          *  Loan 2
-         *    Start date:    6_000secsec
+         *    Start date:    6_000sec
          *    Issuance rate: 0.01e30 (125 * 0.8 / 10_000)
          */
     }
@@ -1376,13 +1376,13 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
          *    First  payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000secsec * 0.01 = 40
+         *    First payment net interest accrued: 4_000sec * 0.01 = 40
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000secsec * 0.008 = 80
-         *    Second payment net interest accounted: 0secsec      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
+         *    Second payment net interest accounted: 0sec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 4_000secsec * 0.01 = 40
+         *    First payment net interest accounted: 4_000sec * 0.01 = 40
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + 48 + 0  = 1_000_120
@@ -1393,17 +1393,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 6_000secsec * 0.008 = 48
+         *    Second payment net interest accrued: 6_000sec * 0.008 = 48
          *  Loan 2:
          *    First  payment net interest accounted: 4_000sec * 0.01 = 40 (Accounted during loan1 payment)
          *    First  payment net interest accrued:   6_000sec * 0.01 = 60
          *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000secsec * 0.008 = 48
+         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
-         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (48 + 60) + 40 + 80  = 1_000_228
@@ -1416,7 +1416,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 10_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1426,7 +1426,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertLoanManagerState({
             accruedInterest:       32 + 40,
-            accountedInterest:     48,  // Accounted during loan2 funding.
+            accountedInterest:     48,             // Accounted during loan2 funding.
             principalOut:          2_000_000,
             assetsUnderManagement: 2_000_120,
             issuanceRate:          0.018e30,
@@ -1450,7 +1450,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1482,7 +1482,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 16_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1516,7 +1516,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 26_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1550,16 +1550,16 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First  payment net interest accounted: 6_000secsec * 0.008 = 48 (Accounted during loan2 funding)
-         *    First  payment net interest accrued:   2_000secsec * 0.008 = 16
+         *    First  payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First  payment net interest accrued:   2_000sec * 0.008 = 16
          *  Loan 2:
-         *    First payment net interest accrued: 2_000secsec * 0.01 = 20
+         *    First payment net interest accrued: 2_000sec * 0.01 = 20
          *  --- Post-Claim ---
          *  Loan 1:
-         *    First  payment net interest claimed:   10_000secsec * 0.008 = 80
-         *    Second payment net interest accounted: 0secsec      * 0.008 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.008 = 80
+         *    Second payment net interest accounted: 0sec      * 0.008 = 0
          *  Loan 2:
-         *    First payment net interest accounted: 2_000secsec * 0.01 = 20
+         *    First payment net interest accounted: 2_000sec * 0.01 = 20
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (16 + 20) + 48 + 0  = 2_000_084
@@ -1570,17 +1570,17 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accrued: 8_000secsec * (80/12_000) = 53
+         *    Second payment net interest accrued: 8_000sec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest accounted: 2_000secsec * 0.01 = 20 (Accounted during loan1 payment)
-         *    First  payment net interest accrued:   8_000secsec * 0.01 = 80
-         *    Second payment net interest accrued:   0secsec     * 0.01 = 0
+         *    First  payment net interest accounted: 2_000sec * 0.01 = 20 (Accounted during loan1 payment)
+         *    First  payment net interest accrued:   8_000sec * 0.01 = 80
+         *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 8_000secsec * (80/12_000) = 53
+         *    Second payment net interest accounted: 8_000sec * (80/12_000) = 53
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
-         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (53 + 80) + 20 + 80  = 1_000_233
@@ -1593,7 +1593,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 8_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1627,7 +1627,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1659,7 +1659,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 16_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1693,7 +1693,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 26_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1727,16 +1727,16 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    First payment net interest accounted: 6_000secsec * 0.008 = 48 (Accounted during loan2 funding)
-         *    First payment net interest accrued:   4_000secsec * 0.008 = 32
+         *    First payment net interest accounted: 6_000sec * 0.008 = 48 (Accounted during loan2 funding)
+         *    First payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First payment net interest accrued: 4_000secsec * 0.01 = 40  (Only accrues until loan1 due date)
+         *    First payment net interest accrued: 4_000sec * 0.01 = 40  (Only accrues until loan1 due date)
          *  --- Post-Claim ---
          *  Loan 1:
          *    First  payment net interest claimed:   (10_000sec * 0.008) + (2_000sec * 0.012) = 104
          *    Second payment net interest accounted:  2_000sec  * 0.008                       = 16
          *  Loan 2:
-         *    First payment net interest accounted: 6_000secsec * 0.01 = 60
+         *    First payment net interest accounted: 6_000sec * 0.01 = 60
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + 48        + 0   = 2_000_120
@@ -1747,18 +1747,18 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  ***********************************
          *  --- Pre-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 2_000secsec * 0.008 = 16
-         *    Second payment net interest accrued:   4_000secsec * 0.008 = 32
+         *    Second payment net interest accounted: 2_000sec * 0.008 = 16
+         *    Second payment net interest accrued:   4_000sec * 0.008 = 32
          *  Loan 2:
-         *    First  payment net interest accounted: 6_000secsec * 0.01 = 60 (Accounted during loan1 claim)
-         *    First  payment net interest accrued:   4_000secsec * 0.01 = 40
-         *    Second payment net interest accrued:   0secsec     * 0.01 = 0
+         *    First  payment net interest accounted: 6_000sec * 0.01 = 60 (Accounted during loan1 claim)
+         *    First  payment net interest accrued:   4_000sec * 0.01 = 40
+         *    Second payment net interest accrued:   0sec     * 0.01 = 0
          *  --- Post-Claim ---
          *  Loan 1:
-         *    Second payment net interest accounted: 6_000secsec * 0.008 = 48
+         *    Second payment net interest accounted: 6_000sec * 0.008 = 48
          *  Loan 2:
-         *    First  payment net interest claimed:   10_000secsec * 0.01 = 100
-         *    Second payment net interest accounted: 0secsec      * 0.01 = 0
+         *    First  payment net interest claimed:   10_000sec * 0.01 = 100
+         *    Second payment net interest accounted: 0sec      * 0.01 = 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + (32 + 40) + (16 + 60) + 104 = 2_000_252
@@ -1771,7 +1771,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 12_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1806,7 +1806,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 20_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -1838,7 +1838,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 16_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1872,7 +1872,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 26_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -1984,7 +1984,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 28_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan3),
             incomingNetInterest: 120,
             refinanceInterest:   0,
@@ -2043,7 +2043,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 28_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan3),
             incomingNetInterest: 120,
             refinanceInterest:   0,
@@ -2199,7 +2199,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         vm.warp(START + 27_000);
 
         // Loan 1
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -2208,7 +2208,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         });
 
         // Loan 2
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2247,7 +2247,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         });
 
         // Loan 1
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
@@ -2256,7 +2256,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         });
 
         // Loan 2 (No change)
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2351,7 +2351,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 10_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2392,7 +2392,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
@@ -2449,7 +2449,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 30_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
@@ -2506,7 +2506,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
          *  Second payment net interest accrued:   10_000sec * 0.03 = 300
          *  --- Post-Claim ---
          *  Second payment net interest claimed:   10_000sec * 0.03 = 300
-         *  Secpnd payment net interest accounted: 0
+         *  Second payment net interest accounted: 0
          *  --------------------------------------------------------------
          *  TA = principalOut + accruedInterest + accountedInterest + cash
          *  Starting  total assets: 2_000_000 + 300 + 60 + 0   = 2_000_360
@@ -2515,7 +2515,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 6_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2553,7 +2553,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   60,
@@ -2610,7 +2610,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 26_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
@@ -2676,7 +2676,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 14_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2714,7 +2714,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   148,
@@ -2771,7 +2771,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 34_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
@@ -2838,7 +2838,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         vm.warp(START + 10_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
@@ -2876,7 +2876,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         asset.burn(address(pool), 1_000_000);
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
@@ -2927,13 +2927,13 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         // Make a payment post refinance
         _makePayment({
             loanAddress:         address(loan),
-            interestAmount:      375 + 125,  // Interest plus refiance interest
+            interestAmount:      375 + 125,  // Interest plus refinance interest
             principalAmount:     200_000,
             nextInterestPayment: 375,
             nextPaymentDueDate:  START + 30_000
         });
 
-        _assertLoanInfo({
+        _assertPaymentInfo({
             loanAddress:         address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
@@ -3002,15 +3002,15 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefaultWarning(address(loan), false);
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -3026,15 +3026,15 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerCollateralLiquidation(address(loan));
 
-        assertEq(loanManager.getAccruedInterest(),             0);
-        assertEq(loanManager.accountedInterest(),              48);
-        assertEq(loanManager.principalOut(),                   1_000_000);
-        assertEq(loanManager.assetsUnderManagement(),          1_000_048);
-        assertEq(loanManager.issuanceRate(),                   0);
-        assertEq(loanManager.domainStart(),                    5_006_000);
-        assertEq(loanManager.domainEnd(),                      5_006_000);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),               1_000_048);
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_006_000);
+        assertEq(loanManager.domainEnd(),                  5_006_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
@@ -3079,8 +3079,6 @@ contract FundLoanTests is LoanManagerBaseTest {
         asset.mint(address(loan), principalRequested);
 
         (
-            ,
-            ,
             uint256 incomingNetInterest_,
             uint256 refinanceInterest_,
             ,
@@ -3088,7 +3086,7 @@ contract FundLoanTests is LoanManagerBaseTest {
             uint256 paymentDueDate_,
             uint256 platformManagementFeeRate_,
             uint256 delegateManagementFeeRate_
-        ) = loanManager.loans(1);
+        ) = loanManager.payments(1);
 
         assertEq(incomingNetInterest_,       0);
         assertEq(refinanceInterest_,         0);
@@ -3108,18 +3106,16 @@ contract FundLoanTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
 
-        assertEq(loanManager.loanIdOf(address(loan)), 1);
+        assertEq(loanManager.paymentIdOf(address(loan)), 1);
 
         (
-            ,
-            ,
             platformManagementFeeRate_,
             delegateManagementFeeRate_,
             startDate_,
             paymentDueDate_,
             incomingNetInterest_,
             refinanceInterest_,
-        ) = loanManager.loans(1);
+        ) = loanManager.payments(1);
 
         // Check loan information
         assertEq(incomingNetInterest_,       0.8e18); // 1e18 of interest minus management fees
@@ -3128,11 +3124,11 @@ contract FundLoanTests is LoanManagerBaseTest {
         assertEq(platformManagementFeeRate_, platformManagementFeeRate);
         assertEq(delegateManagementFeeRate_, delegateManagementFeeRate);
 
-        assertEq(loanManager.principalOut(),        principalRequested);
-        assertEq(loanManager.accountedInterest(),   0);
-        assertEq(loanManager.issuanceRate(),        0.8e46);  // 0.7e18 * 1e30 / 100 = 0.7e46
-        assertEq(loanManager.domainEnd(),           START + 100);
-        assertEq(loanManager.domainStart(),         START);
+        assertEq(loanManager.principalOut(),      principalRequested);
+        assertEq(loanManager.accountedInterest(), 0);
+        assertEq(loanManager.issuanceRate(),      0.8e46);  // 0.7e18 * 1e30 / 100 = 0.7e46
+        assertEq(loanManager.domainEnd(),         START + 100);
+        assertEq(loanManager.domainStart(),       START);
     }
 
     function test_fund_failIfNotPoolManager() external {
@@ -3154,10 +3150,10 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     address medianLoanAddress;
     address synchronizedLoanAddress;
 
-    LoanManagerHarness.LoanInfo earliestLoanInfo;
-    LoanManagerHarness.LoanInfo latestLoanInfo;
-    LoanManagerHarness.LoanInfo medianLoanInfo;
-    LoanManagerHarness.LoanInfo synchronizedLoanInfo;
+    LoanManagerHarness.PaymentInfo earliestPaymentInfo;
+    LoanManagerHarness.PaymentInfo latestPaymentInfo;
+    LoanManagerHarness.PaymentInfo medianPaymentInfo;
+    LoanManagerHarness.PaymentInfo synchronizedPaymentInfo;
 
     function setUp() public override {
         super.setUp();
@@ -3167,501 +3163,478 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         latestLoanAddress       = address(new Address());
         synchronizedLoanAddress = address(new Address());
 
-        earliestLoanInfo.paymentDueDate     = 10;
-        medianLoanInfo.paymentDueDate       = 20;
-        synchronizedLoanInfo.paymentDueDate = 20;
-        latestLoanInfo.paymentDueDate       = 30;
+        earliestPaymentInfo.paymentDueDate     = 10;
+        medianPaymentInfo.paymentDueDate       = 20;
+        synchronizedPaymentInfo.paymentDueDate = 20;
+        latestPaymentInfo.paymentDueDate       = 30;
+    }
+
+    /*******************/
+    /*** Add Payemnt ***/
+    /*******************/
+
+    function test_addPaymentToList_single() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),                 1);
+        assertEq(loanManager.paymentWithEarliestDueDate(),     1);
+
+        ( uint24 previous, uint24 next, uint48 paymentDueDate ) = loanManager.sortedPayments(1);
+
+        assertEq(previous,       0);
+        assertEq(next,           0);
+        assertEq(paymentDueDate, earliestPaymentInfo.paymentDueDate);
+    }
+
+    function test_addPaymentToList_ascendingPair() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+    }
+
+    function test_addPaymentToList_descendingPair() external {
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 2);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 0);
+        assertEq(next,     1);
+    }
+
+    function test_addPaymentToList_synchronizedPair() external {
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(synchronizedPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+    }
+
+    function test_addPaymentToList_toHead() external {
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 3);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 3);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(3);
+
+        assertEq(previous, 0);
+        assertEq(next,     1);
+    }
+
+    function test_addPaymentToList_toMiddle() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     3);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 3);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(3);
+
+        assertEq(previous, 1);
+        assertEq(next,     2);
+    }
+
+    function test_addPaymentToList_toTail() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
+
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
+
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     2);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 1);
+        assertEq(next,     3);
+
+        ( previous, next, ) = loanManager.sortedPayments(3);
+
+        assertEq(previous, 2);
+        assertEq(next,     0);
     }
 
     /**********************/
-    /*** Add Investment ***/
+    /*** Remove Payemnt ***/
     /**********************/
 
-    function test_addLoan_single() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
+    // TODO: Add recognizePayment coverage
+    function test_removePaymentFromList_invalidPaymentId() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        loanManager.removePaymentFromList(2);
+
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
     }
 
-    function test_addLoan_ascendingPair() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
+    function test_removePaymentFromList_single() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     0);
 
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
+        loanManager.removePaymentFromList(1);
 
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             1);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   2);
+        ( previous, next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
+        assertEq(previous, 0);
+        assertEq(next,     0);
     }
 
-    function test_addLoan_descendingPair() external {
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
+    function test_removePaymentFromList_pair() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(latestLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     2);
 
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
+        assertEq(previous, 1);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   1);
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 2);
+        loanManager.removePaymentFromList(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 2);
+        assertEq(loanManager.paymentCounter(),             2);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);
 
-        assertEq(loanManager.loan(2).next,     1);
-        assertEq(loanManager.loan(2).previous, 0);
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
     }
 
-    function test_addLoan_synchronizedPair() external {
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
+    function test_removePaymentFromList_earliestDueDate() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(medianLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     2);
 
-        loanManager.addLoanToList(synchronizedLoanAddress, synchronizedLoanInfo);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(previous, 1);
+        assertEq(next,     3);
 
-        assertEq(loanManager.loanIdOf(medianLoanAddress),       1);
-        assertEq(loanManager.loanIdOf(synchronizedLoanAddress), 2);
+        ( previous, next, ) = loanManager.sortedPayments(3);
 
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 2);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
+        loanManager.removePaymentFromList(1);
+
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 2);
+
+        ( previous, next, ) = loanManager.sortedPayments(1);
+
+        assertEq(previous, 0);
+        assertEq(next,     0);
+
+        ( previous, next, ) = loanManager.sortedPayments(2);
+
+        assertEq(previous, 0);
+        assertEq(next,     3);
+
+        ( previous, next, ) = loanManager.sortedPayments(3);
+
+        assertEq(previous, 2);
+        assertEq(next,     0);
     }
 
-    function test_addLoan_toHead() external {
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
+    function test_removePaymentFromList_medianDueDate() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(medianLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     2);
 
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(previous, 1);
+        assertEq(next,     3);
 
-        assertEq(loanManager.loanIdOf(medianLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress), 2);
+        ( previous, next, ) = loanManager.sortedPayments(3);
 
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 2);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
+        loanManager.removePaymentFromList(2);
 
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 3);
+        ( previous, next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 3);
+        assertEq(previous, 0);
+        assertEq(next,     3);
 
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 3);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
+        assertEq(previous, 0);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loan(3).next,     1);
-        assertEq(loanManager.loan(3).previous, 0);
+        ( previous, next, ) = loanManager.sortedPayments(3);
+
+        assertEq(previous, 1);
+        assertEq(next,     0);
     }
 
-    function test_addLoan_toMiddle() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
+    function test_removePaymentFromList_latestDueDate() external {
+        loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(medianPaymentInfo.paymentDueDate);
+        loanManager.addPaymentToList(latestPaymentInfo.paymentDueDate);
 
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
+        ( uint24 previous, uint24 next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     2);
 
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        assertEq(previous, 1);
+        assertEq(next,     3);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   2);
+        ( previous, next, ) = loanManager.sortedPayments(3);
 
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
+        assertEq(previous, 2);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
+        loanManager.removePaymentFromList(3);
 
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
+        assertEq(loanManager.paymentCounter(),             3);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
 
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
+        ( previous, next, ) = loanManager.sortedPayments(1);
 
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   3);
+        assertEq(previous, 0);
+        assertEq(next,     2);
 
-        assertEq(loanManager.loan(1).next,     3);
-        assertEq(loanManager.loan(1).previous, 0);
+        ( previous, next, ) = loanManager.sortedPayments(2);
 
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 3);
+        assertEq(previous, 1);
+        assertEq(next,     0);
 
-        assertEq(loanManager.loan(3).next,     2);
-        assertEq(loanManager.loan(3).previous, 1);
-    }
+        ( previous, next, ) = loanManager.sortedPayments(3);
 
-    function test_addLoan_toTail() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     3);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 2);
-    }
-
-    /*************************/
-    /*** Remove Investment ***/
-    /*************************/
-
-    // TODO: Add test back
-    // TODO: Add recognizeLoanPayment coverage
-    function skiptest_removeLoan_invalidAddress() external {
-        address nonExistingVehicle = address(new Address());
-
-        vm.expectRevert(ZERO_DIVISION);
-        loanManager.recognizeLoanPayment(nonExistingVehicle);
-    }
-
-    function test_removeLoan_single() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.recognizeLoanPayment(earliestLoanAddress);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 0);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 0);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-    }
-
-    function test_removeLoan_pair() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   2);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        loanManager.recognizeLoanPayment(earliestLoanAddress);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 0);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 0);
-    }
-
-    function test_removeLoan_earliestDueDate() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     3);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 2);
-
-        loanManager.recognizeLoanPayment(earliestLoanAddress);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 2);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 0);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     3);
-        assertEq(loanManager.loan(2).previous, 0);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 2);
-    }
-
-    function test_removeLoan_medianDueDate() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     3);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 2);
-
-        loanManager.recognizeLoanPayment(medianLoanAddress);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   0);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     3);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 0);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 1);
-    }
-
-    function test_removeLoan_latestDueDate() external {
-        loanManager.addLoanToList(earliestLoanAddress, earliestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    1);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-
-        assertEq(loanManager.loan(1).next,     0);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        loanManager.addLoanToList(medianLoanAddress, medianLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    2);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        loanManager.addLoanToList(latestLoanAddress, latestLoanInfo);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   3);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     3);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 2);
-
-        loanManager.recognizeLoanPayment(latestLoanAddress);
-
-        assertEq(loanManager.loanCounter(),                    3);
-        assertEq(loanManager.loanWithEarliestPaymentDueDate(), 1);
-
-        assertEq(loanManager.loanIdOf(earliestLoanAddress), 1);
-        assertEq(loanManager.loanIdOf(medianLoanAddress),   2);
-        assertEq(loanManager.loanIdOf(latestLoanAddress),   0);
-
-        assertEq(loanManager.loan(1).next,     2);
-        assertEq(loanManager.loan(1).previous, 0);
-
-        assertEq(loanManager.loan(2).next,     0);
-        assertEq(loanManager.loan(2).previous, 1);
-
-        assertEq(loanManager.loan(3).next,     0);
-        assertEq(loanManager.loan(3).previous, 0);
+        assertEq(previous, 0);
+        assertEq(next,     0);
     }
 
 }
 
-contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
+contract QueueNextPaymentTests is LoanManagerBaseTest {
 
     address internal collateralAsset = address(asset);
     address internal fundsAsset      = address(asset);
@@ -3684,37 +3657,37 @@ contract QueueNextLoanPaymentTests is LoanManagerBaseTest {
         loan.__setNextPaymentDueDate(block.timestamp + 100);
     }
 
-    function test_queueNextLoanPayment_fees() external {
+    function test_queueNextPayment_fees() external {
         uint256 platformManagementFeeRate_ = 75_0000;
         uint256 delegateManagementFeeRate_ = 50_0000;
 
         MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
 
-        loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
+        loanManager.__queueNextPayment(address(loan), block.timestamp, block.timestamp + 30 days);
 
-        uint256 loanId = loanManager.loanIdOf(address(loan));
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId);
+        uint256 paymentId = loanManager.paymentIdOf(address(loan));
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId);
 
-        assertEq(loanInfo.platformManagementFeeRate, 75_0000);
-        assertEq(loanInfo.delegateManagementFeeRate, 25_0000);  // Gets reduced to 0.25 so sum is less than 100%
+        assertEq(paymentInfo.platformManagementFeeRate, 75_0000);
+        assertEq(paymentInfo.delegateManagementFeeRate, 25_0000);  // Gets reduced to 0.25 so sum is less than 100%
     }
 
-    function testFuzz_queueNextLoanPayment_fees(uint256 platformManagementFeeRate_, uint256 delegateManagementFeeRate_) external {
+    function testFuzz_queueNextPayment_fees(uint256 platformManagementFeeRate_, uint256 delegateManagementFeeRate_) external {
         platformManagementFeeRate_ = constrictToRange(platformManagementFeeRate_, 0, 100_0000);
         delegateManagementFeeRate_ = constrictToRange(delegateManagementFeeRate_, 0, 100_0000);
 
         MockGlobals(globals).setPlatformManagementFeeRate(address(poolManager), platformManagementFeeRate_);
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate_);
 
-        loanManager.__queueNextLoanPayment(address(loan), block.timestamp, block.timestamp + 30 days);
+        loanManager.__queueNextPayment(address(loan), block.timestamp, block.timestamp + 30 days);
 
-        uint256 loanId = loanManager.loanIdOf(address(loan));
-        ILoanManagerStructs.LoanInfo memory loanInfo = ILoanManagerStructs(address(loanManager)).loans(loanId);
+        uint256 paymentId = loanManager.paymentIdOf(address(loan));
+        ILoanManagerStructs.PaymentInfo memory paymentInfo = ILoanManagerStructs(address(loanManager)).payments(paymentId);
 
-        assertEq(loanInfo.platformManagementFeeRate, platformManagementFeeRate_);
+        assertEq(paymentInfo.platformManagementFeeRate, platformManagementFeeRate_);
 
-        assertTrue(loanInfo.platformManagementFeeRate + loanInfo.delegateManagementFeeRate <= 100_0000);
+        assertTrue(paymentInfo.platformManagementFeeRate + paymentInfo.delegateManagementFeeRate <= 100_0000);
     }
 
 }

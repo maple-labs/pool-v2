@@ -17,15 +17,15 @@ interface ILoanManagerStorage {
 
     function issuanceRate() external view returns (uint256 issuanceRate_);
 
-    function loanCounter() external view returns (uint24 loanCounter_);
+    function paymentCounter() external view returns (uint24 paymentCounter_);
 
-    function loanWithEarliestPaymentDueDate() external view returns (uint24 loanWithEarliestPaymentDueDate_);
+    function paymentWithEarliestDueDate() external view returns (uint24 paymentWithEarliestDueDate_);
 
     function principalOut() external view returns (uint128 principalOut_);
 
     function unrealizedLosses() external view returns (uint128 unrealizedLosses_);
 
-    function loanIdOf(address loan_) external view returns (uint24 loanId_);
+    function paymentIdOf(address loan_) external view returns (uint24 paymentId_);
 
     function allowedSlippageFor(address collateralAsset_) external view returns (uint256 allowedSlippage_);
 
@@ -40,9 +40,7 @@ interface ILoanManagerStorage {
         address liquidator
     );
 
-    function loans(uint256 loanId_) external view returns (
-        uint24  previous,
-        uint24  next,
+    function payments(uint256 paymentId_) external view returns (
         uint24  platformManagementFeeRate,
         uint24  delegateManagementFeeRate,
         uint48  startDate,
@@ -50,6 +48,12 @@ interface ILoanManagerStorage {
         uint128 incomingNetInterest,
         uint128 refinanceInterest,
         uint256 issuanceRate
+    );
+
+    function sortedPayments(uint256 paymentId_) external view returns (
+        uint24 previous,
+        uint24 next,
+        uint48 paymentDueDate
     );
 
 }
