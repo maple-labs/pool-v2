@@ -10,18 +10,6 @@ import { PoolManagerStorage } from "./PoolManagerStorage.sol";
 
 contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
 
-    function encodeArguments(
-        address poolDelegate_,
-        address asset_,
-        uint256 intialSupply_,
-        string memory name_,
-        string memory symbol_
-    )
-        external pure override returns (bytes memory encodedArguments_)
-    {
-        encodedArguments_ = abi.encode(poolDelegate_, asset_, intialSupply_, name_, symbol_);
-    }
-
     function decodeArguments(bytes calldata encodedArguments_) public pure override
         returns (
             address poolDelegate_,
@@ -32,6 +20,18 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         )
     {
         ( poolDelegate_, asset_, intialSupply_, name_, symbol_ ) = abi.decode(encodedArguments_, (address, address, uint256, string, string));
+    }
+
+    function encodeArguments(
+        address poolDelegate_,
+        address asset_,
+        uint256 intialSupply_,
+        string memory name_,
+        string memory symbol_
+    )
+        external pure override returns (bytes memory encodedArguments_)
+    {
+        encodedArguments_ = abi.encode(poolDelegate_, asset_, intialSupply_, name_, symbol_);
     }
 
     fallback() external {

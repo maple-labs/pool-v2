@@ -8,12 +8,12 @@ import { LoanManagerStorage } from "./LoanManagerStorage.sol";
 
 contract LoanManagerInitializer is ILoanManagerInitializer, LoanManagerStorage {
 
-    function encodeArguments(address pool_) external pure override returns (bytes memory calldata_) {
-        calldata_ = abi.encode(pool_);
-    }
-
     function decodeArguments(bytes calldata calldata_) public pure override returns (address pool_) {
         pool_ = abi.decode(calldata_, (address));
+    }
+
+    function encodeArguments(address pool_) external pure override returns (bytes memory calldata_) {
+        calldata_ = abi.encode(pool_);
     }
 
     fallback() external {

@@ -109,6 +109,10 @@ contract Pool is IPool, ERC20 {
         _burn(shares_, assets_, receiver_, owner_, msg.sender);
     }
 
+    /**********************************/
+    /*** ERC-20 Overriden Functions ***/
+    /**********************************/
+
     function transfer(
         address recipient_,
         uint256 amount_
@@ -139,15 +143,6 @@ contract Pool is IPool, ERC20 {
         );
     }
 
-    // TODO: To be grammatically correct ths should be `requestWithdrawal` with a `WithdrawalRequested` event. Also, see `requestRedeem`.
-    function requestWithdraw(uint256 assets_) external override nonReentrant returns (uint256 escrowedShares_) {
-        emit WithdrawRequested(
-            msg.sender,
-            assets_,
-            escrowedShares_ = _requestRedeem(convertToExitShares(assets_))
-        );
-    }
-
     // TODO: Add user and approvals.
     // TODO: To be grammatically correct ths should be `requestRedemption` since the event is `RedemptionRequested`.
     function requestRedeem(uint256 shares_) external override nonReentrant returns (uint256 escrowedShares_) {
@@ -155,6 +150,15 @@ contract Pool is IPool, ERC20 {
             msg.sender,
             shares_,
             escrowedShares_ = _requestRedeem(shares_)
+        );
+    }
+
+    // TODO: To be grammatically correct ths should be `requestWithdrawal` with a `WithdrawalRequested` event. Also, see `requestRedeem`.
+    function requestWithdraw(uint256 assets_) external override nonReentrant returns (uint256 escrowedShares_) {
+        emit WithdrawRequested(
+            msg.sender,
+            assets_,
+            escrowedShares_ = _requestRedeem(convertToExitShares(assets_))
         );
     }
 

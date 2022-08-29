@@ -107,11 +107,11 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     function finishCollateralLiquidation(address loan_) external;
 
+    function removeDefaultWarning(address loan_) external;
+
     function triggerDefault(address loan_) external;
 
     function triggerDefaultWarning(address loan_) external;
-
-    function removeDefaultWarning(address loan_) external;
 
     /**********************/
     /*** Exit Functions ***/

@@ -3,33 +3,17 @@ pragma solidity 0.8.7;
 
 interface ILoanManagerStorage {
 
-    function fundsAsset() external view returns (address fundsAsset_);
-
-    function pool() external view returns (address pool_);
-
-    function poolManager() external view returns (address poolManager_);
-
     function accountedInterest() external view returns (uint112 accountedInterest_);
-
-    function domainStart() external view returns (uint48 domainStart_);
-
-    function domainEnd() external view returns (uint48 domainEnd_);
-
-    function issuanceRate() external view returns (uint256 issuanceRate_);
-
-    function paymentCounter() external view returns (uint24 paymentCounter_);
-
-    function paymentWithEarliestDueDate() external view returns (uint24 paymentWithEarliestDueDate_);
-
-    function principalOut() external view returns (uint128 principalOut_);
-
-    function unrealizedLosses() external view returns (uint128 unrealizedLosses_);
-
-    function paymentIdOf(address loan_) external view returns (uint24 paymentId_);
 
     function allowedSlippageFor(address collateralAsset_) external view returns (uint256 allowedSlippage_);
 
-    function minRatioFor(address collateralAsset_) external view returns (uint256 minRatio_);
+    function domainEnd() external view returns (uint48 domainEnd_);
+
+    function domainStart() external view returns (uint48 domainStart_);
+
+    function fundsAsset() external view returns (address fundsAsset_);
+
+    function issuanceRate() external view returns (uint256 issuanceRate_);
 
     function liquidationInfo(address loan_) external view returns (
         bool    triggeredByGovernor,
@@ -39,6 +23,12 @@ interface ILoanManagerStorage {
         uint96  platformFees,
         address liquidator
     );
+
+    function minRatioFor(address collateralAsset_) external view returns (uint256 minRatio_);
+
+    function paymentCounter() external view returns (uint24 paymentCounter_);
+
+    function paymentIdOf(address loan_) external view returns (uint24 paymentId_);
 
     function payments(uint256 paymentId_) external view returns (
         uint24  platformManagementFeeRate,
@@ -50,10 +40,20 @@ interface ILoanManagerStorage {
         uint256 issuanceRate
     );
 
+    function paymentWithEarliestDueDate() external view returns (uint24 paymentWithEarliestDueDate_);
+
+    function pool() external view returns (address pool_);
+
+    function poolManager() external view returns (address poolManager_);
+
+    function principalOut() external view returns (uint128 principalOut_);
+
     function sortedPayments(uint256 paymentId_) external view returns (
         uint24 previous,
         uint24 next,
         uint48 paymentDueDate
     );
+
+    function unrealizedLosses() external view returns (uint128 unrealizedLosses_);
 
 }

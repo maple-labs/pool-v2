@@ -29,9 +29,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         _locked = 1;
     }
 
-    /***************************/
-    /*** Migration Functions ***/
-    /***************************/
+    /********************************/
+    /*** Upgradeability Functions ***/
+    /********************************/
 
     function migrate(address migrator_, bytes calldata arguments_) override external {
         require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
@@ -49,6 +49,10 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
+    /*************************************/
+    /*** Liquidity Migration Functions ***/
+    /*************************************/
+
     function add(address loanAddress_) external override nonReentrant {
         require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
 
@@ -63,15 +67,6 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         issuanceRate += newRate_;
         domainStart   = _uint48(block.timestamp);
         domainEnd     = payments[paymentWithEarliestDueDate].paymentDueDate;
-
-    }
-
-    function takeOwnership(address[] calldata loanAddress_) external override {
-        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
-
-        for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
-            ILoanLike(loanAddress_[i_]).acceptLender();
-        }
     }
 
     function setOwnershipTo(address[] calldata loanAddress_, address newLender_) external override {
@@ -79,6 +74,14 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
             ILoanLike(loanAddress_[i_]).setPendingLender(newLender_);
+        }
+    }
+
+    function takeOwnership(address[] calldata loanAddress_) external override {
+        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
+
+        for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
+            ILoanLike(loanAddress_[i_]).acceptLender();
         }
     }
 

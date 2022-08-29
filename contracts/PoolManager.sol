@@ -104,6 +104,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Administrative Functions ***/
     /********************************/
 
+    function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
+        require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");
+
+        isLoanManager[loanManager_] = true;
+
+        loanManagerList.push(loanManager_);
+
+        emit LoanManagerAdded(loanManager_);
+    }
+
     function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 delegateManagementFeeRate_) external override {
         require(!configured,                                             "PM:CO:ALREADY_CONFIGURED");
         require(IMapleGlobalsLike(globals()).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
@@ -118,17 +129,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         loanManagerList.push(loanManager_);
 
         emit PoolConfigured(loanManager_, withdrawalManager_, liquidityCap_, delegateManagementFeeRate_);
-    }
-
-    function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
-        require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");
-
-        isLoanManager[loanManager_] = true;
-
-        loanManagerList.push(loanManager_);
-
-        emit LoanManagerAdded(loanManager_);
     }
 
     function removeLoanManager(address loanManager_) external override whenProtocolNotPaused {
@@ -157,17 +157,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit AllowedLenderSet(lender_, isValidLender[lender_] = isValid_);
     }
 
-    function setLiquidityCap(uint256 liquidityCap_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
-        // TODO: Add range check call to globals
-        emit LiquidityCapSet(liquidityCap = liquidityCap_);
-    }
-
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate,                    "PM:SDMFR:NOT_PD");
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
+    }
+
+    function setLiquidityCap(uint256 liquidityCap_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
+        // TODO: Add range check call to globals
+        emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
     function setOpenToPublic() external override whenProtocolNotPaused {
@@ -241,6 +241,26 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Liquidation Functions ***/
     /*****************************/
 
+    function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
+        require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
+
+        ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
+
+        _handleCover(losses_, platformFees_);
+
+        emit CollateralLiquidationFinished(loan_, losses_);
+    }
+
+    function removeDefaultWarning(address loan_) external override whenProtocolNotPaused nonReentrant {
+        bool isGovernor_ = msg.sender == governor();
+
+        require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
+
+        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_, isGovernor_);
+
+        emit DefaultWarningRemoved(loan_);
+    }
+
     function triggerDefault(address loan_) external override whenProtocolNotPaused nonReentrant {
         require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
 
@@ -264,42 +284,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, isGovernor_);
 
         emit DefaultWarningTriggered(loan_, block.timestamp);
-    }
-
-    function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
-        require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
-
-        ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
-
-        _handleCover(losses_, platformFees_);
-
-        emit CollateralLiquidationFinished(loan_, losses_);
-    }
-
-    function _handleCover(uint256 losses_, uint256 platformFees_) internal {
-        address globals_ = globals();
-
-        uint256 availableCover_ = IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
-        uint256 toTreasury_     = _min(availableCover_,               platformFees_);
-        uint256 toPool_         = _min(availableCover_ - toTreasury_, losses_);
-
-        if (toTreasury_ != 0) {
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
-        }
-
-        if (toPool_ != 0) {
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
-        }
-    }
-
-    function removeDefaultWarning(address loan_) external override whenProtocolNotPaused nonReentrant {
-        bool isGovernor_ = msg.sender == governor();
-
-        require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
-
-        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_, isGovernor_);
-
-        emit DefaultWarningRemoved(loan_);
     }
 
     /**********************/
@@ -357,6 +341,26 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IPoolDelegateCoverLike(poolDelegateCover).moveFunds(amount_, recipient_);
 
         emit CoverWithdrawn(amount_);
+    }
+
+    /*********************************/
+    /*** Internal Helper Functions ***/
+    /*********************************/
+
+    function _handleCover(uint256 losses_, uint256 platformFees_) internal {
+        address globals_ = globals();
+
+        uint256 availableCover_ = IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
+        uint256 toTreasury_     = _min(availableCover_,               platformFees_);
+        uint256 toPool_         = _min(availableCover_ - toTreasury_, losses_);
+
+        if (toTreasury_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
+        }
+
+        if (toPool_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
+        }
     }
 
     /**********************/
@@ -436,12 +440,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** LP Token View Functions ***/
     /*******************************/
 
-    function getEscrowParams(address owner_, uint256 shares_) external view override returns (uint256 escrowShares_, address destination_) {
-        ( escrowShares_, destination_) = (shares_, address(this));
-    }
-
     function convertToExitShares(uint256 assets_) public view override returns (uint256 shares_) {
         shares_ = IPoolLike(pool).convertToExitShares(assets_);
+    }
+
+    function getEscrowParams(address owner_, uint256 shares_) external view override returns (uint256 escrowShares_, address destination_) {
+        ( escrowShares_, destination_) = (shares_, address(this));
     }
 
     function maxDeposit(address receiver_) external view virtual override returns (uint256 maxAssets_) {

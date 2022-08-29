@@ -24,6 +24,8 @@ interface ILoanManagerLike {
 
     function claim(address loan_, bool hasSufficientCover_) external;
 
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
+
     function fund(address loan_) external;
 
     function removeDefaultWarning(address loan_, bool isGovernor_) external;
@@ -31,8 +33,6 @@ interface ILoanManagerLike {
     function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
     function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
-
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 }

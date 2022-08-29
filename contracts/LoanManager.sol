@@ -196,66 +196,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Default Functions ***/
     /*************************/
 
-    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external override nonReentrant {
-        require(msg.sender == poolManager, "LM:RDW:NOT_PM");
-
-        _advancePaymentAccounting();
-
-        ILoanLike(loan_).removeDefaultWarning();
-
-        uint24 paymentId_                       = paymentIdOf[loan_];
-        PaymentInfo memory paymentInfo_         = payments[paymentId_];
-        LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
-
-        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
-
-        _revertDefaultWarning(liquidationInfo_);
-
-        delete liquidationInfo[loan_];
-        delete payments[paymentId_];
-        payments[paymentIdOf[loan_] = _addPaymentToList(paymentInfo_.paymentDueDate)] = paymentInfo_;
-
-        emit UnrealizedLossesUpdated(unrealizedLosses);
-
-        // Discretely update missing interest as if payment was always part of the list.
-        _updateIssuanceParams(
-            issuanceRate + paymentInfo_.issuanceRate,
-            accountedInterest + _uint112(_getPaymentAccruedInterest(paymentInfo_.startDate, domainStart, paymentInfo_.issuanceRate, paymentInfo_.refinanceInterest))
-        );
-    }
-
-    // TODO: Ensure that the default warning can not be triggered after the payment due date.
-    function triggerDefaultWarning(address loan_, bool isGovernor_) external override {
-        require(msg.sender == poolManager, "LM:TDW:NOT_PM");
-
-        // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
-        uint256 paymentId_              = paymentIdOf[loan_];
-        PaymentInfo memory paymentInfo_ = payments[paymentId_];
-
-        _advancePaymentAccounting();
-
-        _removePaymentFromList(paymentId_);
-
-        _updateIssuanceParams(issuanceRate - paymentInfo_.issuanceRate, accountedInterest);
-
-        ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformFees_ ) = _getDefaultInterestAndFees(loan_, paymentInfo_);
-
-        uint256 principal_ = ILoanLike(loan_).principal();
-
-        liquidationInfo[loan_] = LiquidationInfo({
-            triggeredByGovernor: isGovernor_,
-            principal:           _uint128(principal_),
-            interest:            _uint120(netInterest_),
-            lateInterest:        netLateInterest_,
-            platformFees:        _uint96(platformFees_),
-            liquidator:          address(0)
-        });
-
-        emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_ + netLateInterest_));
-
-        ILoanLike(loan_).triggerDefaultWarning();
-    }
-
     function finishCollateralLiquidation(address loan_) external override nonReentrant returns (uint256 remainingLosses_, uint256 platformFees_) {
         require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
         require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
@@ -291,6 +231,34 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         ILiquidatorLike(liquidationInfo_.liquidator).pullFunds(fundsAsset_, address(this), recoveredFunds_);
 
         ( remainingLosses_, platformFees_ ) = _disburseLiquidationFunds(loan_, recoveredFunds_, platformFees_, remainingLosses_);
+    }
+
+    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external override nonReentrant {
+        require(msg.sender == poolManager, "LM:RDW:NOT_PM");
+
+        _advancePaymentAccounting();
+
+        ILoanLike(loan_).removeDefaultWarning();
+
+        uint24 paymentId_                       = paymentIdOf[loan_];
+        PaymentInfo memory paymentInfo_         = payments[paymentId_];
+        LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
+
+        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
+
+        _revertDefaultWarning(liquidationInfo_);
+
+        delete liquidationInfo[loan_];
+        delete payments[paymentId_];
+        payments[paymentIdOf[loan_] = _addPaymentToList(paymentInfo_.paymentDueDate)] = paymentInfo_;
+
+        emit UnrealizedLossesUpdated(unrealizedLosses);
+
+        // Discretely update missing interest as if payment was always part of the list.
+        _updateIssuanceParams(
+            issuanceRate + paymentInfo_.issuanceRate,
+            accountedInterest + _uint112(_getPaymentAccruedInterest(paymentInfo_.startDate, domainStart, paymentInfo_.issuanceRate, paymentInfo_.refinanceInterest))
+        );
     }
 
     function triggerDefault(address loan_) external override returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
@@ -332,6 +300,38 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 liquidator:          liquidator_
             });
         }
+    }
+
+    // TODO: Ensure that the default warning can not be triggered after the payment due date.
+    function triggerDefaultWarning(address loan_, bool isGovernor_) external override {
+        require(msg.sender == poolManager, "LM:TDW:NOT_PM");
+
+        // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
+        uint256 paymentId_              = paymentIdOf[loan_];
+        PaymentInfo memory paymentInfo_ = payments[paymentId_];
+
+        _advancePaymentAccounting();
+
+        _removePaymentFromList(paymentId_);
+
+        _updateIssuanceParams(issuanceRate - paymentInfo_.issuanceRate, accountedInterest);
+
+        ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformFees_ ) = _getDefaultInterestAndFees(loan_, paymentInfo_);
+
+        uint256 principal_ = ILoanLike(loan_).principal();
+
+        liquidationInfo[loan_] = LiquidationInfo({
+            triggeredByGovernor: isGovernor_,
+            principal:           _uint128(principal_),
+            interest:            _uint120(netInterest_),
+            lateInterest:        netLateInterest_,
+            platformFees:        _uint96(platformFees_),
+            liquidator:          address(0)
+        });
+
+        emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_ + netLateInterest_));
+
+        ILoanLike(loan_).triggerDefaultWarning();
     }
 
     /******************************************/
@@ -387,31 +387,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Payment Accounting Functions ***/
     /*********************************************/
 
-    // Advance payments in previous domains to "catch up" to current state.
-    function _accountToEndOfPayment(
-        uint256 paymentId_,
-        uint256 issuanceRate_,
-        uint256 intervalStart_,
-        uint256 intervalEnd_
-    )
-        internal returns (uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_)
-    {
-        PaymentInfo memory payment_ = payments[paymentId_];
-
-        // Remove the payment from the linked list so the next payment can be used as the shortest timestamp.
-        // NOTE: This keeps the payment accounting info intact so it can be accounted for when the payment is claimed.
-        _removePaymentFromList(paymentId_);
-
-        issuanceRateReduction_ = payment_.issuanceRate;
-
-        // Update accounting between timestamps and set last updated to the domainEnd.
-        // Reduce the issuanceRate for the payment.
-        accountedInterestIncrease_ = (intervalEnd_ - intervalStart_) * issuanceRate_ / PRECISION;
-
-        // Remove issuanceRate as it is deducted from global issuanceRate.
-        payments[paymentId_].issuanceRate = 0;
-    }
-
     // TODO: Gas optimize
     function _accountPreviousDomains() internal {
         uint256 domainEnd_ = domainEnd;
@@ -447,6 +422,31 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         issuanceRate      = issuanceRate_;
     }
 
+    // Advance payments in previous domains to "catch up" to current state.
+    function _accountToEndOfPayment(
+        uint256 paymentId_,
+        uint256 issuanceRate_,
+        uint256 intervalStart_,
+        uint256 intervalEnd_
+    )
+        internal returns (uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_)
+    {
+        PaymentInfo memory payment_ = payments[paymentId_];
+
+        // Remove the payment from the linked list so the next payment can be used as the shortest timestamp.
+        // NOTE: This keeps the payment accounting info intact so it can be accounted for when the payment is claimed.
+        _removePaymentFromList(paymentId_);
+
+        issuanceRateReduction_ = payment_.issuanceRate;
+
+        // Update accounting between timestamps and set last updated to the domainEnd.
+        // Reduce the issuanceRate for the payment.
+        accountedInterestIncrease_ = (intervalEnd_ - intervalStart_) * issuanceRate_ / PRECISION;
+
+        // Remove issuanceRate as it is deducted from global issuanceRate.
+        payments[paymentId_].issuanceRate = 0;
+    }
+
     function _advancePaymentAccounting() internal {
         // If VPF is in the past, account for all previous issuance domains and get to current state.
         _accountPreviousDomains();
@@ -475,6 +475,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury(),             toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
         require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                        toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
         require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, ILoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
+    }
+
+    function _getAccruedAmount(uint256 totalAccruingAmount_, uint256 startTime_, uint256 endTime_, uint256 currentTime_) internal pure returns (uint256 accruedAmount_) {
+        accruedAmount_ = totalAccruingAmount_ * (currentTime_ - startTime_) / (endTime_ - startTime_);
+    }
+
+    function _getPaymentAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 paymentIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
+        accruedInterest_ = (endTime_ - startTime_) * paymentIssuanceRate_ / PRECISION + refinanceInterest_;
     }
 
     // TODO: Change return vars after management fees are properly implemented.
@@ -557,41 +565,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _updateIssuanceParams(issuanceRate, accountedInterest - _uint112(netInterest_));
     }
 
-    function _getPaymentAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 paymentIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {
-        accruedInterest_ = (endTime_ - startTime_) * paymentIssuanceRate_ / PRECISION + refinanceInterest_;
-    }
-
-    function _getAccruedAmount(uint256 totalAccruingAmount_, uint256 startTime_, uint256 endTime_, uint256 currentTime_) internal pure returns (uint256 accruedAmount_) {
-        accruedAmount_ = totalAccruingAmount_ * (currentTime_ - startTime_) / (endTime_ - startTime_);
-    }
-
-    // TODO: Rename function to indicate that it can happen on refinance as well.
-    // TODO: make paymentId based.
-    function _recognizePayment(address loan_) internal returns (uint256 issuanceRate_) {
-        // TODO: struct memory/storage.stack fix.
-        uint256 paymentId_              = paymentIdOf[loan_];
-        PaymentInfo memory paymentInfo_ = payments[paymentId_];
-
-        _removePaymentFromList(paymentId_);
-
-        issuanceRate_ = paymentInfo_.issuanceRate;
-
-        // If the amount of interest claimed is greater than the amount accounted for, set to zero.
-        // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
-        uint256 paymentAccruedInterest_ =
-            block.timestamp <= paymentInfo_.paymentDueDate  // TODO: Investigate underflow and change to < again if possible.
-                ? (block.timestamp - paymentInfo_.startDate) * issuanceRate_ / PRECISION
-                : paymentInfo_.incomingNetInterest;
-
-        // Add any interest owed prior to a refinance and reduce AUM accordingly.
-        accountedInterest -= _uint112(paymentAccruedInterest_ + paymentInfo_.refinanceInterest);
-    }
-
-    function _revertDefaultWarning(LiquidationInfo memory liquidationInfo_) internal {
-        accountedInterest -= _uint112(liquidationInfo_.interest);
-        unrealizedLosses  -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
-    }
-
     function _queueNextPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
         uint256 platformManagementFeeRate_ = IMapleGlobalsLike(globals()).platformManagementFeeRate(poolManager);
         uint256 delegateManagementFeeRate_ = IPoolManagerLike(poolManager).delegateManagementFeeRate();
@@ -625,6 +598,33 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Update the accounted interest to reflect what is present in the loan.
         accountedInterest += _uint112(netRefinanceInterest_);
+    }
+
+    // TODO: Rename function to indicate that it can happen on refinance as well.
+    // TODO: make paymentId based.
+    function _recognizePayment(address loan_) internal returns (uint256 issuanceRate_) {
+        // TODO: struct memory/storage.stack fix.
+        uint256 paymentId_              = paymentIdOf[loan_];
+        PaymentInfo memory paymentInfo_ = payments[paymentId_];
+
+        _removePaymentFromList(paymentId_);
+
+        issuanceRate_ = paymentInfo_.issuanceRate;
+
+        // If the amount of interest claimed is greater than the amount accounted for, set to zero.
+        // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
+        uint256 paymentAccruedInterest_ =
+            block.timestamp <= paymentInfo_.paymentDueDate  // TODO: Investigate underflow and change to < again if possible.
+                ? (block.timestamp - paymentInfo_.startDate) * issuanceRate_ / PRECISION
+                : paymentInfo_.incomingNetInterest;
+
+        // Add any interest owed prior to a refinance and reduce AUM accordingly.
+        accountedInterest -= _uint112(paymentAccruedInterest_ + paymentInfo_.refinanceInterest);
+    }
+
+    function _revertDefaultWarning(LiquidationInfo memory liquidationInfo_) internal {
+        accountedInterest -= _uint112(liquidationInfo_.interest);
+        unrealizedLosses  -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
     }
 
     function _updateIssuanceParams(uint256 issuanceRate_, uint112 accountedInterest_) internal {
@@ -700,12 +700,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         isActive_ = (liquidatorAddress_ != address(0)) && (IERC20Like(ILoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress_) != uint256(0));
     }
 
-    function poolDelegate() public view override returns (address poolDelegate_) {
-        poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
-    }
-
     function mapleTreasury() public view override returns (address treasury_) {
         treasury_ = IMapleGlobalsLike(globals()).mapleTreasury();
+    }
+
+    function poolDelegate() public view override returns (address poolDelegate_) {
+        poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
     }
 
     /*********************************/

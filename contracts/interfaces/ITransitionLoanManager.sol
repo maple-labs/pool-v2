@@ -21,9 +21,9 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
 
     function add(address loanAddress_) external;
 
-    function takeOwnership(address[] calldata loanAddress_) external;
-
     function setOwnershipTo(address[] calldata loanAddress_, address newLender_) external;
+
+    function takeOwnership(address[] calldata loanAddress_) external;
 
     /**********************/
     /*** View Functions ***/
