@@ -12,73 +12,177 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     /**************/
 
     /**
-     * @dev   Emitted when `setAllowedSlippage` is called.
-     * @param collateralAsset_ Address of a collateral asset.
-     * @param newSlippage_     New value for `allowedSlippage`.
+     *  @dev   Emitted when `setAllowedSlippage` is called.
+     *  @param collateralAsset_ Address of a collateral asset.
+     *  @param newSlippage_     New value for `allowedSlippage`.
      */
     event AllowedSlippageSet(address collateralAsset_, uint256 newSlippage_);
 
+     /**
+     *  @dev   Emitted when the issuance parameters are changed.
+     *  @param domainEnd_         The timestamp of the domain end.
+     *  @param issuanceRate_      New value for the issuance rate.
+     *  @param accountedInterest_ The amount of accounted interest.
+     */
+    event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
+
     /**
-     * @dev   Emitted when `setMinRatio` is called.
-     * @param collateralAsset_ Address of a collateral asset.
-     * @param newMinRatio_     New value for `minRatio`.
+     *  @dev   Emitted when `setMinRatio` is called.
+     *  @param collateralAsset_ Address of a collateral asset.
+     *  @param newMinRatio_     New value for `minRatio`.
      */
     event MinRatioSet(address collateralAsset_, uint256 newMinRatio_);
+
+    /**
+     *  @dev   Emitted when principal out is updated
+     *  @param principalOut_ The new value for principal out.
+     */
+    event PrincipalOutUpdated(uint128 principalOut_);
+
+    /**
+     *  @dev   Emitted when unrealized losses is updated.
+     *  @param unrealizedLosses_ The new value for unrealized losses.
+     */
+    event UnrealizedLossesUpdated(uint256 unrealizedLosses_);
 
     /**************************/
     /*** External Functions ***/
     /**************************/
 
+    /**
+     *  @dev   Accepts new loan terms triggering a loan refinance.
+     *  @param loan_       Loan to be refinanced.
+     *  @param refinancer_ The addres of the refinancer.
+     *  @param deadline_   The new deadline to execute the refinance.
+     *  @param calls_      The encoded calls to set new loan terms.
+     */
     function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
 
+    /**
+     *  @dev   Called by loans when payments are maid, this adjust the accounting.
+     *  @param principal_              The amount of principal paid.
+     *  @param interest_               The amount of interest paid.
+     *  @param previousPaymentDueDate_ The previous payment due date.
+     *  @param nextPaymentDueDate_     The new payment due date.
+     */
     function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external;
 
+    /**
+     *  @dev    Finishes the collateral liquidation
+     *  @param  loan_            Loan that had its collateral liquidated.
+     *  @return remainingLosses_ The amount of remaining losses.
+     *  @return platformFees_    The amount of platform fees.
+     */
     function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 platformFees_);
 
+    /**
+     *  @dev   Funds a new loan.
+     *  @param loanAddress_ Loan to be funded.
+     */
     function fund(address loanAddress_) external;
 
+    /**
+     *  @dev   Removes the default warning for a loan.
+     *  @param loan_               Loan to remove the default warning.
+     *  @param isCalledByGovernor_ True if the triggerDefaultWarning was called by the governor.
+     */
     function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external;
 
+    /**
+     *  @dev   Sets the allowed slippage for a collateral asset liquidation.
+     *  @param collateralAsset_  Address of a collateral asset.
+     *  @param allowedSlippage_  New value for `allowedSlippage`.
+     */
     function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external;
 
+    /**
+     *  @dev   Sets the minimum ratio for a collateral asset liquidation.
+     *  @param collateralAsset_  Address of a collateral asset.
+     *  @param minRatio_         New value for `minRatio`.
+     */
     function setMinRatio(address collateralAsset_, uint256 minRatio_) external;
 
+    /**
+     *  @dev   Triggers the default warning for a loan.
+     *  @param loan_       Loan to trigger the default warning.
+     *  @param isGovernor_ True if called by the governor.
+     */
     function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
+    /**
+     *  @dev    Triggers the default of a loan.
+     *  @param  loan_                Loan to trigger the default.
+     *  @return liquidationComplete_ True if the liquidation is completed in the same transaction (uncollateralized).
+     *  @return remainingLosses_     The amount of remaining losses.
+     *  @return platformFees_        The amount of platform fees.
+     */
     function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     /**********************/
     /*** View Functions ***/
     /**********************/
 
+    /**
+     *  @dev    Returns the precision used for the contract.
+     *  @return precision_ The precision used for the contract.
+     */
     function PRECISION() external returns (uint256 precision_);
 
+    /**
+     *  @dev    Returns the value considered as the hundred percent.
+     *  @return hundredPercent_ The value considered as the hundred percent.
+     */
     function HUNDRED_PERCENT() external returns (uint256 hundredPercent_);
 
+    /**
+     *  @dev    Gets the amount of assets under the management of the contract.
+     *  @return assetsUnderManagement_ The amount of assets under the management of the contract.
+     */
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
+    /**
+     *  @dev    Gets the amount of accrued interest up until this point in time.
+     *  @return accruedInterest_ The amount of accrued interest up until this point in time.
+     */
     function getAccruedInterest() external view returns (uint256 accruedInterest_);
 
+    /**
+     *  @dev    Gets the expected amount of an asset given the input amount.
+     *  @param  collateralAsset_ The collateral asset that is being liquidated.
+     *  @param  swapAmount_      The swap amount of collateral asset.
+     *  @return returnAmount_    The desired return amount of funds asset.
+     */
     function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) external view returns (uint256 returnAmount_);
 
+    /**
+     *  @dev    Gets the address of the Maple globals contract.
+     *  @return globals_ The address of the Maple globals contract.
+     */
     function globals() external view returns (address globals_);
 
+    /**
+     *  @dev    Gets the address of the governor contract.
+     *  @return governor_ The address of the governor contract.
+     */
     function governor() external view returns (address governor_);
 
+    /**
+     *  @dev    Returns whether or not a liquidation is in progress.
+     *  @param  loan_     The address of the loan contract.
+     *  @return isActive_ True if a liquidation is in progress.
+     */
     function isLiquidationActive(address loan_) external view returns (bool isActive_);
 
+    /**
+     *  @dev    Gets the address of the pool delegate.
+     *  @return poolDelegate_ The address of the pool delegate.
+     */
     function poolDelegate() external view returns (address poolDelegate_);
 
+    /**
+     *  @dev    Gets the address of the Maple treasury.
+     *  @return treasury_ The address of the Maple treasury.
+     */
     function mapleTreasury() external view returns (address treasury_);
-
-    /**************/
-    /*** Events ***/
-    /**************/
-
-    event PrincipalOutUpdated(uint128 principalOut_);
-
-    event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
-
-    event UnrealizedLossesUpdated(uint256 unrealizedLosses_);
 
 }

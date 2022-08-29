@@ -33,6 +33,11 @@ interface IPool is IERC20, IERC4626 {
      */
     event RedemptionRequested(address indexed owner_, uint256 shares_, uint256 escrowedShares_);
 
+    /**
+     *  @dev   Shares have been removed.
+     *  @param owner_  The owner of shares.
+     *  @param shares_ The amount of shares requested to be removed.
+     */
     event SharesRemoved(address indexed owner_, uint256 shares_);
 
     /**
@@ -49,8 +54,9 @@ interface IPool is IERC20, IERC4626 {
 
     /**
      *  @dev The address of the account that is allowed to update the vesting schedule.
+     *  @return manager_ The address of the pool manager.
      */
-    function manager() external view returns (address owner_);
+    function manager() external view returns (address manager_);
 
     /********************/
     /*** LP Functions ***/
@@ -85,10 +91,25 @@ interface IPool is IERC20, IERC4626 {
     /*** Withdrawal Request Functions ***/
     /************************************/
 
+    /**
+     *  @dev    Requests a redemption of shares from the pool.
+     *  @param  shares_         The amount of shares to redeem.
+     *  @return sharesReturned_ The amount of shares withdrawn.
+     */
     function removeShares(uint256 shares_) external returns (uint256 sharesReturned_);
 
+    /**
+     *  @dev    Requests a withdrawal of assets from the pool.
+     *  @param  assets_       The amount of assets to withdraw.
+     *  @return escrowShares_ The amount of shares sent to escrow.
+     */
     function requestWithdraw(uint256 assets_) external returns (uint256 escrowShares_);
 
+    /**
+     *  @dev    Requests a redemption of shares from the pool.
+     *  @param  shares_       The amount of shares to redeem.
+     *  @return escrowShares_ The amount of shares sent to escrow.
+     */
     function requestRedeem(uint256 shares_) external returns (uint256 escrowShares_);
 
     /**********************/
@@ -102,8 +123,17 @@ interface IPool is IERC20, IERC4626 {
      */
     function balanceOfAssets(address account_) external view returns (uint256 assets_);
 
+    /**
+     *  @dev    Returns the amount of exit shares for the input amount.
+     *  @param  amount_ Address of the account.
+     *  @return shares_ Amount of shares able to be exited.
+     */
     function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
 
+    /**
+     *  @dev    Returns the amount unrealized losses.
+     *  @return unrealizedLosses_ Amount of unrealized losses.
+     */
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
 }
