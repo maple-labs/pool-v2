@@ -371,7 +371,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         uint256 paymentId = loanManager.paymentIdOf(address(loan));
 
-        assertEq(paymentId, 1);  // Loan should be deleted.
+        assertEq(paymentId, 0);  // Loan should be deleted.
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          80);

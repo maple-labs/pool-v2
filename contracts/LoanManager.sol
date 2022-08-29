@@ -219,8 +219,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 recoveredFunds_ = IERC20Like(fundsAsset_).balanceOf(liquidationInfo_.liquidator);
 
         delete liquidationInfo[loan_];
-        delete payments[paymentIdOf[loan_]];
-        delete paymentIdOf[loan_];
 
         // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
         // Don't reduce by late interest, since we never account for this interest in the issuance rate, only via discrete updates.
@@ -329,6 +327,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             liquidator:          address(0)
         });
 
+        // TODO: Add condition to prevent TDW from getting called on a late loan.
         emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_ + netLateInterest_));
 
         ILoanLike(loan_).triggerDefaultWarning();
@@ -525,6 +524,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // NOTE: Need to to this after the `isInDefaultWarning` check, since `repossess` will unset it.
         ILoanLike(loan_).repossess(liquidator_);
+
+        delete payments[paymentIdOf[loan_]];
+        delete paymentIdOf[loan_];
     }
 
     function _handleUncollateralizedRepossession(
@@ -557,12 +559,16 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (isInDefaultWarning_) {
             // Remove unrealized losses that `triggerDefaultWarning` previously accounted for.
             emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(principal_ + netInterest_ + netLateInterest_));
+            delete liquidationInfo[loan_];
         }
 
         // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
         // Don't reduce by late interest, since we never account for this interest in the issuance rate, only via discrete updates.
         // NOTE: Don't reduce issuance rate by payments's issuance rate since it was done in `_advancePaymentAccounting`.
         _updateIssuanceParams(issuanceRate, accountedInterest - _uint112(netInterest_));
+
+        delete payments[paymentIdOf[loan_]];
+        delete paymentIdOf[loan_];
     }
 
     function _queueNextPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
