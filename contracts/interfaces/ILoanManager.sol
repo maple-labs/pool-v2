@@ -45,7 +45,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
-    function triggerCollateralLiquidation(address loan_) external;
+    function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     /**********************/
     /*** View Functions ***/
@@ -75,7 +75,9 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     /*** Events ***/
     /**************/
 
-    event IssuanceParamsUpdated(uint256 principalOut_, uint256 domainStart_, uint256 domainEnd_, uint256 issuanceRate_, uint256 accountedInterest_);
+    event PrincipalOutUpdated(uint128 principalOut_);
+
+    event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
 
     event UnrealizedLossesUpdated(uint256 unrealizedLosses_);
 

@@ -178,6 +178,10 @@ contract Pool is IPool, ERC20 {
         require(ERC20Helper.transfer(asset, receiver_, assets_), "P:B:TRANSFER");
     }
 
+    function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
+       result_ = (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
+    }
+
     function _mint(uint256 shares_, uint256 assets_, address receiver_, address caller_) internal {
         require(receiver_ != address(0), "P:M:ZERO_RECEIVER");
         require(shares_   != uint256(0), "P:M:ZERO_SHARES");
@@ -203,10 +207,6 @@ contract Pool is IPool, ERC20 {
         }
 
         IPoolManagerLike(manager).requestRedeem(escrowShares_, msg.sender);
-    }
-
-    function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
-       result_ = (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
     }
 
     /*******************************/

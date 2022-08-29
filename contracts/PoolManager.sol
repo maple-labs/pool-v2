@@ -241,10 +241,19 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Liquidation Functions ***/
     /*****************************/
 
-    function triggerCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
+    function triggerDefault(address loan_) external override whenProtocolNotPaused nonReentrant {
         require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
-        ILoanManagerLike(loanManagers[loan_]).triggerCollateralLiquidation(loan_);
-        emit CollateralLiquidationTriggered(loan_);
+
+        ( bool liquidationComplete_, uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).triggerDefault(loan_);
+
+        if (!liquidationComplete_) {
+            emit CollateralLiquidationTriggered(loan_);
+            return;
+        }
+
+        _handleCover(losses_, platformFees_);
+
+        emit CollateralLiquidationFinished(loan_, losses_);
     }
 
     function triggerDefaultWarning(address loan_) external override {
@@ -260,12 +269,18 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
         require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
 
-        address globals_ = globals();
-
         ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
+        _handleCover(losses_, platformFees_);
+
+        emit CollateralLiquidationFinished(loan_, losses_);
+    }
+
+    function _handleCover(uint256 losses_, uint256 platformFees_) internal {
+        address globals_ = globals();
+
         uint256 availableCover_ = IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) / HUNDRED_PERCENT;
-        uint256 toTreasury_     = _min(availableCover_, platformFees_);
+        uint256 toTreasury_     = _min(availableCover_,               platformFees_);
         uint256 toPool_         = _min(availableCover_ - toTreasury_, losses_);
 
         if (toTreasury_ != 0) {
@@ -275,8 +290,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         if (toPool_ != 0) {
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
-
-        emit CollateralLiquidationFinished(loan_, losses_);
     }
 
     function removeDefaultWarning(address loan_) external override whenProtocolNotPaused nonReentrant {
@@ -469,6 +482,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             unrealizedLosses_ += ILoanManagerLike(loanManagerList[i_]).unrealizedLosses();
             unchecked { ++i_; }
         }
+
+        // NOTE: Use minimum to prevent underflows in the case that `unrealizedLosses` includes late interest and `totalAssets` does not.
+        unrealizedLosses_ = _min(unrealizedLosses_, totalAssets());
     }
 
     /**************************/

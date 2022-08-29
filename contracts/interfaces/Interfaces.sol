@@ -30,7 +30,7 @@ interface ILoanManagerLike {
 
     function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
-    function triggerCollateralLiquidation(address loan_) external;
+    function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
 

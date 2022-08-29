@@ -404,6 +404,11 @@ contract MockLoanManager is LoanManagerStorage {
         poolDelegate = poolDelegate_;
     }
 
+    // NOTE: Used to satisfy min condition in unrealizedLosses
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_) {
+        assetsUnderManagement_ = unrealizedLosses;
+    }
+
     function fund(address) external { }
 
     function claim(address loan_, bool hasSufficientCover_) external {
@@ -425,7 +430,7 @@ contract MockLoanManager is LoanManagerStorage {
         wasRDWCalledByGovernor = isCalledByGovernor_;
     }
 
-    function triggerCollateralLiquidation(address) external {
+    function triggerDefault(address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
@@ -433,12 +438,12 @@ contract MockLoanManager is LoanManagerStorage {
         wasTDWCalledByGovernor = isGovernor_;
     }
 
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_) {
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 platformFees_) {
         loan_;
 
         unrealizedLosses -= increasedUnrealizedLosses;
         remainingLosses_  = remainingLosses;
-        serviceFee_       = serviceFee;
+        platformFees_     = serviceFee;
     }
 
     function __setPlatformManagementFee(uint256 platformManagementFee_) external {
@@ -458,7 +463,7 @@ contract MockLoanManager is LoanManagerStorage {
         serviceFee      = serviceFee_;
     }
 
-    function __setTriggerCollateralLiquidationReturn(uint256 increasedUnrealizedLosses_) external {
+    function __setTriggerDefaultReturn(uint256 increasedUnrealizedLosses_) external {
         increasedUnrealizedLosses = _uint128(increasedUnrealizedLosses_);
     }
 

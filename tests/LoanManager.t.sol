@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, console, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.sol";
@@ -40,7 +40,8 @@ contract LoanManagerBaseTest is TestUtils {
     uint256 platformManagementFeeRate = 5_0000;
     uint256 delegateManagementFeeRate = 15_0000;
 
-    MockERC20       asset;
+    MockERC20       collateralAsset;
+    MockERC20       fundsAsset;
     MockGlobals     globals;
     MockPool        pool;
     MockPoolManager poolManager;
@@ -49,14 +50,15 @@ contract LoanManagerBaseTest is TestUtils {
     LoanManagerHarness loanManager;
 
     function setUp() public virtual {
-        asset       = new MockERC20("MockERC20", "MOCK", 18);
-        globals     = new MockGlobals(governor);
-        poolManager = new MockPoolManager();
-        pool        = new MockPool();
+        collateralAsset = new MockERC20("CollateralAsset", "COL", 18);
+        fundsAsset      = new MockERC20("FundsAsset",      "FUN", 18);
+        globals         = new MockGlobals(governor);
+        poolManager     = new MockPoolManager();
+        pool            = new MockPool();
 
         globals.setMapleTreasury(treasury);
 
-        pool.__setAsset(address(asset));
+        pool.__setAsset(address(fundsAsset));
         pool.__setManager(address(poolManager));
 
         poolManager.__setGlobals(address(globals));
@@ -110,7 +112,7 @@ contract MigrateTests is LoanManagerBaseTest {
     }
 
     function test_migrate_success() external {
-        assertEq(loanManager.fundsAsset(), address(asset));
+        assertEq(loanManager.fundsAsset(), address(fundsAsset));
 
         vm.prank(loanManager.factory());
         loanManager.migrate(migrator, abi.encode(address(0)));
@@ -192,9 +194,9 @@ contract UpgradeTests is LoanManagerBaseTest {
 contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
     function _assertBalances(uint256 poolBalance, uint256 treasuryBalance, uint256 poolDelegateBalance) internal {
-        assertEq(asset.balanceOf(address(pool)),         poolBalance);
-        assertEq(asset.balanceOf(address(treasury)),     treasuryBalance);
-        assertEq(asset.balanceOf(address(poolDelegate)), poolDelegateBalance);
+        assertEq(fundsAsset.balanceOf(address(pool)),         poolBalance);
+        assertEq(fundsAsset.balanceOf(address(treasury)),     treasuryBalance);
+        assertEq(fundsAsset.balanceOf(address(poolDelegate)), poolDelegateBalance);
     }
 
     function _assertPaymentInfo(
@@ -235,7 +237,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     }
 
     function _assertTotalAssets(uint256 totalAssets) internal {
-        assertEq(loanManager.assetsUnderManagement() + asset.balanceOf(address(pool)), totalAssets);
+        assertEq(loanManager.assetsUnderManagement() + fundsAsset.balanceOf(address(pool)), totalAssets);
     }
 
     function _makeLatePayment(
@@ -250,7 +252,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     {
         MockLoan mockLoan = MockLoan(loanAddress);
 
-        MockERC20(asset).mint(address(loanManager), interestAmount + lateInterestAmount + principalAmount);
+        fundsAsset.mint(address(loanManager), interestAmount + lateInterestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
         mockLoan.__setNextPaymentInterest(nextInterestPayment);
         mockLoan.__setNextPaymentLateInterest(lateInterestAmount);
@@ -274,7 +276,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     {
         MockLoan mockLoan = MockLoan(loanAddress);
 
-        MockERC20(asset).mint(address(loanManager), interestAmount + principalAmount);
+        fundsAsset.mint(address(loanManager), interestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
         mockLoan.__setNextPaymentInterest(nextInterestPayment);
 
@@ -295,7 +297,7 @@ contract ClaimTests is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = address(new MockLoan(address(asset), address(asset)));
+        loan = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
 
         // Set next payment information for loanManager to use.
         MockLoan loan_ = MockLoan(loan);
@@ -309,7 +311,7 @@ contract ClaimTests is LoanManagerClaimBaseTest {
     }
 
     function test_claim_notManager() external {
-        asset.mint(address(loanManager), 100);
+        fundsAsset.mint(address(loanManager), 100);
 
         vm.expectRevert("LM:C:NOT_LOAN");
         loanManager.claim(0, 100, 0, START + 10_000);
@@ -327,7 +329,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = address(new MockLoan(address(asset), address(asset)));
+        loan = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
 
         // Set next payment information for loanManager to use.
         MockLoan loan_ = MockLoan(loan);
@@ -346,7 +348,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(nextPaymentDueDate);
 
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan));
+        loanManager.triggerDefault(address(loan));
 
         vm.expectRevert("LM:FCL:NOT_POOL_MANAGER");
         loanManager.finishCollateralLiquidation(address(loan));
@@ -355,12 +357,17 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         loanManager.finishCollateralLiquidation(address(loan));
     }
 
-    function test_finishCollateralLiquidation_success_noCollateral() public {
+    function test_finishCollateralLiquidation_success_withCollateral() public {
         // Assume this is past the payment due date and grace period.
         vm.warp(START + 11_000);
 
+        MockLoan(loan).__setCollateral(1_000_000);
+        collateralAsset.mint(loan, 1_000_000);
+
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan));
+        loanManager.triggerDefault(address(loan));
+
+        MockLoan(loan).__setNextPaymentLateInterest(10);
 
         uint256 paymentId = loanManager.paymentIdOf(address(loan));
 
@@ -378,14 +385,18 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
+        address liquidator = address(0x63c0c0705a51964E992197d917123fe9B65BC1f7);
+
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        80,
             lateInterest:    0,
-            platformFees:    20 + 5,
-            liquidator:      address(0)
+            platformFees:    20 + 7,
+            liquidator:      liquidator
         });
+
+        collateralAsset.burn(liquidator, collateralAsset.balanceOf(liquidator));
 
         vm.prank(address(poolManager));
         ( uint256 remainingLosses_, uint256 platformFee_ ) = loanManager.finishCollateralLiquidation(address(loan));
@@ -395,7 +406,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(paymentId, 0);  // Loan should be deleted.
 
         assertEq(remainingLosses_, 1_000_080);  // No collateral was liquidated because there is none.
-        assertEq(platformFee_,     20 + 5);     // 20 (platform service fee) + 100 * 5% (platform management fee)
+        assertEq(platformFee_,     20 + 7);     // 20 (platform service fee) + 100 * 5% (platform management fee)
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          0);
@@ -429,7 +440,7 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = address(new MockLoan(address(asset), address(asset)));
+        loan = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
 
         // Set next payment information for loanManager to use.
         MockLoan loan_ = MockLoan(loan);
@@ -441,7 +452,6 @@ contract TriggerDefaultWarningTests is LoanManagerBaseTest {
 
         vm.prank(address(poolManager));
         loanManager.fund(address(loan));
-
     }
 
     function test_triggerDefaultWarning_notManager() public {
@@ -634,7 +644,7 @@ contract RemoveDefaultWarningTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = address(new MockLoan(address(asset), address(asset)));
+        loan = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
 
         // Set next payment information for loanManager to use.
         MockLoan loan_ = MockLoan(loan);
@@ -875,7 +885,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = new MockLoan(address(asset), address(asset));
+        loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan.__setPrincipal(1_000_000);
@@ -1336,8 +1346,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan1 = new MockLoan(address(asset), address(asset));
-        loan2 = new MockLoan(address(asset), address(asset));
+        loan1 = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan2 = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan1.__setPrincipal(1_000_000);
@@ -1910,9 +1920,9 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan1 = new MockLoan(address(asset), address(asset));
-        loan2 = new MockLoan(address(asset), address(asset));
-        loan3 = new MockLoan(address(asset), address(asset));
+        loan1 = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan2 = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan3 = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan1.__setPrincipal(1_000_000);
@@ -2080,8 +2090,8 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan1 = new MockLoan(address(asset), address(asset));
-        loan2 = new MockLoan(address(asset), address(asset));
+        loan1 = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan2 = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan1.__setPrincipal(1_000_000);
@@ -2096,7 +2106,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.fund(address(loan1));
 
-        asset.mint(address(pool), 1_000_000);  // Represent totalAssets
+        fundsAsset.mint(address(pool), 1_000_000);  // Represent totalAssets
 
         /**
          *  Loan 1
@@ -2176,7 +2186,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.fund(address(loan2));
 
-        asset.burn(address(pool), 1_000_000);  // Mock pool moving cash
+        fundsAsset.burn(address(pool), 1_000_000);  // Mock pool moving cash
 
         /***********************************/
         /*** Loan 2 Payment (t = 24_000) ***/
@@ -2296,7 +2306,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = new MockLoan(address(asset), address(asset));
+        loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Setup next payment information
         loan.__setPrincipal(1_000_000);
@@ -2308,7 +2318,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loanManager.fund(address(loan));
 
         // On this suite, pools have a total of 2_000_000 to facilitate funding + refinance
-        asset.mint(address(pool), 1_000_000);
+        fundsAsset.mint(address(pool), 1_000_000);
     }
 
     function test_refinance_onLoanPaymentDueDate_interestOnly() external {
@@ -2387,7 +2397,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.warp(START + 10_000);
 
         // Burn from the pool to simulate fund
-        asset.burn(address(pool), 1_000_000);
+        fundsAsset.burn(address(pool), 1_000_000);
 
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
@@ -2548,7 +2558,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loan.__setRefinanceNextPaymentInterest(375);
         loan.__setRefinanceNextPaymentDueDate(START + 16_000);
 
-        asset.burn(address(pool), 1_000_000);  // Burn from the pool to simulate fund and drawdown.
+        fundsAsset.burn(address(pool), 1_000_000);  // Burn from the pool to simulate fund and drawdown.
 
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
@@ -2709,7 +2719,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loan.__setRefinanceNextPaymentInterest(375);
         loan.__setRefinanceNextPaymentDueDate(START + 24_000); // The payment schedule restarts at refinance
 
-        asset.burn(address(pool), 1_000_000);
+        fundsAsset.burn(address(pool), 1_000_000);
 
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
@@ -2874,7 +2884,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.prank(address(poolManager));
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
-        asset.burn(address(pool), 1_000_000);
+        fundsAsset.burn(address(pool), 1_000_000);
 
         _assertPaymentInfo({
             loanAddress:         address(loan),
@@ -2962,14 +2972,14 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
 }
 
-contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
+contract TriggerDefaultTests is LoanManagerBaseTest {
 
     address loan;
 
     function setUp() public override {
         super.setUp();
 
-        loan = address(new MockLoan(address(asset), address(asset)));
+        loan = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
 
         // Set next payment information for loanManager to use.
         MockLoan loan_ = MockLoan(loan);
@@ -2983,19 +2993,19 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         loanManager.fund(address(loan));
     }
 
-    function test_triggerCollateralLiquidation_notManager() public {
+    function test_triggerDefault_notManager() public {
         // NOTE: The next two lines of code are unnecessary, as loan.repossess() is mocked, but simulate the real preconditions for this function to be called.
         uint256 nextPaymentDueDate = MockLoan(loan).nextPaymentDueDate();
         vm.warp(nextPaymentDueDate);
 
-        vm.expectRevert("LM:TCL:NOT_POOL_MANAGER");
-        loanManager.triggerCollateralLiquidation(address(loan));
+        vm.expectRevert("LM:TL:NOT_POOL_MANAGER");
+        loanManager.triggerDefault(address(loan));
 
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan));
+        loanManager.triggerDefault(address(loan));
     }
 
-    function test_triggerCollateralLiquidation_success_noCollateral_inDefaultWarning() public {
+    function test_triggerDefault_success_noCollateral_inDefaultWarning() public {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
@@ -3023,8 +3033,35 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
             liquidator:      address(0)
         });
 
+        vm.warp(START + 8_000);  // Warp to ensure to that accounting still holds.
+
         vm.prank(address(poolManager));
-        loanManager.triggerCollateralLiquidation(address(loan));
+        ( bool liquidationComplete, uint256 remainingLosses, uint256 platformFees ) = loanManager.triggerDefault(address(loan));
+
+        assertTrue(liquidationComplete);
+        assertEq(remainingLosses, 1_000_048);
+        assertEq(platformFees,    15);
+
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               0);
+        assertEq(loanManager.assetsUnderManagement(),      0);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_008_000);  // Always updates to BT
+        assertEq(loanManager.domainEnd(),                  5_008_000);  // Always updates to BT
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           0);
+    }
+
+    function test_triggerDefault_success_withCollateral_inDefaultWarning() public {
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        MockLoan(loan).__setCollateral(1_000_000);
+        collateralAsset.mint(loan, 1_000_000);
+
+        vm.prank(address(poolManager));
+        loanManager.triggerDefaultWarning(address(loan), false);
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          48);
@@ -3036,6 +3073,36 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.paymentWithEarliestDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),           1_000_048);
 
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       1_000_000,
+            interest:        48,
+            lateInterest:    0,
+            platformFees:    15,
+            liquidator:      address(0)
+        });
+
+        vm.warp(START + 8_000);  // Warp to ensure that accounting still holds.
+
+        vm.prank(address(poolManager));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+
+        assertTrue(!liquidationComplete);
+        assertEq(remainingLosses_, 0);
+        assertEq(platformFees_,    15);
+
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          48);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_048);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_008_000);
+        assertEq(loanManager.domainEnd(),                  5_008_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_048);
+
         liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
         _assertLiquidationInfo({
@@ -3044,16 +3111,95 @@ contract TriggerCollateralLiquidationTests is LoanManagerBaseTest {
             interest:        48,
             lateInterest:    0,
             platformFees:    15,
-            liquidator:      address(0)  // No liquidator deployed because no collateral is to be liquidated.
+            liquidator:      address(0x63c0c0705a51964E992197d917123fe9B65BC1f7)
+        });
+    }
+
+    function test_triggerDefault_success_noCollateral_notInDefaultWarning() public {
+        // Warp to be late
+        vm.warp(START + 11_000);
+
+        assertEq(loanManager.getAccruedInterest(),         80);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0.008e30);
+        assertEq(loanManager.domainStart(),                5_000_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+        assertEq(loanManager.unrealizedLosses(),           0);
+
+        MockLoan(loan).__setNextPaymentLateInterest(10);
+
+        vm.prank(address(poolManager));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+
+        assertTrue(liquidationComplete);
+        assertEq(remainingLosses_, 1_000_088);
+        assertEq(platformFees_,    25);
+
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               0);
+        assertEq(loanManager.assetsUnderManagement(),      0);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_011_000);
+        assertEq(loanManager.domainEnd(),                  5_011_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           0);
+    }
+
+    function test_triggerDefault_success_withCollateral_notInDefaultWarning() public {
+        // Warp to be late
+        vm.warp(START + 11_000);
+
+        MockLoan(loan).__setCollateral(1_000_000);
+        collateralAsset.mint(loan, 1_000_000);
+
+        assertEq(loanManager.getAccruedInterest(),         80);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0.008e30);
+        assertEq(loanManager.domainStart(),                5_000_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+        assertEq(loanManager.unrealizedLosses(),           0);
+
+        MockLoan(loan).__setNextPaymentLateInterest(10);
+
+        vm.prank(address(poolManager));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+
+        assertTrue(!liquidationComplete);
+        assertEq(remainingLosses_, 0);
+        assertEq(platformFees_,    25);
+
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          80);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_011_000);
+        assertEq(loanManager.domainEnd(),                  5_011_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           1_000_088);
+
+        ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
+
+        _assertLiquidationInfo({
+            liquidationInfo: liquidationInfo,
+            principal:       1_000_000,
+            interest:        80,
+            lateInterest:    8,
+            platformFees:    25,
+            liquidator:      address(0x63c0c0705a51964E992197d917123fe9B65BC1f7)
         });
     }
 
 }
 
 contract FundLoanTests is LoanManagerBaseTest {
-
-    address collateralAsset = address(asset);
-    address fundsAsset      = address(asset);
 
     uint256 principalRequested = 1_000_000e18;
     uint256 paymentInterest    = 1e18;
@@ -3066,7 +3212,7 @@ contract FundLoanTests is LoanManagerBaseTest {
 
         poolManager.setDelegateManagementFeeRate(delegateManagementFeeRate);
 
-        loan = new MockLoan(collateralAsset, fundsAsset);
+        loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan.__setPrincipalRequested(principalRequested);  // Simulate funding
@@ -3076,7 +3222,7 @@ contract FundLoanTests is LoanManagerBaseTest {
     }
 
     function test_fund() external {
-        asset.mint(address(loan), principalRequested);
+        fundsAsset.mint(address(loan), principalRequested);
 
         (
             uint256 incomingNetInterest_,
@@ -3134,7 +3280,7 @@ contract FundLoanTests is LoanManagerBaseTest {
     function test_fund_failIfNotPoolManager() external {
         address notPoolManager = address(new Address());
 
-        asset.mint(address(loan), principalRequested);
+        fundsAsset.mint(address(loan), principalRequested);
 
         vm.prank(notPoolManager);
         vm.expectRevert("LM:F:NOT_POOL_MANAGER");
@@ -3636,9 +3782,6 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
 
 contract QueueNextPaymentTests is LoanManagerBaseTest {
 
-    address internal collateralAsset = address(asset);
-    address internal fundsAsset      = address(asset);
-
     uint256 internal principalRequested = 1_000_000e18;
     uint256 internal paymentInterest    = 1e18;
     uint256 internal paymentPrincipal   = 0;
@@ -3648,7 +3791,7 @@ contract QueueNextPaymentTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        loan = new MockLoan(collateralAsset, fundsAsset);
+        loan = new MockLoan(address(collateralAsset), address(fundsAsset));
 
         // Set next payment information for loanManager to use.
         loan.__setPrincipalRequested(principalRequested);  // Simulate funding
