@@ -225,10 +225,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         loanManagers[loan_] = loanManager_;
 
+        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+       
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
 
         uint256 remainingLiquidity_ = IERC20Like(asset_).balanceOf(address(pool_));
-        uint256 lockedLiquidity_    = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
         require(remainingLiquidity_ >= lockedLiquidity_, "PM:F:LOCKED_LIQUIDITY");
 
