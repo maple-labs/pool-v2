@@ -23,4 +23,28 @@ contract LoanManagerHarness is LoanManager {
         newRate_ = _queueNextPayment(loan_, startDate_, nextPaymentDueDate_);
     }
 
+    function castUint24(uint256 input_) external pure returns (uint24 output_) {
+        return _uint24(input_);
+    }
+
+    function castUint48(uint256 input_) external pure returns (uint48 output_) {
+        return _uint48(input_);
+    }
+
+    function castUint96(uint256 input_) external pure returns (uint96 output_) {
+        return _uint96(input_);
+    }
+
+    function castUint112(uint256 input_) external pure returns (uint112 output_) {
+        return _uint112(input_);
+    }
+
+    function castUint120(uint256 input_) external pure returns (uint120 output_) {
+        return _uint120(input_);
+    }
+
+    function castUint128(uint256 input_) external pure returns (uint128 output_) {
+        return _uint128(input_);
+    }
+
 }

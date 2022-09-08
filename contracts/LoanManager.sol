@@ -771,9 +771,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         output_ = uint24(input_);
     }
 
-    function _uint48(uint256 input_) internal pure returns (uint32 output_) {
-        require(input_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
-        output_ = uint32(input_);
+    function _uint48(uint256 input_) internal pure returns (uint48 output_) {
+        require(input_ <= type(uint48).max, "LM:UINT48_CAST_OOB");
+        output_ = uint48(input_);
     }
 
     function _uint96(uint256 input_) internal pure returns (uint96 output_) {

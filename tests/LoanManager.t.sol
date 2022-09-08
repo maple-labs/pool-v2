@@ -3834,3 +3834,60 @@ contract QueueNextPaymentTests is LoanManagerBaseTest {
     }
 
 }
+
+contract UintCastingTests is LoanManagerBaseTest {
+
+    function test_castUint24() external {
+        vm.expectRevert("LM:UINT24_CAST_OOB");
+        loanManager.castUint24(2 ** 24);
+
+        uint256 castedValue = loanManager.castUint24(2 ** 24 - 1);
+
+        assertEq(castedValue, 2 ** 24 - 1);
+    }
+
+    function test_castUint48() external {
+        vm.expectRevert("LM:UINT48_CAST_OOB");
+        loanManager.castUint48(2 ** 48);
+
+        uint256 castedValue = loanManager.castUint48(2 ** 48 - 1);
+
+        assertEq(castedValue, 2 ** 48 - 1);
+    }
+
+    function test_castUint96() external {
+        vm.expectRevert("LM:UINT96_CAST_OOB");
+        loanManager.castUint96(2 ** 96);
+
+        uint256 castedValue = loanManager.castUint96(2 ** 96 - 1);
+
+        assertEq(castedValue, 2 ** 96 - 1);
+    }
+
+    function test_castUint112() external {
+        vm.expectRevert("LM:UINT112_CAST_OOB");
+        loanManager.castUint112(2 ** 112);
+
+        uint256 castedValue = loanManager.castUint112(2 ** 112 - 1);
+
+        assertEq(castedValue, 2 ** 112 - 1);
+    }
+
+    function test_castUint120() external {
+        vm.expectRevert("LM:UINT120_CAST_OOB");
+        loanManager.castUint120(2 ** 120);
+
+        uint256 castedValue = loanManager.castUint120(2 ** 120 - 1);
+
+        assertEq(castedValue, 2 ** 120 - 1);
+    }
+
+    function test_castUint128() external {
+        vm.expectRevert("LM:UINT128_CAST_OOB");
+        loanManager.castUint128(2 ** 128);
+
+        uint256 castedValue = loanManager.castUint128(2 ** 128 - 1);
+
+        assertEq(castedValue, 2 ** 128 - 1);
+    }
+}
