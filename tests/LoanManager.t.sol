@@ -364,10 +364,10 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         MockLoan(loan).__setCollateral(1_000_000);
         collateralAsset.mint(loan, 1_000_000);
 
+        MockLoan(loan).__setNextPaymentLateInterest(10);
+
         vm.prank(address(poolManager));
         loanManager.triggerDefault(address(loan));
-
-        MockLoan(loan).__setNextPaymentLateInterest(10);
 
         uint256 paymentId = loanManager.paymentIdOf(address(loan));
 
@@ -391,8 +391,8 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
             liquidationInfo: liquidationInfo,
             principal:       1_000_000,
             interest:        80,
-            lateInterest:    0,
-            platformFees:    20 + 7,
+            lateInterest:    8,
+            platformFees:    20 + 5,
             liquidator:      liquidator
         });
 
@@ -405,8 +405,8 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         assertEq(paymentId, 0);  // Loan should be deleted.
 
-        assertEq(remainingLosses_, 1_000_080);  // No collateral was liquidated because there is none.
-        assertEq(platformFee_,     20 + 7);     // 20 (platform service fee) + 100 * 5% (platform management fee)
+        assertEq(remainingLosses_, 1_000_088);  // No collateral was liquidated because there is none. Remaining losses include late interest.
+        assertEq(platformFee_,     20 + 5);     // 20 (platform service fee) + 100 * 5% (platform management fee)
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          0);
@@ -3183,7 +3183,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         assertEq(loanManager.domainStart(),                5_011_000);
         assertEq(loanManager.domainEnd(),                  5_011_000);
         assertEq(loanManager.paymentWithEarliestDueDate(), 0);
-        assertEq(loanManager.unrealizedLosses(),           1_000_088);
+        assertEq(loanManager.unrealizedLosses(),           1_000_080);
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 

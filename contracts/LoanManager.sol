@@ -213,7 +213,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         platformFees_    = liquidationInfo_.platformFees;
 
         // Realize the loss following the liquidation.
-        emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(remainingLosses_));
+        emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest));
 
         address fundsAsset_     = fundsAsset;
         uint256 recoveredFunds_ = IERC20Like(fundsAsset_).balanceOf(liquidationInfo_.liquidator);
@@ -282,7 +282,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             return (true, remainingLosses_, platformFees_);
         }
 
-        ( address liquidator_, uint256 principal_ ) = _handleCollateralizedRepossession(loan_, netInterest_, netLateInterest_);
+        ( address liquidator_, uint256 principal_ ) = _handleCollateralizedRepossession(loan_, netInterest_);
 
         liquidationComplete_ = false;
 
@@ -328,7 +328,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         });
 
         // TODO: Add condition to prevent TDW from getting called on a late loan.
-        emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_ + netLateInterest_));
+        emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
 
         ILoanLike(loan_).triggerDefaultWarning();
     }
@@ -500,7 +500,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(delegateFee_ == 0 || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_),          "LM:CL:PD_TRANSFER");
     }
 
-    function _handleCollateralizedRepossession(address loan_, uint256 netInterest_, uint256 netLateInterest_) internal returns (address liquidator_, uint256 principal_) {
+    function _handleCollateralizedRepossession(address loan_, uint256 netInterest_) internal returns (address liquidator_, uint256 principal_) {
         principal_ = ILoanLike(loan_).principal();
 
         liquidator_ = address(
@@ -519,7 +519,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         if (!ILoanLike(loan_).isInDefaultWarning()) {
             // Impair the pool with the default amount.
             // NOTE: Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
-            emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_ + netLateInterest_));
+            emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
         }
 
         // NOTE: Need to to this after the `isInDefaultWarning` check, since `repossess` will unset it.
@@ -558,7 +558,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         if (isInDefaultWarning_) {
             // Remove unrealized losses that `triggerDefaultWarning` previously accounted for.
-            emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(principal_ + netInterest_ + netLateInterest_));
+            emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(principal_ + netInterest_));
             delete liquidationInfo[loan_];
         }
 
