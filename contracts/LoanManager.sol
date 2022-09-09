@@ -59,7 +59,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());
 
         if (msg.sender == poolDelegate_) {
-            require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "LM:UPGRADE", msg.data), "LM:U:NOT_SCHEDULED");
+            require(mapleGlobals.isValidScheduledCall(msg.sender, address(this), "LM:UPGRADE", msg.data), "LM:U:INVALID_SCHED_CALL");
 
             mapleGlobals.unscheduleCall(msg.sender, "LM:UPGRADE", msg.data);
         }

@@ -67,7 +67,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IMapleGlobalsLike mapleGlobals_ = IMapleGlobalsLike(globals());
 
         if (msg.sender == poolDelegate_) {
-            require(mapleGlobals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:NOT_SCHEDULED");
+            require(mapleGlobals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:INVALID_SCHED_CALL");
 
             mapleGlobals_.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
         }

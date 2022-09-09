@@ -216,7 +216,7 @@ contract UpgradeTests is PoolManagerBase {
 
     function test_upgrade_notScheduled() external {
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:U:NOT_SCHEDULED");
+        vm.expectRevert("PM:U:INVALID_SCHED_CALL");
         poolManager.upgrade(2, "");
     }
 

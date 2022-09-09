@@ -162,7 +162,7 @@ contract UpgradeTests is LoanManagerBaseTest {
 
     function test_upgrade_notScheduled() external {
         vm.prank(poolManager.poolDelegate());
-        vm.expectRevert("LM:U:NOT_SCHEDULED");
+        vm.expectRevert("LM:U:INVALID_SCHED_CALL");
         loanManager.upgrade(2, "");
     }
 
