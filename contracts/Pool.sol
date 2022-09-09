@@ -24,11 +24,11 @@ contract Pool is IPool, ERC20 {
     )
         ERC20(name_, symbol_, ERC20(asset_).decimals())
     {
-        require((manager = manager_) != address(0), "P:C:ZERO_ADDRESS");
+        require((manager = manager_) != address(0), "P:C:ZERO_MANAGER");
+        require((asset   = asset_)   != address(0), "P:C:ZERO_ASSET");
 
         _mint(destination_, initialSupply_);
 
-        require((asset = asset_) != address(0), "P:C:ZERO_ADDRESS");
         require(ERC20Helper.approve(asset_, manager_, type(uint256).max), "P:C:FAILED_APPROVE");
     }
 

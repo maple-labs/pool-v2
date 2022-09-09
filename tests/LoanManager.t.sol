@@ -385,7 +385,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
-        address liquidator = address(0x63c0c0705a51964E992197d917123fe9B65BC1f7);
+        address liquidator = address(0xf2A966AA7a699ea5225442a2111361486834a03e);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -3111,7 +3111,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        48,
             lateInterest:    0,
             platformFees:    15,
-            liquidator:      address(0x63c0c0705a51964E992197d917123fe9B65BC1f7)
+            liquidator:      address(0xf2A966AA7a699ea5225442a2111361486834a03e)
         });
     }
 
@@ -3193,7 +3193,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        80,
             lateInterest:    8,
             platformFees:    25,
-            liquidator:      address(0x63c0c0705a51964E992197d917123fe9B65BC1f7)
+            liquidator:      address(0xf2A966AA7a699ea5225442a2111361486834a03e)
         });
     }
 

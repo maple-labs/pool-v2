@@ -121,7 +121,7 @@ contract ConstructorTests is PoolBase {
     function test_constructor_zeroManager() public {
         address asset = address(new MockERC20("Asset", "AT", 18));
 
-        vm.expectRevert("P:C:ZERO_ADDRESS");
+        vm.expectRevert("P:C:ZERO_MANAGER");
         new Pool(address(0), asset, address(0), 0, "Pool", "POOL1");
 
         new Pool(address(new Address()), asset, address(0), 0, "Pool", "POOL1");
