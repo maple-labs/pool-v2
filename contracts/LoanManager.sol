@@ -2,7 +2,6 @@
 pragma solidity 0.8.7;
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { Liquidator }            from "../modules/liquidations/contracts/Liquidator.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
@@ -259,7 +258,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         );
     }
 
-    function triggerDefault(address loan_) external override returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
+    function triggerDefault(address loan_, address liquidatorFactory_) external override
+        returns (
+            bool    liquidationComplete_,
+            uint256 remainingLosses_,
+            uint256 platformFees_
+        )
+    {
         require(msg.sender == poolManager, "LM:TL:NOT_POOL_MANAGER");
 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
@@ -282,7 +287,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             return (true, remainingLosses_, platformFees_);
         }
 
-        ( address liquidator_, uint256 principal_ ) = _handleCollateralizedRepossession(loan_, netInterest_);
+        ( address liquidator_, uint256 principal_ ) = _handleCollateralizedRepossession(loan_, liquidatorFactory_, netInterest_);
 
         liquidationComplete_ = false;
 
@@ -500,18 +505,25 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(delegateFee_ == 0 || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_),          "LM:CL:PD_TRANSFER");
     }
 
-    function _handleCollateralizedRepossession(address loan_, uint256 netInterest_) internal returns (address liquidator_, uint256 principal_) {
+    function _handleCollateralizedRepossession(
+        address loan_,
+        address liquidatorFactory_,
+        uint256 netInterest_
+    )
+        internal returns (address liquidator_, uint256 principal_)
+    {
         principal_ = ILoanLike(loan_).principal();
 
-        liquidator_ = address(
-            new Liquidator({
-                owner_:           address(this),
-                collateralAsset_: ILoanLike(loan_).collateralAsset(),
-                fundsAsset_:      fundsAsset,
-                auctioneer_:      address(this),
-                destination_:     address(this),
-                globals_:         globals()
-            })
+        liquidator_ = IMapleProxyFactory(liquidatorFactory_).createInstance(
+            abi.encode(
+                address(this),
+                ILoanLike(loan_).collateralAsset(),
+                fundsAsset,
+                address(this),
+                address(this),
+                globals()
+            ),
+            bytes32(bytes20(address(loan_)))
         );
 
         _updateIssuanceParams(issuanceRate, accountedInterest);

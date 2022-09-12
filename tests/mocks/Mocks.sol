@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
+import { Address }               from "../../modules/contract-test-utils/contracts/test.sol";
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
@@ -430,7 +431,7 @@ contract MockLoanManager is LoanManagerStorage {
         wasRDWCalledByGovernor = isCalledByGovernor_;
     }
 
-    function triggerDefault(address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
+    function triggerDefault(address, address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
@@ -759,4 +760,12 @@ contract MockWithdrawalManager is MapleProxiedInternals {
     function __setLockedLiquidity(uint256 lockedLiquidity_) external {
         lockedLiquidity = lockedLiquidity_;
     }
+}
+
+contract MockFactory {
+
+    function createInstance(bytes calldata arguments_, bytes32 salt_) external returns (address instance_) {
+        instance_ = address(new Address());
+    }
+
 }

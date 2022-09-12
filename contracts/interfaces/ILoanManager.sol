@@ -112,11 +112,12 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     /**
      *  @dev    Triggers the default of a loan.
      *  @param  loan_                Loan to trigger the default.
+     *  @param  liquidatorFactory_   Factory that will be used to deploy the liquidator.
      *  @return liquidationComplete_ True if the liquidation is completed in the same transaction (uncollateralized).
      *  @return remainingLosses_     The amount of remaining losses.
      *  @return platformFees_        The amount of platform fees.
      */
-    function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
+    function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     /**********************/
     /*** View Functions ***/

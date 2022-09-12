@@ -15,16 +15,6 @@ jobs:
         with:
           version: nightly
 
-      - name: Checkout liquidations private submodule
-        env:
-          SSH_KEY_LIQUIDATIONS: ${{secrets.SSH_KEY_LIQUIDATIONS}}
-        shell: bash
-        run: |
-          mkdir $HOME/.ssh
-          echo "$SSH_KEY_LIQUIDATIONS" > $HOME/.ssh/id_rsa
-          chmod 600 $HOME/.ssh/id_rsa
-          git submodule update --init --recursive modules/liquidations
-
       - name: Install submodules
         run: |
           git config --global url."https://github.com/".insteadOf "git@github.com:"

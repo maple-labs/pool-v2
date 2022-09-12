@@ -262,10 +262,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit DefaultWarningRemoved(loan_);
     }
 
-    function triggerDefault(address loan_) external override whenProtocolNotPaused nonReentrant {
-        require(msg.sender == poolDelegate, "PM:TCL:NOT_PD");
+    function triggerDefault(address loan_, address liquidatorFactory_) external override whenProtocolNotPaused nonReentrant {
+        bool isFactory_ = IMapleGlobalsLike(globals()).isFactory("LIQUIDATOR", liquidatorFactory_);
 
-        ( bool liquidationComplete_, uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).triggerDefault(loan_);
+        require(msg.sender == poolDelegate, "PM:TD:NOT_PD");
+        require(isFactory_,                 "PM:TD:NOT_FACTORY");
+
+        (
+            bool    liquidationComplete_,
+            uint256 losses_,
+            uint256 platformFees_
+        ) = ILoanManagerLike(loanManagers[loan_]).triggerDefault(loan_, liquidatorFactory_);
 
         if (!liquidationComplete_) {
             emit CollateralLiquidationTriggered(loan_);

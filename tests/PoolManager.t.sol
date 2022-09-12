@@ -12,6 +12,7 @@ import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitialize
 
 import {
     MockERC20Pool,
+    MockFactory,
     MockGlobals,
     MockLoan,
     MockLoanManager,
@@ -28,8 +29,10 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
     address POOL_DELEGATE = address(new Address());
 
-    MockERC20          asset;
-    MockERC20Pool      pool;
+    MockERC20     asset;
+    MockERC20Pool pool;
+    MockFactory   liquidatorFactory;
+
     PoolManagerHarness poolManager;
     PoolManagerFactory factory;
 
@@ -79,6 +82,8 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
         vm.prank(globals);
         poolManager.setActive(true);
+
+        liquidatorFactory = new MockFactory();
     }
 
 }
@@ -649,19 +654,28 @@ contract TriggerDefault is PoolManagerBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
     function test_triggerDefault_notPoolDelegate() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-
-        vm.expectRevert("PM:TCL:NOT_PD");
-        poolManager.triggerDefault(loan);
+        vm.expectRevert("PM:TD:NOT_PD");
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    }
+
+    function test_triggerDefault_invalidFactory() external {
+        MockGlobals(globals).setValidFactory("LIQUIDATOR", address(liquidatorFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:TD:NOT_FACTORY");
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+
+        MockGlobals(globals).setValidFactory("LIQUIDATOR", address(liquidatorFactory), true);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
 }
@@ -810,7 +824,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loanManager.__setTriggerDefaultReturn(2_000e18);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -831,7 +845,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(2_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -855,7 +869,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(2_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -878,7 +892,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(3_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 
@@ -901,7 +915,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(2_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 2_000e18);
 
@@ -927,7 +941,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(3_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 5_000e18);
 
@@ -949,7 +963,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setTriggerDefaultReturn(3_000e18);
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(loan);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertEq(poolManager.unrealizedLosses(), 3_000e18);
 

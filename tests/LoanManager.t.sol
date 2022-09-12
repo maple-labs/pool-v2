@@ -8,6 +8,7 @@ import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.so
 import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
 
 import {
+    MockFactory,
     MockGlobals,
     MockLiquidationStrategy,
     MockLoan,
@@ -42,6 +43,7 @@ contract LoanManagerBaseTest is TestUtils {
 
     MockERC20       collateralAsset;
     MockERC20       fundsAsset;
+    MockFactory     liquidatorFactory;
     MockGlobals     globals;
     MockPool        pool;
     MockPoolManager poolManager;
@@ -50,11 +52,12 @@ contract LoanManagerBaseTest is TestUtils {
     LoanManagerHarness loanManager;
 
     function setUp() public virtual {
-        collateralAsset = new MockERC20("CollateralAsset", "COL", 18);
-        fundsAsset      = new MockERC20("FundsAsset",      "FUN", 18);
-        globals         = new MockGlobals(governor);
-        poolManager     = new MockPoolManager();
-        pool            = new MockPool();
+        collateralAsset   = new MockERC20("CollateralAsset", "COL", 18);
+        fundsAsset        = new MockERC20("FundsAsset",      "FUN", 18);
+        globals           = new MockGlobals(governor);
+        liquidatorFactory = new MockFactory();
+        poolManager       = new MockPoolManager();
+        pool              = new MockPool();
 
         globals.setMapleTreasury(treasury);
 
@@ -348,7 +351,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.warp(nextPaymentDueDate);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefault(address(loan));
+        loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         vm.expectRevert("LM:FCL:NOT_POOL_MANAGER");
         loanManager.finishCollateralLiquidation(address(loan));
@@ -367,7 +370,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         MockLoan(loan).__setNextPaymentLateInterest(10);
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefault(address(loan));
+        loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         uint256 paymentId = loanManager.paymentIdOf(address(loan));
 
@@ -385,7 +388,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
-        address liquidator = address(0xf2A966AA7a699ea5225442a2111361486834a03e);
+        address liquidator = address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -2999,10 +3002,10 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         vm.warp(nextPaymentDueDate);
 
         vm.expectRevert("LM:TL:NOT_POOL_MANAGER");
-        loanManager.triggerDefault(address(loan));
+        loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         vm.prank(address(poolManager));
-        loanManager.triggerDefault(address(loan));
+        loanManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
     function test_triggerDefault_success_noCollateral_inDefaultWarning() public {
@@ -3036,7 +3039,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         vm.warp(START + 8_000);  // Warp to ensure to that accounting still holds.
 
         vm.prank(address(poolManager));
-        ( bool liquidationComplete, uint256 remainingLosses, uint256 platformFees ) = loanManager.triggerDefault(address(loan));
+        ( bool liquidationComplete, uint256 remainingLosses, uint256 platformFees ) = loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertTrue(liquidationComplete);
         assertEq(remainingLosses, 1_000_048);
@@ -3087,7 +3090,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         vm.warp(START + 8_000);  // Warp to ensure that accounting still holds.
 
         vm.prank(address(poolManager));
-        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertTrue(!liquidationComplete);
         assertEq(remainingLosses_, 0);
@@ -3111,7 +3114,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        48,
             lateInterest:    0,
             platformFees:    15,
-            liquidator:      address(0xf2A966AA7a699ea5225442a2111361486834a03e)
+            liquidator:      address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D)
         });
     }
 
@@ -3132,7 +3135,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         MockLoan(loan).__setNextPaymentLateInterest(10);
 
         vm.prank(address(poolManager));
-        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertTrue(liquidationComplete);
         assertEq(remainingLosses_, 1_000_088);
@@ -3169,7 +3172,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         MockLoan(loan).__setNextPaymentLateInterest(10);
 
         vm.prank(address(poolManager));
-        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
         assertTrue(!liquidationComplete);
         assertEq(remainingLosses_, 0);
@@ -3193,7 +3196,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        80,
             lateInterest:    8,
             platformFees:    25,
-            liquidator:      address(0xf2A966AA7a699ea5225442a2111361486834a03e)
+            liquidator:      address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D)
         });
     }
 

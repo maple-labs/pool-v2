@@ -32,7 +32,7 @@ interface ILoanManagerLike {
 
     function triggerDefaultWarning(address loan_, bool isGovernor_) external;
 
-    function triggerDefault(address loan_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
+    function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 }

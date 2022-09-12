@@ -285,9 +285,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     /**
      *  @dev   Triggers the default of a loan.
-     *  @param loan_ Loan to trigger the default.
+     *  @param loan_              Loan to trigger the default.
+     *  @param liquidatorFactory_ Factory used to deploy the liquidator.
      */
-    function triggerDefault(address loan_) external;
+    function triggerDefault(address loan_, address liquidatorFactory_) external;
 
     /**
      *  @dev   Triggers the default warning for a loan.
