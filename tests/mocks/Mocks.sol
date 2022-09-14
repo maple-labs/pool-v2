@@ -447,6 +447,14 @@ contract MockLoanManager is LoanManagerStorage {
         platformFees_     = serviceFee;
     }
 
+    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external {
+        allowedSlippageFor[collateralAsset_] = allowedSlippage_;
+    }
+
+    function setMinRatio(address collateralAsset_, uint256 minRatio_) external {
+        minRatioFor[collateralAsset_] = minRatio_;
+    }
+
     function __setPlatformManagementFee(uint256 platformManagementFee_) external {
         platformManagementFee = platformManagementFee_;
     }

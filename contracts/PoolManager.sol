@@ -157,6 +157,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit AllowedLenderSet(lender_, isValidLender[lender_] = isValid_);
     }
 
+    function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate,  "PM:SAS:NOT_PD");
+        require(isLoanManager[loanManager_], "PM:SAS:NOT_LM");
+        ILoanManagerLike(loanManager_).setAllowedSlippage(collateralAsset_, allowedSlippage_);
+    }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate,                    "PM:SDMFR:NOT_PD");
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
@@ -168,6 +174,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
         // TODO: Add range check call to globals
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
+    }
+
+    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override whenProtocolNotPaused {
+        require(msg.sender == poolDelegate,  "PM:SMR:NOT_PD");
+        require(isLoanManager[loanManager_], "PM:SMR:NOT_LM");
+        ILoanManagerLike(loanManager_).setMinRatio(collateralAsset_, minRatio_);
     }
 
     function setOpenToPublic() external override whenProtocolNotPaused {

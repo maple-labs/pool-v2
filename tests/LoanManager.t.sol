@@ -194,6 +194,58 @@ contract UpgradeTests is LoanManagerBaseTest {
 
 }
 
+contract SetAllowedSlippage_SetterTests is LoanManagerBaseTest {
+   
+    function test_setAllowedSlippage_notPoolManager() external {
+        vm.expectRevert("LM:SAS:NOT_POOL_MANAGER");
+        loanManager.setAllowedSlippage(address(collateralAsset), 1e6);
+    }
+
+    function test_setAllowedSlippage_invalidSlippage() external {
+        vm.prank(address(poolManager));
+        vm.expectRevert("LM:SAS:INVALID_SLIPPAGE");
+        loanManager.setAllowedSlippage(address(collateralAsset), 1e6 + 1);
+    }
+
+    function test_setAllowedSlippage_success() external {
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+
+        vm.prank(address(poolManager));
+        loanManager.setAllowedSlippage(address(collateralAsset), 1e6);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 1e6);
+
+        vm.prank(address(poolManager));
+        loanManager.setAllowedSlippage(address(collateralAsset), 0);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+    }
+
+}
+
+contract SetMinRatio_SetterTests is LoanManagerBaseTest {
+   
+    function test_setMinRatio_notPoolManager() external {
+        vm.expectRevert("LM:SMR:NOT_POOL_MANAGER");
+        loanManager.setMinRatio(address(collateralAsset), 1e6);
+    }
+
+    function test_setMinRatio_success() external {
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+
+        vm.prank(address(poolManager));
+        loanManager.setMinRatio(address(collateralAsset), 1e6);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 1e6);
+
+        vm.prank(address(poolManager));
+        loanManager.setMinRatio(address(collateralAsset), 0);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+    }
+
+}
+
 contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
     function _assertBalances(uint256 poolBalance, uint256 treasuryBalance, uint256 poolDelegateBalance) internal {

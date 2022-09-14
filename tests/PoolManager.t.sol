@@ -399,6 +399,58 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
     }
 }
 
+contract SetAllowedSlippage_SetterTests is PoolManagerBase {
+
+    MockLoanManager loanManager;
+   
+    address collateralAsset = address(new Address());
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.addLoanManager(address(loanManager));
+    }
+
+    function test_setAllowedSlippage_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(address(globals));
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
+    }
+
+    function test_setAllowedSlippage_notPoolDelegate() external {
+        vm.expectRevert("PM:SAS:NOT_PD");
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
+    }
+
+    function test_setAllowedSlippage_invalidLoanManager() external {
+        address fakeLoanManager = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SAS:NOT_LM");
+        poolManager.setAllowedSlippage(address(fakeLoanManager), collateralAsset, 1e6);
+    }
+
+    function test_setAllowedSlippage_success() external {
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 1e6);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 0);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+    }
+
+}
+
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
     address NOT_POOL_DELEGATE = address(new Address());
@@ -465,6 +517,58 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
         assertEq(poolManager.delegateManagementFeeRate(), newManagementFeeRate);
     }
 
+}
+
+contract SetMinRatio_SetterTests is PoolManagerBase {
+
+    MockLoanManager loanManager;
+   
+    address collateralAsset = address(new Address());
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.addLoanManager(address(loanManager));
+    }
+
+    function test_setMinRatio_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(address(globals));
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
+    }
+
+    function test_setMinRatio_notPoolDelegate() external {
+        vm.expectRevert("PM:SMR:NOT_PD");
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
+    }
+
+    function test_setMinRatio_invalidLoanManager() external {
+        address fakeLoanManager = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SMR:NOT_LM");
+        poolManager.setMinRatio(address(fakeLoanManager), collateralAsset, 1e6);
+    }
+
+    function test_setMinRatio_success() external {
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 1e6);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 0);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+    }
+    
 }
 
 contract SetOpenToPublic_SetterTests is PoolManagerBase {
