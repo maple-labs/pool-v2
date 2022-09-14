@@ -405,6 +405,8 @@ contract MockLoanManager is LoanManagerStorage {
         poolDelegate = poolDelegate_;
     }
 
+    function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external { }
+
     // NOTE: Used to satisfy min condition in unrealizedLosses
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_) {
         assetsUnderManagement_ = unrealizedLosses;

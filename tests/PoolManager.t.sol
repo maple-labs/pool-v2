@@ -596,6 +596,52 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
     }
 }
 
+contract AcceptNewTermsTests is PoolManagerBase {
+
+    address BORROWER = address(new Address());
+    address LP       = address(new Address());
+
+    MockLoan        loan;
+    MockLoanManager loanManager;
+
+    uint256 principalRequested = 500_000e18;
+    uint256 collateralRequired = 0;
+
+    function setUp() public override {
+        super.setUp();
+
+        MockGlobals(globals).setValidBorrower(BORROWER, true);
+
+        loan        = new MockLoan(address(asset), address(asset));
+        loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
+
+        loan.__setPrincipal(principalRequested);
+        loan.__setCollateral(collateralRequired);
+        loan.__setBorrower(BORROWER);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.addLoanManager(address(loanManager));
+        poolManager.setWithdrawalManager(address(withdrawalManager));
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+        vm.stopPrank();
+    }
+
+    function test_acceptNewTerms_lockedLiquidity() external {
+        MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1);
+
+        address refinancer = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:ANT:LOCKED_LIQUIDITY");
+        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18);
+
+        // Accepting new terms with less than one succeeds
+        vm.prank(POOL_DELEGATE);
+        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
+    }
+
+}
+
 contract FundTests is PoolManagerBase {
 
     address BORROWER = address(new Address());
