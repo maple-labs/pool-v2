@@ -567,14 +567,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         principal_ = ILoanLike(loan_).principal();
 
         liquidator_ = IMapleProxyFactory(liquidatorFactory_).createInstance(
-            abi.encode(
-                address(this),
-                ILoanLike(loan_).collateralAsset(),
-                fundsAsset,
-                address(this),
-                address(this),
-                globals()
-            ),
+            abi.encode(address(this), ILoanLike(loan_).collateralAsset(), fundsAsset),
             bytes32(bytes20(address(loan_)))
         );
 
