@@ -124,10 +124,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[msg.sender];
 
-        // Check if the default warning has been triggered.
+        // Check if the loan impairment has been triggered.
         if (liquidationInfo_.principal != 0) {
             // Don't set the previous rate since it will always be zero.
-            _revertDefaultWarning(liquidationInfo_);
+            _revertLoanImpairment(liquidationInfo_);
             delete liquidationInfo[msg.sender];
         } else {
             previousRate_ = _recognizePayment(msg.sender);
@@ -230,12 +230,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         ( remainingLosses_, platformFees_ ) = _disburseLiquidationFunds(loan_, recoveredFunds_, platformFees_, remainingLosses_);
     }
 
-    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external override nonReentrant {
+    function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:RDW:NOT_PM");
 
         _advancePaymentAccounting();
 
-        ILoanLike(loan_).removeDefaultWarning();
+        ILoanLike(loan_).removeLoanImpairment();
 
         uint24 paymentId_                       = paymentIdOf[loan_];
         PaymentInfo memory paymentInfo_         = payments[paymentId_];
@@ -243,7 +243,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
 
-        _revertDefaultWarning(liquidationInfo_);
+        _revertLoanImpairment(liquidationInfo_);
 
         delete liquidationInfo[loan_];
         delete payments[paymentId_];
@@ -276,9 +276,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 netInterest_;
         uint256 netLateInterest_;
 
-        bool isInDefaultWarning = ILoanLike(loan_).isInDefaultWarning();
+        bool isImpaired = ILoanLike(loan_).isImpaired();
 
-        ( netInterest_, netLateInterest_, platformFees_ ) = isInDefaultWarning
+        ( netInterest_, netLateInterest_, platformFees_ ) = isImpaired
             ? _getInterestAndFeesFromLiquidationInfo(loan_)
             : _getDefaultInterestAndFees(loan_, paymentInfo_);
 
@@ -291,7 +291,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         liquidationComplete_ = false;
 
-        if (isInDefaultWarning) {
+        if (isImpaired) {
             liquidationInfo[loan_].liquidator = liquidator_;
         } else {
             liquidationInfo[loan_] = LiquidationInfo({
@@ -305,8 +305,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
     }
 
-    // TODO: Ensure that the default warning can not be triggered after the payment due date.
-    function triggerDefaultWarning(address loan_, bool isGovernor_) external override {
+    // TODO: Ensure that the loan impairment can not be triggered after the payment due date.
+    function impairLoan(address loan_, bool isGovernor_) external override {
         require(msg.sender == poolManager, "LM:TDW:NOT_PM");
 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
@@ -335,7 +335,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // TODO: Add condition to prevent TDW from getting called on a late loan.
         emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
 
-        ILoanLike(loan_).triggerDefaultWarning();
+        ILoanLike(loan_).impairLoan();
     }
 
     /******************************************/
@@ -528,13 +528,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _updateIssuanceParams(issuanceRate, accountedInterest);
 
-        if (!ILoanLike(loan_).isInDefaultWarning()) {
+        if (!ILoanLike(loan_).isImpaired()) {
             // Impair the pool with the default amount.
             // NOTE: Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
             emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
         }
 
-        // NOTE: Need to to this after the `isInDefaultWarning` check, since `repossess` will unset it.
+        // NOTE: Need to to this after the `isImpaired` check, since `repossess` will unset it.
         ILoanLike(loan_).repossess(liquidator_);
 
         delete payments[paymentIdOf[loan_]];
@@ -558,7 +558,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         remainingLosses_ = principal_ + netInterest_ + netLateInterest_;
 
         // NOTE: Need to cache this here because `repossess` will unset it.
-        bool isInDefaultWarning_ = ILoanLike(loan_).isInDefaultWarning();
+        bool isImpaired_ = ILoanLike(loan_).isImpaired();
 
         // Pull any fundsAsset in loan into LM.
         ( , uint256 recoveredFunds_ ) = ILoanLike(loan_).repossess(address(this));
@@ -568,8 +568,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             ? (remainingLosses_, platformFees_)
             : _disburseLiquidationFunds(loan_, recoveredFunds_, platformFees_, remainingLosses_);
 
-        if (isInDefaultWarning_) {
-            // Remove unrealized losses that `triggerDefaultWarning` previously accounted for.
+        if (isImpaired_) {
+            // Remove unrealized losses that `impairLoan` previously accounted for.
             emit UnrealizedLossesUpdated(unrealizedLosses -= _uint128(principal_ + netInterest_));
             delete liquidationInfo[loan_];
         }
@@ -640,7 +640,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         accountedInterest -= _uint112(paymentAccruedInterest_ + paymentInfo_.refinanceInterest);
     }
 
-    function _revertDefaultWarning(LiquidationInfo memory liquidationInfo_) internal {
+    function _revertLoanImpairment(LiquidationInfo memory liquidationInfo_) internal {
         accountedInterest -= _uint112(liquidationInfo_.interest);
         unrealizedLosses  -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
     }

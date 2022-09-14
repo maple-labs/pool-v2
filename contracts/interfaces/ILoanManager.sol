@@ -82,11 +82,11 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function fund(address loanAddress_) external;
 
     /**
-     *  @dev   Removes the default warning for a loan.
-     *  @param loan_               Loan to remove the default warning.
-     *  @param isCalledByGovernor_ True if the triggerDefaultWarning was called by the governor.
+     *  @dev   Removes the loan impairment for a loan.
+     *  @param loan_               Loan to remove the loan impairment.
+     *  @param isCalledByGovernor_ True if `impairLoan` was called by the governor.
      */
-    function removeDefaultWarning(address loan_, bool isCalledByGovernor_) external;
+    function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external;
 
     /**
      *  @dev   Sets the allowed slippage for a collateral asset liquidation.
@@ -103,11 +103,11 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function setMinRatio(address collateralAsset_, uint256 minRatio_) external;
 
     /**
-     *  @dev   Triggers the default warning for a loan.
-     *  @param loan_       Loan to trigger the default warning.
+     *  @dev   Triggers the loan impairment for a loan.
+     *  @param loan_       Loan to trigger the loan impairment.
      *  @param isGovernor_ True if called by the governor.
      */
-    function triggerDefaultWarning(address loan_, bool isGovernor_) external;
+    function impairLoan(address loan_, bool isGovernor_) external;
 
     /**
      *  @dev    Triggers the default of a loan.

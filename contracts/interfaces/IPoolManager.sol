@@ -44,17 +44,17 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event CoverWithdrawn(uint256 amount_);
 
     /**
-     *  @dev   Emitted when a default warning is removed.
+     *  @dev   Emitted when a loan impairment is removed.
      *  @param loan_ The address of the loan.
      */
-    event DefaultWarningRemoved(address indexed loan_);
+    event LoanImpairmentRemoved(address indexed loan_);
 
     /**
-     *  @dev   Emitted when a default warning is triggered.
+     *  @dev   Emitted when a loan impairment is triggered.
      *  @param loan_              The address of the loan.
      *  @param newPaymentDueDate_ The new payment due date.
      */
-    event DefaultWarningTriggered(address indexed loan_, uint256 newPaymentDueDate_);
+    event LoanImpaired(address indexed loan_, uint256 newPaymentDueDate_);
 
     /**
      *  @dev   Emitted when a new management fee rate is set.
@@ -278,10 +278,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function finishCollateralLiquidation(address loan_) external;
 
     /**
-     *  @dev   Removes the default warning for a loan.
-     *  @param loan_ Loan to remove the default warning.
+     *  @dev   Removes the loan impairment for a loan.
+     *  @param loan_ Loan to remove the loan impairment.
      */
-    function removeDefaultWarning(address loan_) external;
+    function removeLoanImpairment(address loan_) external;
 
     /**
      *  @dev   Triggers the default of a loan.
@@ -291,10 +291,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function triggerDefault(address loan_, address liquidatorFactory_) external;
 
     /**
-     *  @dev   Triggers the default warning for a loan.
-     *  @param loan_ Loan to trigger the default warning.
+     *  @dev   Triggers the loan impairment for a loan.
+     *  @param loan_ Loan to trigger the loan impairment.
      */
-    function triggerDefaultWarning(address loan_) external;
+    function impairLoan(address loan_) external;
 
     /**********************/
     /*** Exit Functions ***/

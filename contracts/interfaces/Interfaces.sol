@@ -28,9 +28,9 @@ interface ILoanManagerLike {
 
     function fund(address loan_) external;
 
-    function removeDefaultWarning(address loan_, bool isGovernor_) external;
+    function removeLoanImpairment(address loan_, bool isGovernor_) external;
 
-    function triggerDefaultWarning(address loan_, bool isGovernor_) external;
+    function impairLoan(address loan_, bool isGovernor_) external;
 
     function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
@@ -105,7 +105,7 @@ interface ILoanLike {
 
     function interestRate() external view returns (uint256 interestRate_);
 
-    function isInDefaultWarning() external view returns (bool isInDefaultWarning_);
+    function isImpaired() external view returns (bool isImpaired_);
 
     function lateFeeRate() external view returns (uint256 lateFeeRate_);
 
@@ -121,15 +121,15 @@ interface ILoanLike {
 
     function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
-    function removeDefaultWarning() external;
+    function removeLoanImpairment() external;
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
     function setPendingLender(address pendingLender_) external;
 
-    function triggerDefaultWarning() external;
+    function impairLoan() external;
 
-    function prewarningPaymentDueDate() external view returns (uint256 prewarningPaymentDueDate_);
+    function unimpairedPaymentDueDate() external view returns (uint256 unimpairedPaymentDueDate_);
 }
 
 interface IMapleGlobalsLike {

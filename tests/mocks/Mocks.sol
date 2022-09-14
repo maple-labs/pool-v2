@@ -203,7 +203,7 @@ contract MockLoan {
     address public feeManager;
     address public fundsAsset;
 
-    bool public isInDefaultWarning;
+    bool public isImpaired;
 
     uint256 public collateral;
     uint256 public collateralRequired;
@@ -214,7 +214,7 @@ contract MockLoan {
     uint256 public nextPaymentPrincipal;
     uint256 public paymentInterval;
     uint256 public platformServiceFee;
-    uint256 public prewarningPaymentDueDate;
+    uint256 public unimpairedPaymentDueDate;
     uint256 public principal;
     uint256 public principalRequested;
     uint256 public refinanceInterest;
@@ -288,17 +288,17 @@ contract MockLoan {
         MockERC20(collateralAsset).transfer(destination_, collateral);
     }
 
-    function removeDefaultWarning() external {
-        nextPaymentDueDate = prewarningPaymentDueDate;
-        delete prewarningPaymentDueDate;
+    function removeLoanImpairment() external {
+        nextPaymentDueDate = unimpairedPaymentDueDate;
+        delete unimpairedPaymentDueDate;
 
-        isInDefaultWarning = false;
+        isImpaired = false;
     }
 
-    function triggerDefaultWarning() external {
-        prewarningPaymentDueDate = nextPaymentDueDate;
+    function impairLoan() external {
+        unimpairedPaymentDueDate = nextPaymentDueDate;
         nextPaymentDueDate       = block.timestamp;
-        isInDefaultWarning       = true;
+        isImpaired       = true;
     }
 
     function __setBorrower(address borrower_) external {
@@ -427,7 +427,7 @@ contract MockLoanManager is LoanManagerStorage {
         ILoanLike(loan_).batchClaimFunds(amounts_, destinations_);
     }
 
-    function removeDefaultWarning(address, bool isCalledByGovernor_) external {
+    function removeLoanImpairment(address, bool isCalledByGovernor_) external {
         wasRDWCalledByGovernor = isCalledByGovernor_;
     }
 
@@ -435,7 +435,7 @@ contract MockLoanManager is LoanManagerStorage {
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
-    function triggerDefaultWarning(address , bool isGovernor_) external {
+    function impairLoan(address , bool isGovernor_) external {
         wasTDWCalledByGovernor = isGovernor_;
     }
 

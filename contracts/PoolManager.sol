@@ -226,7 +226,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         loanManagers[loan_] = loanManager_;
 
         uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-       
+
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
 
         uint256 remainingLiquidity_ = IERC20Like(asset_).balanceOf(address(pool_));
@@ -252,14 +252,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CollateralLiquidationFinished(loan_, losses_);
     }
 
-    function removeDefaultWarning(address loan_) external override whenProtocolNotPaused nonReentrant {
+    function removeLoanImpairment(address loan_) external override whenProtocolNotPaused nonReentrant {
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
 
-        ILoanManagerLike(loanManagers[loan_]).removeDefaultWarning(loan_, isGovernor_);
+        ILoanManagerLike(loanManagers[loan_]).removeLoanImpairment(loan_, isGovernor_);
 
-        emit DefaultWarningRemoved(loan_);
+        emit LoanImpairmentRemoved(loan_);
     }
 
     function triggerDefault(address loan_, address liquidatorFactory_) external override whenProtocolNotPaused nonReentrant {
@@ -284,14 +284,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CollateralLiquidationFinished(loan_, losses_);
     }
 
-    function triggerDefaultWarning(address loan_) external override {
+    function impairLoan(address loan_) external override {
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:TDW:NOT_AUTHORIZED");
 
-        ILoanManagerLike(loanManagers[loan_]).triggerDefaultWarning(loan_, isGovernor_);
+        ILoanManagerLike(loanManagers[loan_]).impairLoan(loan_, isGovernor_);
 
-        emit DefaultWarningTriggered(loan_, block.timestamp);
+        emit LoanImpaired(loan_, block.timestamp);
     }
 
     /**********************/

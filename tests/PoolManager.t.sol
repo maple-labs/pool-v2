@@ -680,7 +680,7 @@ contract TriggerDefault is PoolManagerBase {
 
 }
 
-contract TriggerDefaultWarning is PoolManagerBase {
+contract ImpairLoanTests is PoolManagerBase {
 
     address LP   = address(new Address());
     address LOAN = address(new Address());
@@ -698,39 +698,39 @@ contract TriggerDefaultWarning is PoolManagerBase {
         vm.stopPrank();
     }
 
-    function test_triggerDefaultWarning_notPoolDelegate() external {
+    function test_impairLoan_notPoolDelegate() external {
         vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
     }
 
-    function test_triggerDefaultWarning_notGovernor() external {
+    function test_impairLoan_notGovernor() external {
         vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
 
         vm.prank(GOVERNOR);
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
     }
 
-    function test_triggerDefaultWarning_successCalledByPoolDelegate() external {
+    function test_impairLoan_successCalledByPoolDelegate() external {
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
 
         assertTrue(!loanManager.wasTDWCalledByGovernor());
     }
 
-    function test_triggerDefaultWarning_successCalledByGovernor() external {
+    function test_impairLoan_successCalledByGovernor() external {
         vm.prank(GOVERNOR);
-        poolManager.triggerDefaultWarning(LOAN);
+        poolManager.impairLoan(LOAN);
 
         assertTrue(loanManager.wasTDWCalledByGovernor());
     }
 
 }
 
-contract RemoveDefaultWarning is PoolManagerBase {
+contract RemoveLoanImpairmentTests is PoolManagerBase {
 
     address LP   = address(new Address());
     address LOAN = address(new Address());
@@ -748,32 +748,32 @@ contract RemoveDefaultWarning is PoolManagerBase {
         vm.stopPrank();
     }
 
-    function test_removeDefaultWarning_notPoolDelegate() external {
+    function test_removeLoanImpairment_notPoolDelegate() external {
         vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
     }
 
-    function test_removeDefaultWarning_notGovernor() external {
+    function test_removeLoanImpairment_notGovernor() external {
         vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
 
         vm.prank(GOVERNOR);
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
     }
 
-    function test_removeDefaultWarning_successCalledByPoolDelegate() external {
+    function test_removeLoanImpairment_successCalledByPoolDelegate() external {
         vm.prank(POOL_DELEGATE);
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
 
         assertTrue(!loanManager.wasRDWCalledByGovernor());
     }
 
-    function test_removeDefaultWarning_successCalledByGovernor() external {
+    function test_removeLoanImpairment_successCalledByGovernor() external {
         vm.prank(GOVERNOR);
-        poolManager.removeDefaultWarning(LOAN);
+        poolManager.removeLoanImpairment(LOAN);
 
         assertTrue(loanManager.wasRDWCalledByGovernor());
     }
