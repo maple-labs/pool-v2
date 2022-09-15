@@ -158,8 +158,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate,  "PM:SAS:NOT_PD");
-        require(isLoanManager[loanManager_], "PM:SAS:NOT_LM");
+        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SAS:NOT_AUTHORIZED");
+        require(isLoanManager[loanManager_],                            "PM:SAS:NOT_LM");
+
         ILoanManagerLike(loanManager_).setAllowedSlippage(collateralAsset_, allowedSlippage_);
     }
 
@@ -177,8 +178,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override whenProtocolNotPaused {
-        require(msg.sender == poolDelegate,  "PM:SMR:NOT_PD");
-        require(isLoanManager[loanManager_], "PM:SMR:NOT_LM");
+        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SMR:NOT_AUTHORIZED");
+        require(isLoanManager[loanManager_],                            "PM:SMR:NOT_LM");
+
         ILoanManagerLike(loanManager_).setMinRatio(collateralAsset_, minRatio_);
     }
 
@@ -261,7 +263,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*****************************/
 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
-        require(msg.sender == poolDelegate, "PM:FCL:NOT_PD");
+        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:FCL:NOT_AUTHORIZED");
 
         ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
 
@@ -283,8 +285,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function triggerDefault(address loan_, address liquidatorFactory_) external override whenProtocolNotPaused nonReentrant {
         bool isFactory_ = IMapleGlobalsLike(globals()).isFactory("LIQUIDATOR", liquidatorFactory_);
 
-        require(msg.sender == poolDelegate, "PM:TD:NOT_PD");
-        require(isFactory_,                 "PM:TD:NOT_FACTORY");
+        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:TD:NOT_AUTHORIZED");
+        require(isFactory_,                                             "PM:TD:NOT_FACTORY");
 
         (
             bool    liquidationComplete_,

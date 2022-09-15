@@ -402,7 +402,7 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
 contract SetAllowedSlippage_SetterTests is PoolManagerBase {
 
     MockLoanManager loanManager;
-   
+
     address collateralAsset = address(new Address());
 
     function setUp() public override {
@@ -422,8 +422,8 @@ contract SetAllowedSlippage_SetterTests is PoolManagerBase {
         poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
     }
 
-    function test_setAllowedSlippage_notPoolDelegate() external {
-        vm.expectRevert("PM:SAS:NOT_PD");
+    function test_setAllowedSlippage_notAuthorized() external {
+        vm.expectRevert("PM:SAS:NOT_AUTHORIZED");
         poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
     }
 
@@ -435,7 +435,7 @@ contract SetAllowedSlippage_SetterTests is PoolManagerBase {
         poolManager.setAllowedSlippage(address(fakeLoanManager), collateralAsset, 1e6);
     }
 
-    function test_setAllowedSlippage_success() external {
+    function test_setAllowedSlippage_success_asPoolDelegate() external {
         assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
 
         vm.prank(POOL_DELEGATE);
@@ -444,6 +444,20 @@ contract SetAllowedSlippage_SetterTests is PoolManagerBase {
         assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 1e6);
 
         vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 0);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+    }
+
+    function test_setAllowedSlippage_success_asGovernor() external {
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
+
+        vm.prank(GOVERNOR);
+        poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 1e6);
+
+        assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 1e6);
+
+        vm.prank(GOVERNOR);
         poolManager.setAllowedSlippage(address(loanManager), collateralAsset, 0);
 
         assertEq(loanManager.allowedSlippageFor(address(collateralAsset)), 0);
@@ -522,7 +536,7 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
 contract SetMinRatio_SetterTests is PoolManagerBase {
 
     MockLoanManager loanManager;
-   
+
     address collateralAsset = address(new Address());
 
     function setUp() public override {
@@ -542,8 +556,8 @@ contract SetMinRatio_SetterTests is PoolManagerBase {
         poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
     }
 
-    function test_setMinRatio_notPoolDelegate() external {
-        vm.expectRevert("PM:SMR:NOT_PD");
+    function test_setMinRatio_notAuthorized() external {
+        vm.expectRevert("PM:SMR:NOT_AUTHORIZED");
         poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
     }
 
@@ -555,7 +569,7 @@ contract SetMinRatio_SetterTests is PoolManagerBase {
         poolManager.setMinRatio(address(fakeLoanManager), collateralAsset, 1e6);
     }
 
-    function test_setMinRatio_success() external {
+    function test_setMinRatio_success_asPoolDelegate() external {
         assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
 
         vm.prank(POOL_DELEGATE);
@@ -568,7 +582,21 @@ contract SetMinRatio_SetterTests is PoolManagerBase {
 
         assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
     }
-    
+
+    function test_setMinRatio_success_asGovernor() external {
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+
+        vm.prank(GOVERNOR);
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 1e6);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 1e6);
+
+        vm.prank(GOVERNOR);
+        poolManager.setMinRatio(address(loanManager), collateralAsset, 0);
+
+        assertEq(loanManager.minRatioFor(address(collateralAsset)), 0);
+    }
+
 }
 
 contract SetOpenToPublic_SetterTests is PoolManagerBase {
@@ -807,11 +835,8 @@ contract TriggerDefault is PoolManagerBase {
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
-    function test_triggerDefault_notPoolDelegate() external {
-        vm.expectRevert("PM:TD:NOT_PD");
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        vm.prank(POOL_DELEGATE);
+    function test_triggerDefault_notAuthorized() external {
+        vm.expectRevert("PM:TD:NOT_AUTHORIZED");
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
@@ -825,6 +850,16 @@ contract TriggerDefault is PoolManagerBase {
         MockGlobals(globals).setValidFactory("LIQUIDATOR", address(liquidatorFactory), true);
 
         vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    }
+
+    function test_triggerDefault_success_asPoolDelegate() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    }
+
+    function test_triggerDefault_success_asGovernor() external {
+        vm.prank(GOVERNOR);
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
@@ -968,7 +1003,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         poolManager.finishCollateralLiquidation(loan);
     }
 
-    function test_finishCollateralLiquidation_notPoolDelegate() external {
+    function test_finishCollateralLiquidation_notAuthorized() external {
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
 
         loanManager.__setTriggerDefaultReturn(2_000e18);
@@ -980,14 +1015,11 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
-        vm.expectRevert("PM:FCL:NOT_PD");
-        poolManager.finishCollateralLiquidation(loan);
-
-        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:FCL:NOT_AUTHORIZED");
         poolManager.finishCollateralLiquidation(loan);
     }
 
-    function test_finishCollateralLiquidation_success_noCover() external {
+    function test_finishCollateralLiquidation_success_noCover_asPoolDelegate() external {
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
 
         assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
@@ -1002,6 +1034,28 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
 
         vm.prank(POOL_DELEGATE);
+        poolManager.finishCollateralLiquidation(loan);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
+    }
+
+    function test_finishCollateralLiquidation_success_noCover_asGovernor() external {
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerDefaultReturn(2_000e18);
+        vm.prank(GOVERNOR);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+
+        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
+
+        vm.prank(GOVERNOR);
         poolManager.finishCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(),                0);
