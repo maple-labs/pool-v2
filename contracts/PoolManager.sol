@@ -307,7 +307,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function impairLoan(address loan_) external override {
         bool isGovernor_ = msg.sender == governor();
 
-        require(msg.sender == poolDelegate || isGovernor_, "PM:TDW:NOT_AUTHORIZED");
+        require(msg.sender == poolDelegate || isGovernor_, "PM:IL:NOT_AUTHORIZED");
 
         ILoanManagerLike(loanManagers[loan_]).impairLoan(loan_, isGovernor_);
 

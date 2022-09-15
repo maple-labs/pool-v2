@@ -298,7 +298,7 @@ contract MockLoan {
     function impairLoan() external {
         unimpairedPaymentDueDate = nextPaymentDueDate;
         nextPaymentDueDate       = block.timestamp;
-        isImpaired       = true;
+        isImpaired               = true;
     }
 
     function __setBorrower(address borrower_) external {
@@ -388,8 +388,8 @@ contract MockLoanManager is LoanManagerStorage {
     address poolDelegate;
     address treasury;
 
-    bool public wasRDWCalledByGovernor;
-    bool public wasTDWCalledByGovernor;
+    bool public wasRemoveLoanImpairmentCalledByGovernor;
+    bool public wasImpairLoanCalledByGovernor;
 
     uint256 delegateManagementFee;
     uint256 platformManagementFee;
@@ -430,7 +430,7 @@ contract MockLoanManager is LoanManagerStorage {
     }
 
     function removeLoanImpairment(address, bool isCalledByGovernor_) external {
-        wasRDWCalledByGovernor = isCalledByGovernor_;
+        wasRemoveLoanImpairmentCalledByGovernor = isCalledByGovernor_;
     }
 
     function triggerDefault(address, address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
@@ -438,7 +438,7 @@ contract MockLoanManager is LoanManagerStorage {
     }
 
     function impairLoan(address , bool isGovernor_) external {
-        wasTDWCalledByGovernor = isGovernor_;
+        wasImpairLoanCalledByGovernor = isGovernor_;
     }
 
     function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 platformFees_) {

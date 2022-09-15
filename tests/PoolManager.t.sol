@@ -884,7 +884,7 @@ contract ImpairLoanTests is PoolManagerBase {
     }
 
     function test_impairLoan_notPoolDelegate() external {
-        vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
+        vm.expectRevert("PM:IL:NOT_AUTHORIZED");
         poolManager.impairLoan(LOAN);
 
         vm.prank(POOL_DELEGATE);
@@ -892,7 +892,7 @@ contract ImpairLoanTests is PoolManagerBase {
     }
 
     function test_impairLoan_notGovernor() external {
-        vm.expectRevert("PM:TDW:NOT_AUTHORIZED");
+        vm.expectRevert("PM:IL:NOT_AUTHORIZED");
         poolManager.impairLoan(LOAN);
 
         vm.prank(GOVERNOR);
@@ -903,14 +903,14 @@ contract ImpairLoanTests is PoolManagerBase {
         vm.prank(POOL_DELEGATE);
         poolManager.impairLoan(LOAN);
 
-        assertTrue(!loanManager.wasTDWCalledByGovernor());
+        assertTrue(!loanManager.wasImpairLoanCalledByGovernor());
     }
 
     function test_impairLoan_successCalledByGovernor() external {
         vm.prank(GOVERNOR);
         poolManager.impairLoan(LOAN);
 
-        assertTrue(loanManager.wasTDWCalledByGovernor());
+        assertTrue(loanManager.wasImpairLoanCalledByGovernor());
     }
 
 }
@@ -953,14 +953,14 @@ contract RemoveLoanImpairmentTests is PoolManagerBase {
         vm.prank(POOL_DELEGATE);
         poolManager.removeLoanImpairment(LOAN);
 
-        assertTrue(!loanManager.wasRDWCalledByGovernor());
+        assertTrue(!loanManager.wasRemoveLoanImpairmentCalledByGovernor());
     }
 
     function test_removeLoanImpairment_successCalledByGovernor() external {
         vm.prank(GOVERNOR);
         poolManager.removeLoanImpairment(LOAN);
 
-        assertTrue(loanManager.wasRDWCalledByGovernor());
+        assertTrue(loanManager.wasRemoveLoanImpairmentCalledByGovernor());
     }
 
 }

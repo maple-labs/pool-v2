@@ -513,7 +513,7 @@ contract ImpairLoanTests is LoanManagerBaseTest {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
 
-        vm.expectRevert("LM:TDW:NOT_PM");
+        vm.expectRevert("LM:IL:NOT_PM");
         loanManager.impairLoan(address(loan), false);
 
         vm.prank(address(poolManager));

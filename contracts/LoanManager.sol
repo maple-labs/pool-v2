@@ -249,7 +249,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function impairLoan(address loan_, bool isGovernor_) external override {
-        require(msg.sender == poolManager, "LM:TDW:NOT_PM");
+        require(msg.sender == poolManager, "LM:IL:NOT_PM");
 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
         uint256 paymentId_              = paymentIdOf[loan_];
