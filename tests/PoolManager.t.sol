@@ -796,6 +796,38 @@ contract FundTests is PoolManagerBase {
         assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
+    function test_fund_success_withLessUnaccountedThanRequired() external {
+        assertEq(poolManager.loanManagers(address(loan)), address(0));
+
+        asset.mint(address(loan), 1);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
+
+    function test_fund_success_withMoreUnaccountedThanRequired() external {
+        assertEq(poolManager.loanManagers(address(loan)), address(0));
+
+        asset.mint(address(loan), principalRequested + 1);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
+
+    function test_fund_success_withExactUnaccountedAsRequired() external {
+        assertEq(poolManager.loanManagers(address(loan)), address(0));
+
+        asset.mint(address(loan), principalRequested);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
 }
 
 contract TriggerDefault is PoolManagerBase {

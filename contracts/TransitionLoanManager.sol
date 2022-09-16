@@ -6,7 +6,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import { ITransitionLoanManager } from "./interfaces/ITransitionLoanManager.sol";
 
-import { ILoanLike, IMapleGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
+import { IMapleGlobalsLike, IMapleLoanLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
@@ -53,35 +53,35 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /*** Liquidity Migration Functions ***/
     /*************************************/
 
-    function add(address loanAddress_) external override nonReentrant {
+    function add(address loan_) external override nonReentrant {
         require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
 
-        uint256 dueDate_ = ILoanLike(loanAddress_).nextPaymentDueDate();
+        uint256 dueDate_ = IMapleLoanLike(loan_).nextPaymentDueDate();
 
         require(dueDate_ != 0, "LM:A:EXPIRED_LOAN");
 
-        uint256 startDate_ = dueDate_ - ILoanLike(loanAddress_).paymentInterval();
-        uint256 newRate_   = _queueNextPayment(loanAddress_, startDate_, dueDate_);
+        uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
+        uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
 
-        principalOut += _uint128(ILoanLike(loanAddress_).principal());
+        principalOut += _uint128(IMapleLoanLike(loan_).principal());
         issuanceRate += newRate_;
         domainStart   = _uint48(block.timestamp);
         domainEnd     = payments[paymentWithEarliestDueDate].paymentDueDate;
     }
 
-    function setOwnershipTo(address[] calldata loanAddress_, address newLender_) external override {
+    function setOwnershipTo(address[] calldata loans_, address newLender_) external override {
         require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
 
-        for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
-            ILoanLike(loanAddress_[i_]).setPendingLender(newLender_);
+        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+            IMapleLoanLike(loans_[i_]).setPendingLender(newLender_);
         }
     }
 
-    function takeOwnership(address[] calldata loanAddress_) external override {
+    function takeOwnership(address[] calldata loans_) external override {
         require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
 
-        for (uint256 i_ = 0; i_ < loanAddress_.length; i_++) {
-            ILoanLike(loanAddress_[i_]).acceptLender();
+        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+            IMapleLoanLike(loans_[i_]).acceptLender();
         }
     }
 
@@ -153,8 +153,8 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         uint256 netRefinanceInterest_;
 
         {
-            ( , uint256 interest_, )  = ILoanLike(loan_).getNextPaymentBreakdown();
-            uint256 refinanceInterest = ILoanLike(loan_).refinanceInterest();
+            ( , uint256 interest_, )  = IMapleLoanLike(loan_).getNextPaymentBreakdown();
+            uint256 refinanceInterest = IMapleLoanLike(loan_).refinanceInterest();
 
             netInterest_          = _getNetInterest(interest_ - refinanceInterest, managementFeeRate_);
             netRefinanceInterest_ = _getNetInterest(refinanceInterest,             managementFeeRate_);

@@ -64,78 +64,6 @@ interface ILoanV3Like {
 
 }
 
-interface ILoanLike {
-
-    function acceptLender() external;
-
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
-
-    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
-
-    function borrower() external view returns (address borrower_);
-
-    function claimFunds(uint256 amount_, address destination_) external;
-
-    function collateral() external view returns (uint256 collateral);
-
-    function collateralAsset() external view returns(address asset_);
-
-    function feeManager() external view returns (address feeManager_);
-
-    function fundsAsset() external view returns (address asset_);
-
-    function fundLoan(address lender_) external returns (uint256 fundsLent_);
-
-    function getClosingPaymentBreakdown() external view returns (
-        uint256 principal_,
-        uint256 interest_,
-        uint256 delegateServiceFee_,
-        uint256 platformServiceFee_
-    );
-
-    function getNextPaymentDetailedBreakdown() external view returns (
-        uint256 principal_,
-        uint256[3] memory interest_,
-        uint256[2] memory fees_
-    );
-
-    function getNextPaymentBreakdown() external view returns (
-        uint256 principal_,
-        uint256 interest_,
-        uint256 fees_
-    );
-
-    function gracePeriod() external view returns (uint256 gracePeriod_);
-
-    function interestRate() external view returns (uint256 interestRate_);
-
-    function isImpaired() external view returns (bool isImpaired_);
-
-    function lateFeeRate() external view returns (uint256 lateFeeRate_);
-
-    function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
-
-    function paymentInterval() external view returns (uint256 paymentInterval_);
-
-    function paymentsRemaining() external view returns (uint256 paymentsRemaining_);
-
-    function principal() external view returns (uint256 principal_);
-
-    function principalRequested() external view returns (uint256 principalRequested_);
-
-    function refinanceInterest() external view returns (uint256 refinanceInterest_);
-
-    function removeLoanImpairment() external;
-
-    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
-
-    function setPendingLender(address pendingLender_) external;
-
-    function impairLoan() external;
-
-    function unimpairedPaymentDueDate() external view returns (uint256 unimpairedPaymentDueDate_);
-}
-
 interface IMapleGlobalsLike {
 
     function getLatestPrice(address asset_) external view returns (uint256 price_);
@@ -178,6 +106,82 @@ interface IMapleLoanFeeManagerLike  {
 
     function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee_);
 
+}
+
+interface IMapleLoanLike {
+
+    function acceptLender() external;
+
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+
+    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
+
+    function borrower() external view returns (address borrower_);
+
+    function claimFunds(uint256 amount_, address destination_) external;
+
+    function collateral() external view returns (uint256 collateral);
+
+    function collateralAsset() external view returns(address asset_);
+
+    function feeManager() external view returns (address feeManager_);
+
+    function fundsAsset() external view returns (address asset_);
+
+    function fundLoan(address lender_) external returns (uint256 fundsLent_);
+
+    function getClosingPaymentBreakdown() external view returns (
+        uint256 principal_,
+        uint256 interest_,
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_
+    );
+
+    function getNextPaymentDetailedBreakdown() external view returns (
+        uint256 principal_,
+        uint256[3] memory interest_,
+        uint256[2] memory fees_
+    );
+
+    function getNextPaymentBreakdown() external view returns (
+        uint256 principal_,
+        uint256 interest_,
+        uint256 fees_
+    );
+
+    function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_);
+
+    function gracePeriod() external view returns (uint256 gracePeriod_);
+
+    function interestRate() external view returns (uint256 interestRate_);
+
+    function isImpaired() external view returns (bool isImpaired_);
+
+    function lateFeeRate() external view returns (uint256 lateFeeRate_);
+
+    function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
+
+    function paymentInterval() external view returns (uint256 paymentInterval_);
+
+    function paymentsRemaining() external view returns (uint256 paymentsRemaining_);
+
+    function principal() external view returns (uint256 principal_);
+
+    function principalRequested() external view returns (uint256 principalRequested_);
+
+    function refinanceInterest() external view returns (uint256 refinanceInterest_);
+
+    function removeLoanImpairment() external;
+
+    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
+
+    function setPendingLender(address pendingLender_) external;
+
+    function skim(address token_, address destination_) external returns (uint256 skimmed_);
+
+    function impairLoan() external;
+
+    function unimpairedPaymentDueDate() external view returns (uint256 unimpairedPaymentDueDate_);
 }
 
 interface IMapleProxyFactoryLike {

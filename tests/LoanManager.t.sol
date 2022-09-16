@@ -255,7 +255,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     }
 
     function _assertPaymentInfo(
-        address loanAddress,
+        address loan,
         uint256 incomingNetInterest,
         uint256 refinanceInterest,
         uint256 startDate,
@@ -263,7 +263,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loanAddress));
+        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loan));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -296,7 +296,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     }
 
     function _makeLatePayment(
-        address loanAddress,
+        address loan,
         uint256 interestAmount,
         uint256 lateInterestAmount,
         uint256 principalAmount,
@@ -305,7 +305,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         public
     {
-        MockLoan mockLoan = MockLoan(loanAddress);
+        MockLoan mockLoan = MockLoan(loan);
 
         fundsAsset.mint(address(loanManager), interestAmount + lateInterestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
@@ -316,12 +316,12 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
         mockLoan.__setNextPaymentDueDate(nextPaymentDueDate);
 
-        vm.prank(loanAddress);
+        vm.prank(loan);
         LoanManager(loanManager).claim(principalAmount, interestAmount + lateInterestAmount, previousPaymentDueDate, nextPaymentDueDate);
     }
 
     function _makePayment(
-        address loanAddress,
+        address loan,
         uint256 interestAmount,
         uint256 principalAmount,
         uint256 nextInterestPayment,
@@ -329,7 +329,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         public
     {
-        MockLoan mockLoan = MockLoan(loanAddress);
+        MockLoan mockLoan = MockLoan(loan);
 
         fundsAsset.mint(address(loanManager), interestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
@@ -339,7 +339,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
         mockLoan.__setNextPaymentDueDate(nextPaymentDueDate);
 
-        vm.prank(loanAddress);
+        vm.prank(loan);
         LoanManager(loanManager).claim(principalAmount, interestAmount, previousPaymentDueDate, nextPaymentDueDate);
     }
 
@@ -969,7 +969,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START+ 10_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -995,7 +995,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_080);
 
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,
             principalAmount:     0,
             nextInterestPayment: 100,
@@ -1003,7 +1003,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1040,7 +1040,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START+ 4_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1066,7 +1066,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_032);
 
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,
             principalAmount:     0,
             nextInterestPayment: 100,
@@ -1074,7 +1074,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 4_000,
@@ -1111,7 +1111,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START+ 14_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1137,7 +1137,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_080);
 
         _makeLatePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
             lateInterestAmount:  60,
             principalAmount:     0,
@@ -1146,7 +1146,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1184,7 +1184,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 10_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1210,7 +1210,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_080);
 
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,
             principalAmount:     200_000,
             nextInterestPayment: 100,
@@ -1218,7 +1218,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1256,7 +1256,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 4_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1282,7 +1282,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_032);
 
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,
             principalAmount:     200_000,
             nextInterestPayment: 100,
@@ -1290,7 +1290,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 4_000,
@@ -1328,7 +1328,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 14_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1354,7 +1354,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(1_000_080);
 
         _makeLatePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      100,            // 4000 seconds late at the premium interest rate (10_000 * 0.008 + 4000 * 0.012) / 0.8 = 160
             lateInterestAmount:  60,
             principalAmount:     200_000,
@@ -1363,7 +1363,7 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1482,7 +1482,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 10_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1508,7 +1508,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_120);
 
         _makePayment({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             interestAmount:      100,
             principalAmount:     0,
             nextInterestPayment: 100,
@@ -1516,7 +1516,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1548,7 +1548,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 16_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
@@ -1574,7 +1574,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_228);
 
         _makePayment({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             interestAmount:      125,
             principalAmount:     0,
             nextInterestPayment: 125,
@@ -1582,7 +1582,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
@@ -1659,7 +1659,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 8_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1685,7 +1685,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_084);
 
         _makePayment({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             interestAmount:      100,
             principalAmount:     0,
             nextInterestPayment: 100,
@@ -1693,7 +1693,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 79,
             refinanceInterest:   0,
             startDate:           START + 8_000,
@@ -1725,7 +1725,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 16_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
@@ -1751,7 +1751,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_233);
 
         _makePayment({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             interestAmount:      125,
             principalAmount:     0,
             nextInterestPayment: 125,
@@ -1759,7 +1759,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
@@ -1837,7 +1837,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 12_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -1863,7 +1863,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_120);
 
         _makeLatePayment({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             interestAmount:      100,  // ((10_000 * 0.008) + (2_000 * 0.012)) / 0.8 = 130 (gross late interest)
             lateInterestAmount:  30,
             principalAmount:     0,
@@ -1872,7 +1872,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -1904,7 +1904,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 16_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
@@ -1930,7 +1930,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(2_000_253);
 
         _makePayment({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             interestAmount:      125,
             principalAmount:     0,
             nextInterestPayment: 125,
@@ -1938,7 +1938,7 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
@@ -2042,7 +2042,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 18_000);
 
         _makePayment({
-            loanAddress:         address(loan3),
+            loan:                address(loan3),
             interestAmount:      150,
             principalAmount:     0,
             nextInterestPayment: 150,
@@ -2050,7 +2050,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan3),
+            loan:                address(loan3),
             incomingNetInterest: 120,
             refinanceInterest:   0,
             startDate:           START + 18_000,
@@ -2101,7 +2101,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
         vm.warp(START + 19_000);
 
         _makePayment({
-            loanAddress:         address(loan3),
+            loan:                address(loan3),
             interestAmount:      150,
             principalAmount:     0,
             nextInterestPayment: 150,
@@ -2109,7 +2109,7 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan3),
+            loan:                address(loan3),
             incomingNetInterest: 120,
             refinanceInterest:   0,
             startDate:           START + 18_000,
@@ -2250,7 +2250,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         vm.warp(START + 24_000);
 
         _makePayment({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             interestAmount:      125,
             principalAmount:     0,
             nextInterestPayment: 125,
@@ -2265,7 +2265,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         // Loan 1
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
@@ -2274,7 +2274,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         // Loan 2
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 22_000,
@@ -2304,7 +2304,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
         /**********************************/
 
         _makePayment({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             interestAmount:      100,
             principalAmount:     0,
             nextInterestPayment: 100,
@@ -2313,7 +2313,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         // Loan 1
         _assertPaymentInfo({
-            loanAddress:         address(loan1),
+            loan:                address(loan1),
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
@@ -2322,7 +2322,7 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         // Loan 2 (No change)
         _assertPaymentInfo({
-            loanAddress:         address(loan2),
+            loan:                address(loan2),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 22_000,
@@ -2417,7 +2417,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.warp(START + 10_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
@@ -2458,7 +2458,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
             startDate:           START + 10_000,
@@ -2507,7 +2507,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         // Make a refinanced payment and claim
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      375 + 125,
             principalAmount:     0,
             nextInterestPayment: 375,
@@ -2515,7 +2515,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 20_000,
@@ -2581,7 +2581,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.warp(START + 6_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
@@ -2619,7 +2619,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   60,
             startDate:           START + 6_000,
@@ -2642,64 +2642,64 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             poolDelegateBalance: 0
         });
 
-        // _assertTotalAssets(2_000_060);
+        _assertTotalAssets(2_000_060);
 
-        // vm.warp(START + 16_000);
+        vm.warp(START + 16_000);
 
-        // _assertLoanManagerState({
-        //     accruedInterest:       300,
-        //     accountedInterest:     60,
-        //     principalOut:          2_000_000,
-        //     assetsUnderManagement: 2_000_360,
-        //     issuanceRate:          0.03e30,
-        //     domainStart:           START + 6_000,
-        //     domainEnd:             START + 16_000
-        // });
+        _assertLoanManagerState({
+            accruedInterest:       300,
+            accountedInterest:     60,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_360,
+            issuanceRate:          0.03e30,
+            domainStart:           START + 6_000,
+            domainEnd:             START + 16_000
+        });
 
-        // _assertBalances({
-        //     poolBalance:         0,
-        //     treasuryBalance:     0,
-        //     poolDelegateBalance: 0
-        // });
+        _assertBalances({
+            poolBalance:         0,
+            treasuryBalance:     0,
+            poolDelegateBalance: 0
+        });
 
-        // _assertTotalAssets(2_000_360);
+        _assertTotalAssets(2_000_360);
 
-        // loan.__setRefinanceInterest(0);  // Set to 0 to simulate a refinance that has been paid off.
+        loan.__setRefinanceInterest(0);  // Set to 0 to simulate a refinance that has been paid off.
 
-        // // Make a refinanced payment and claim
-        // _makePayment({
-        //     loanAddress:         address(loan),
-        //     interestAmount:      375 + 75,  // Interest plus refinance interest.
-        //     principalAmount:     0,
-        //     nextInterestPayment: 375,
-        //     nextPaymentDueDate:  START + 26_000
-        // });
+        // Make a refinanced payment and claim
+        _makePayment({
+            loan:                address(loan),
+            interestAmount:      375 + 75,  // Interest plus refinance interest.
+            principalAmount:     0,
+            nextInterestPayment: 375,
+            nextPaymentDueDate:  START + 26_000
+        });
 
-        // _assertPaymentInfo({
-        //     loanAddress:         address(loan),
-        //     incomingNetInterest: 300,
-        //     refinanceInterest:   0,
-        //     startDate:           START + 16_000,
-        //     paymentDueDate:      START + 26_000
-        // });
+        _assertPaymentInfo({
+            loan:                address(loan),
+            incomingNetInterest: 300,
+            refinanceInterest:   0,
+            startDate:           START + 16_000,
+            paymentDueDate:      START + 26_000
+        });
 
-        // _assertLoanManagerState({
-        //     accruedInterest:       0,
-        //     accountedInterest:     0,
-        //     principalOut:          2_000_000,
-        //     assetsUnderManagement: 2_000_000,
-        //     issuanceRate:          0.03e30,
-        //     domainStart:           START + 16_000,
-        //     domainEnd:             START + 26_000
-        // });
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     0,
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_000,
+            issuanceRate:          0.03e30,
+            domainStart:           START + 16_000,
+            domainEnd:             START + 26_000
+        });
 
-        // _assertBalances({
-        //     poolBalance:         60 + 301,
-        //     treasuryBalance:     22,
-        //     poolDelegateBalance: 67
-        // });
+        _assertBalances({
+            poolBalance:         60 + 301,
+            treasuryBalance:     22,
+            poolDelegateBalance: 67
+        });
 
-        // _assertTotalAssets(2_000_361);
+        _assertTotalAssets(2_000_361);
     }
 
     function test_refinance_onLatePayment_interestOnly() external {
@@ -2742,7 +2742,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.warp(START + 14_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
@@ -2780,7 +2780,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         loanManager.acceptNewTerms(address(loan), address(refinancer), block.timestamp, new bytes[](0));
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   148,
             startDate:           START + 14_000,
@@ -2829,7 +2829,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         // Make a refinanced payment and claim
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      375 + 185,  // Interest plus refinance interest.
             principalAmount:     0,
             nextInterestPayment: 375,
@@ -2837,7 +2837,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 24_000,
@@ -2904,7 +2904,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         vm.warp(START + 10_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
@@ -2942,7 +2942,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         fundsAsset.burn(address(pool), 1_000_000);
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   100,
             startDate:           START + 10_000,
@@ -2991,7 +2991,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
         // Make a payment post refinance
         _makePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      375 + 125,  // Interest plus refinance interest
             principalAmount:     200_000,
             nextInterestPayment: 375,
@@ -2999,7 +2999,7 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 20_000,
@@ -3346,10 +3346,10 @@ contract FundLoanTests is LoanManagerBaseTest {
 
 contract LoanManagerSortingTests is LoanManagerBaseTest {
 
-    address earliestLoanAddress;
-    address latestLoanAddress;
-    address medianLoanAddress;
-    address synchronizedLoanAddress;
+    address earliestLoan;
+    address latestLoan;
+    address medianLoan;
+    address synchronizedLoan;
 
     LoanManagerHarness.PaymentInfo earliestPaymentInfo;
     LoanManagerHarness.PaymentInfo latestPaymentInfo;
@@ -3359,10 +3359,10 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     function setUp() public override {
         super.setUp();
 
-        earliestLoanAddress     = address(new Address());
-        medianLoanAddress       = address(new Address());
-        latestLoanAddress       = address(new Address());
-        synchronizedLoanAddress = address(new Address());
+        earliestLoan     = address(new Address());
+        medianLoan       = address(new Address());
+        latestLoan       = address(new Address());
+        synchronizedLoan = address(new Address());
 
         earliestPaymentInfo.paymentDueDate     = 10;
         medianPaymentInfo.paymentDueDate       = 20;

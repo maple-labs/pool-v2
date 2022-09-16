@@ -7,9 +7,9 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import {
     IERC20Like,
-    ILoanLike,
     ILoanManagerLike,
     IMapleGlobalsLike,
+    IMapleLoanLike,
     IMapleProxyFactoryLike,
     IPoolDelegateCoverLike,
     IPoolLike,
@@ -215,12 +215,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
-        require(msg.sender == poolDelegate,                                          "PM:ANT:NOT_PD");
-        require(isLoanManager[loanManager_],                                         "PM:ANT:INVALID_LOAN_MANAGER");
-        require(IMapleGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                                "PM:ANT:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                               "PM:ANT:INSUFFICIENT_COVER");
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_),  "PM:ANT:TRANSFER_FAIL");
+        require(msg.sender == poolDelegate,                                               "PM:ANT:NOT_PD");
+        require(isLoanManager[loanManager_],                                              "PM:ANT:INVALID_LOAN_MANAGER");
+        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:ANT:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                                    "PM:ANT:INSUFFICIENT_COVER");
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_),       "PM:ANT:TRANSFER_FAIL");
 
         uint256 remainingLiquidity_ = IERC20Like(asset_).balanceOf(address(pool_));
 
@@ -237,21 +237,32 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address globals_ = globals();
         address pool_    = pool;
 
-        require(msg.sender == poolDelegate,                                          "PM:F:NOT_PD");
-        require(isLoanManager[loanManager_],                                         "PM:F:INVALID_LOAN_MANAGER");
-        require(IMapleGlobalsLike(globals_).isBorrower(ILoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                                "PM:F:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                               "PM:F:INSUFFICIENT_COVER");
+        require(msg.sender == poolDelegate,                                               "PM:F:NOT_PD");
+        require(isLoanManager[loanManager_],                                              "PM:F:INVALID_LOAN_MANAGER");
+        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:F:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                                    "PM:F:INSUFFICIENT_COVER");
 
         loanManagers[loan_] = loanManager_;
 
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+        uint256 unaccountedFunds_ = IMapleLoanLike(loan_).getUnaccountedAmount(asset_);
 
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
+        // If loan already has more unaccounted for funds that required, then skim the funds to the pool as cash.
+        // NOTE: Since we cannot skim a specific amount, we must take all of it and then funds back what is required.
+        if (unaccountedFunds_ > principal_) {
+            unaccountedFunds_ -= IMapleLoanLike(loan_).skim(asset_, pool_);
+        }
 
-        uint256 remainingLiquidity_ = IERC20Like(asset_).balanceOf(address(pool_));
+        // If loan already has unaccounted for funds, but less that required, fewer funds are required to be transferred from the pool.
+        if (principal_ > unaccountedFunds_) {
+            require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_ - unaccountedFunds_), "PM:F:TRANSFER_FAIL");
+        }
 
-        require(remainingLiquidity_ >= lockedLiquidity_, "PM:F:LOCKED_LIQUIDITY");
+        // The remaining liquidity (i.e. the balance of the funds asset in the pool) msu be greater than the amount required ot be locked.
+        require(
+            IERC20Like(asset_).balanceOf(pool_) >= IWithdrawalManagerLike(withdrawalManager).lockedLiquidity(),
+            "PM:F:LOCKED_LIQUIDITY"
+        );
 
         ILoanManagerLike(loanManager_).fund(loan_);
 

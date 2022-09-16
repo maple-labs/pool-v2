@@ -4,10 +4,10 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
+import { ILoanManagerInitializerLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
 import { IPoolDeployer }                                  from "./interfaces/IPoolDeployer.sol";
 import { IPoolManager }                                   from "./interfaces/IPoolManager.sol";
 import { IPoolManagerInitializer }                        from "./interfaces/IPoolManagerInitializer.sol";
-import { IMapleGlobalsLike, ILoanManagerInitializerLike } from "./interfaces/Interfaces.sol";
 
 contract PoolDeployer is IPoolDeployer {
 

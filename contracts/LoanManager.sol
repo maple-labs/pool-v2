@@ -11,9 +11,9 @@ import { ILoanManager } from "./interfaces/ILoanManager.sol";
 
 import {
     IERC20Like,
-    ILoanLike,
     ILiquidatorLike,
     IMapleGlobalsLike,
+    IMapleLoanLike,
     IPoolManagerLike
 } from "./interfaces/Interfaces.sol";
 
@@ -96,14 +96,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
 
         uint256 previousRate_     = _handlePreviousPaymentAccounting(loan_, block.timestamp <= paymentInfo_.paymentDueDate);
-        uint256 previousPrincipal = ILoanLike(loan_).principal();
+        uint256 previousPrincipal_ = IMapleLoanLike(loan_).principal();
 
         // Perform the refinancing, updating the loan state.
-        ILoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
+        IMapleLoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
 
-        emit PrincipalOutUpdated(principalOut = principalOut + _uint128(ILoanLike(loan_).principal()) - _uint128(previousPrincipal));
+        emit PrincipalOutUpdated(principalOut = principalOut + _uint128(IMapleLoanLike(loan_).principal()) - _uint128(previousPrincipal_));
 
-        uint256 newRate_ = _queueNextPayment(loan_, block.timestamp, ILoanLike(loan_).nextPaymentDueDate());
+        uint256 newRate_ = _queueNextPayment(loan_, block.timestamp, IMapleLoanLike(loan_).nextPaymentDueDate());
 
         // NOTE: Since acceptNewTerms starts the payment interval from block.timestamp, no logic is needed to account for interest in the incoming interval.
         // Update the vesting state an then set the new issuance rate take into account the cessation of the previous rate
@@ -111,18 +111,18 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         _updateIssuanceParams(issuanceRate + newRate_ - previousRate_, accountedInterest);
     }
 
-    function fund(address loanAddress_) external override nonReentrant {
+    function fund(address loan_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
 
         _advancePaymentAccounting();
 
-        ILoanLike(loanAddress_).fundLoan(address(this));
+        IMapleLoanLike(loan_).fundLoan(address(this));
 
-        emit PrincipalOutUpdated(principalOut += _uint128(ILoanLike(loanAddress_).principal()));
+        emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanLike(loan_).principal()));
 
         // Add new issuance rate from queued payment to aggregate issuance rate.
         _updateIssuanceParams(
-            issuanceRate + _queueNextPayment(loanAddress_, block.timestamp, ILoanLike(loanAddress_).nextPaymentDueDate()),
+            issuanceRate + _queueNextPayment(loan_, block.timestamp, IMapleLoanLike(loan_).nextPaymentDueDate()),
             accountedInterest
         );
     }
@@ -222,7 +222,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformFees_ ) = _getDefaultInterestAndFees(loan_, paymentInfo_);
 
-        uint256 principal_ = ILoanLike(loan_).principal();
+        uint256 principal_ = IMapleLoanLike(loan_).principal();
 
         liquidationInfo[loan_] = LiquidationInfo({
             triggeredByGovernor: isGovernor_,
@@ -235,7 +235,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
 
-        ILoanLike(loan_).impairLoan();
+        IMapleLoanLike(loan_).impairLoan();
     }
 
     function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external override nonReentrant {
@@ -243,7 +243,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advancePaymentAccounting();
 
-        ILoanLike(loan_).removeLoanImpairment();
+        IMapleLoanLike(loan_).removeLoanImpairment();
 
         uint24 paymentId_                       = paymentIdOf[loan_];
         PaymentInfo memory paymentInfo_         = payments[paymentId_];
@@ -326,13 +326,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 netInterest_;
         uint256 netLateInterest_;
 
-        bool isImpaired = ILoanLike(loan_).isImpaired();
+        bool isImpaired = IMapleLoanLike(loan_).isImpaired();
 
         ( netInterest_, netLateInterest_, platformFees_ ) = isImpaired
             ? _getInterestAndFeesFromLiquidationInfo(loan_)
             : _getDefaultInterestAndFees(loan_, paymentInfo_);
 
-        if (ILoanLike(loan_).collateral() == 0) {
+        if (IMapleLoanLike(loan_).collateral() == 0) {
             ( remainingLosses_, platformFees_ ) = _handleUncollateralizedRepossession(loan_, platformFees_, netInterest_, netLateInterest_);
             return (true, remainingLosses_, platformFees_);
         }
@@ -435,7 +435,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             managementFeeRate_         = HUNDRED_PERCENT;
         }
 
-        ( , uint256[3] memory interest_, )  = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
+        ( , uint256[3] memory interest_, )  = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
         uint256 netInterest_          = _getNetInterest(interest_[0], managementFeeRate_);
         uint256 netRefinanceInterest_ = _getNetInterest(interest_[2], managementFeeRate_);
@@ -475,23 +475,23 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     )
         internal returns (address liquidator_, uint256 principal_)
     {
-        principal_ = ILoanLike(loan_).principal();
+        principal_ = IMapleLoanLike(loan_).principal();
 
         liquidator_ = IMapleProxyFactory(liquidatorFactory_).createInstance(
-            abi.encode(address(this), ILoanLike(loan_).collateralAsset(), fundsAsset),
+            abi.encode(address(this), IMapleLoanLike(loan_).collateralAsset(), fundsAsset),
             bytes32(bytes20(address(loan_)))
         );
 
         _updateIssuanceParams(issuanceRate, accountedInterest);
 
-        if (!ILoanLike(loan_).isImpaired()) {
+        if (!IMapleLoanLike(loan_).isImpaired()) {
             // Impair the pool with the default amount.
             // NOTE: Don't include fees in unrealized losses, because this is not to be passed onto the LPs. Only collateral and cover can cover the fees.
             emit UnrealizedLossesUpdated(unrealizedLosses += _uint128(principal_ + netInterest_));
         }
 
         // NOTE: Need to to this after the `isImpaired` check, since `repossess` will unset it.
-        ILoanLike(loan_).repossess(liquidator_);
+        IMapleLoanLike(loan_).repossess(liquidator_);
 
         delete payments[paymentIdOf[loan_]];
         delete paymentIdOf[loan_];
@@ -505,7 +505,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     )
         internal returns (uint256 remainingLosses_, uint256 updatedPlatformFees_)
     {
-        uint256 principal_ = ILoanLike(loan_).principal();
+        uint256 principal_ = IMapleLoanLike(loan_).principal();
 
         // Reduce principal out, since it has been accounted for in the liquidation.
         emit PrincipalOutUpdated(principalOut -= _uint128(principal_));
@@ -514,10 +514,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         remainingLosses_ = principal_ + netInterest_ + netLateInterest_;
 
         // NOTE: Need to cache this here because `repossess` will unset it.
-        bool isImpaired_ = ILoanLike(loan_).isImpaired();
+        bool isImpaired_ = IMapleLoanLike(loan_).isImpaired();
 
         // Pull any fundsAsset in loan into LM.
-        ( , uint256 recoveredFunds_ ) = ILoanLike(loan_).repossess(address(this));
+        ( , uint256 recoveredFunds_ ) = IMapleLoanLike(loan_).repossess(address(this));
 
         // If any funds recovered, disburse them to relevant accounts and update return variables.
         ( remainingLosses_, updatedPlatformFees_ ) = recoveredFunds_ == 0
@@ -562,7 +562,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury(),             toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
         require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                        toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
-        require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, ILoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
+        require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, IMapleLoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
     }
 
     function _distributeClaimedFunds(address loan_, uint256 principal_, uint256 interest_) internal {
@@ -670,7 +670,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             refinanceInterest_:   paymentInfo_.refinanceInterest
         });
 
-        ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = ILoanLike(loan_).getNextPaymentDetailedBreakdown();
+        ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
         uint256 grossPaymentInterest_ = grossInterest_[0];
         uint256 grossLateInterest_    = grossInterest_[1];
@@ -800,7 +800,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         address liquidatorAddress_ = liquidationInfo[loan_].liquidator;
 
         // TODO: Investigate dust collateralAsset will ensure `isLiquidationActive` is always true.
-        isActive_ = (liquidatorAddress_ != address(0)) && (IERC20Like(ILoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress_) != uint256(0));
+        isActive_ = (liquidatorAddress_ != address(0)) && (IERC20Like(IMapleLoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress_) != uint256(0));
     }
 
     /******************************************************************************************************************************/

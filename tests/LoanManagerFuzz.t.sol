@@ -108,7 +108,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     }
 
     function _assertPaymentInfo(
-        address loanAddress,
+        address loan,
         uint256 incomingNetInterest,
         uint256 refinanceInterest,
         uint256 startDate,
@@ -116,7 +116,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loanAddress));
+        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loan));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -149,7 +149,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     }
 
     function _makeLatePayment(
-        address loanAddress,
+        address loan,
         uint256 interestAmount,
         uint256 lateInterestAmount,
         uint256 principalAmount,
@@ -158,7 +158,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        MockLoan mockLoan = MockLoan(loanAddress);
+        MockLoan mockLoan = MockLoan(loan);
 
         fundsAsset.mint(address(loanManager), interestAmount + lateInterestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
@@ -169,12 +169,12 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
         mockLoan.__setNextPaymentDueDate(nextPaymentDueDate);
 
-        vm.prank(loanAddress);
+        vm.prank(loan);
         LoanManager(loanManager).claim(principalAmount, interestAmount + lateInterestAmount, previousPaymentDueDate, nextPaymentDueDate);
     }
 
     function _makePayment(
-        address loanAddress,
+        address loan,
         uint256 interestAmount,
         uint256 principalAmount,
         uint256 nextInterestPayment,
@@ -182,7 +182,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        MockLoan mockLoan = MockLoan(loanAddress);
+        MockLoan mockLoan = MockLoan(loan);
 
         fundsAsset.mint(address(loanManager), interestAmount + principalAmount);
         mockLoan.__setPrincipal(mockLoan.principal() - principalAmount);
@@ -192,7 +192,7 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
 
         mockLoan.__setNextPaymentDueDate(nextPaymentDueDate);
 
-        vm.prank(loanAddress);
+        vm.prank(loan);
         LoanManager(loanManager).claim(principalAmount, interestAmount, previousPaymentDueDate, nextPaymentDueDate);
     }
 
@@ -231,7 +231,7 @@ contract SingleLoanClaimTests is LoanManagerClaimBaseTest {
         uint256 roundedNetInterest = issuanceRate * paymentInterval / 1e30;
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: roundedNetInterest,
             refinanceInterest:   0,
             startDate:           START,
@@ -257,7 +257,7 @@ contract SingleLoanClaimTests is LoanManagerClaimBaseTest {
         _assertTotalAssets(principal + roundedNetInterest);
 
         _makeLatePayment({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             interestAmount:      interest,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
             lateInterestAmount:  lateInterest,
             principalAmount:     0,
@@ -266,7 +266,7 @@ contract SingleLoanClaimTests is LoanManagerClaimBaseTest {
         });
 
         _assertPaymentInfo({
-            loanAddress:         address(loan),
+            loan:                address(loan),
             incomingNetInterest: roundedNetInterest,
             refinanceInterest:   0,
             startDate:           START + paymentInterval,

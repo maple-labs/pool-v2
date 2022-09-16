@@ -77,9 +77,9 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     /**
      *  @dev   Funds a new loan.
-     *  @param loanAddress_ Loan to be funded.
+     *  @param loan_ Loan to be funded.
      */
-    function fund(address loanAddress_) external;
+    function fund(address loan_) external;
 
     /**
      *  @dev   Removes the loan impairment for a loan.

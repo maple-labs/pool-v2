@@ -5,7 +5,7 @@ import { Address }               from "../../modules/contract-test-utils/contrac
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { ILoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
+import { IMapleLoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
 import { Pool }        from "../../contracts/Pool.sol";
 import { PoolManager } from "../../contracts/PoolManager.sol";
@@ -227,6 +227,8 @@ contract MockLoan {
     uint256 public refinancePrincipal;
     uint256 public refinancePrincipalRequested;
 
+    mapping(address => uint256) public unaccountedAmounts;
+
     constructor(address collateralAsset_, address fundsAsset_) {
         collateralAsset = collateralAsset_;
         fundsAsset      = fundsAsset_;
@@ -281,6 +283,10 @@ contract MockLoan {
         principal_ = nextPaymentPrincipal;
         interest_  = nextPaymentInterest + refinanceInterest + nextPaymentLateInterest;
         fees_      = delegateServiceFee + platformServiceFee;
+    }
+
+    function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_) {
+        return unaccountedAmounts[asset_];
     }
 
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -381,6 +387,10 @@ contract MockLoan {
         refinancePaymentInterval = paymentInterval_;
     }
 
+    function __setUnaccountedAmount(address asset_, uint256 unaccountedAmount_) external {
+        unaccountedAmounts[asset_] = unaccountedAmount_;
+    }
+
 }
 
 contract MockLoanManager is LoanManagerStorage {
@@ -426,7 +436,7 @@ contract MockLoanManager is LoanManagerStorage {
         amounts_[1] = hasSufficientCover_ ? delegateManagementFee : 0;
         amounts_[2] = hasSufficientCover_ ? poolAmount  : (poolAmount + delegateManagementFee);
 
-        ILoanLike(loan_).batchClaimFunds(amounts_, destinations_);
+        IMapleLoanLike(loan_).batchClaimFunds(amounts_, destinations_);
     }
 
     function removeLoanImpairment(address, bool isCalledByGovernor_) external {

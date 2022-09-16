@@ -31,22 +31,22 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
 
     /**
      *  @dev   Adds a new loan to this loan manager.
-     *  @param loanAddress_ The address of the loan.
+     *  @param loan_ The address of the loan.
      */
-    function add(address loanAddress_) external;
+    function add(address loan_) external;
 
     /**
      *  @dev   Sets the ownership of loans to an address.
-     *  @param loanAddress_ An array with multiple loan addresses.
+     *  @param loan_ An array with multiple loan addresses.
      *  @param newLender_   The address of the new lender.
      */
-    function setOwnershipTo(address[] calldata loanAddress_, address newLender_) external;
+    function setOwnershipTo(address[] calldata loan_, address newLender_) external;
 
     /**
      *  @dev   Takes the ownership of the loans.
-     *  @param loanAddress_ An array with multiple loan addresses.
+     *  @param loan_ An array with multiple loan addresses.
      */
-    function takeOwnership(address[] calldata loanAddress_) external;
+    function takeOwnership(address[] calldata loan_) external;
 
     /**********************/
     /*** View Functions ***/
