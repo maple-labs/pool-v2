@@ -332,12 +332,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             ? _getInterestAndFeesFromLiquidationInfo(loan_)
             : _getDefaultInterestAndFees(loan_, paymentInfo_);
 
-        if (IMapleLoanLike(loan_).collateral() == 0) {
-            ( remainingLosses_, platformFees_ ) = _handleUncollateralizedRepossession(loan_, platformFees_, netInterest_, netLateInterest_);
+        if (IMapleLoanLike(loan_).collateral() == 0 || IMapleLoanLike(loan_).collateralAsset() == fundsAsset) {
+            ( remainingLosses_, platformFees_ ) = _handleNonLiquidatingRepossession(loan_, platformFees_, netInterest_, netLateInterest_);
             return (true, remainingLosses_, platformFees_);
         }
 
-        ( address liquidator_, uint256 principal_ ) = _handleCollateralizedRepossession(loan_, liquidatorFactory_, netInterest_);
+        ( address liquidator_, uint256 principal_ ) = _handleLiquidatingRepossession(loan_, liquidatorFactory_, netInterest_);
 
         liquidationComplete_ = false;
 
@@ -468,7 +468,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Loan Reposession Functions                                                                                    ***/
     /******************************************************************************************************************************/
 
-    function _handleCollateralizedRepossession(
+    function _handleLiquidatingRepossession(
         address loan_,
         address liquidatorFactory_,
         uint256 netInterest_
@@ -476,6 +476,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         internal returns (address liquidator_, uint256 principal_)
     {
         principal_ = IMapleLoanLike(loan_).principal();
+
+        uint256 collateral_ = IMapleLoanLike(loan_).collateral();
 
         liquidator_ = IMapleProxyFactory(liquidatorFactory_).createInstance(
             abi.encode(address(this), IMapleLoanLike(loan_).collateralAsset(), fundsAsset),
@@ -493,11 +495,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // NOTE: Need to to this after the `isImpaired` check, since `repossess` will unset it.
         IMapleLoanLike(loan_).repossess(liquidator_);
 
+        ILiquidatorLike(liquidator_).setCollateralRemaining(collateral_);
+
         delete payments[paymentIdOf[loan_]];
         delete paymentIdOf[loan_];
     }
 
-    function _handleUncollateralizedRepossession(
+    function _handleNonLiquidatingRepossession(
         address loan_,
         uint256 platformFees_,
         uint256 netInterest_,
@@ -517,7 +521,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         bool isImpaired_ = IMapleLoanLike(loan_).isImpaired();
 
         // Pull any fundsAsset in loan into LM.
-        ( , uint256 recoveredFunds_ ) = IMapleLoanLike(loan_).repossess(address(this));
+        ( uint256 recoveredCollateral_, uint256 recoveredFundsAsset_ ) = IMapleLoanLike(loan_).repossess(address(this));
+
+        // If there's collateral, it must be equal to funds asset, so we just sum them.
+        uint256 recoveredFunds_ = recoveredCollateral_ + recoveredFundsAsset_;
 
         // If any funds recovered, disburse them to relevant accounts and update return variables.
         ( remainingLosses_, updatedPlatformFees_ ) = recoveredFunds_ == 0
@@ -560,8 +567,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         address fundsAsset_ = fundsAsset;
 
-        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury(),             toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
-        require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                        toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
+        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury(),                  toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
+        require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                             toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
         require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, IMapleLoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
     }
 
@@ -799,8 +806,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function isLiquidationActive(address loan_) public view override returns (bool isActive_) {
         address liquidatorAddress_ = liquidationInfo[loan_].liquidator;
 
-        // TODO: Investigate dust collateralAsset will ensure `isLiquidationActive` is always true.
-        isActive_ = (liquidatorAddress_ != address(0)) && (IERC20Like(IMapleLoanLike(loan_).collateralAsset()).balanceOf(liquidatorAddress_) != uint256(0));
+        isActive_ = (liquidatorAddress_ != address(0)) && (ILiquidatorLike(liquidatorAddress_).collateralRemaining() != uint256(0));
     }
 
     /******************************************************************************************************************************/

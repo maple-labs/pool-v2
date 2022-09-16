@@ -51,9 +51,13 @@ interface ILoanManagerInitializerLike {
 
 interface ILiquidatorLike {
 
+    function collateralRemaining() external view returns (uint256 collateralRemaining_);
+
     function liquidatePortion(uint256 swapAmount_, uint256 maxReturnAmount_, bytes calldata data_) external;
 
     function pullFunds(address token_, address destination_, uint256 amount_) external;
+
+    function setCollateralRemaining(uint256 collateralAmount_) external; 
 
 }
 

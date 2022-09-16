@@ -315,6 +315,10 @@ contract MockLoan {
         collateral = collateral_;
     }
 
+      function __setCollateralAsset(address collateralAsset_) external {
+        collateralAsset = collateralAsset_;
+    }
+
     function __setCollateralRequired(uint256 collateralRequired_) external {
         collateralRequired = collateralRequired_;
     }
@@ -782,10 +786,24 @@ contract MockWithdrawalManager is MapleProxiedInternals {
     }
 }
 
+contract MockLiquidator {
+
+    uint256 public collateralRemaining;
+
+    fallback() external {
+        // Do nothing.
+    }
+
+    function __setCollateralRemaining(uint256 collateralRemaining_) external {
+        collateralRemaining = collateralRemaining_;
+    }
+
+}
+
 contract MockFactory {
 
     function createInstance(bytes calldata arguments_, bytes32 salt_) external returns (address instance_) {
-        instance_ = address(new Address());
+        instance_ = address(new MockLiquidator());
     }
 
 }

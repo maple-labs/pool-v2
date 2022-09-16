@@ -3252,6 +3252,46 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
         });
     }
 
+    function test_triggerDefault_success_withCollateralAssetEqualToFundsAsset() public {
+        MockLoan(loan).__setCollateralAsset(address(fundsAsset));
+        MockLoan(loan).__setCollateral(100_000);
+
+        fundsAsset.mint(loan, 100_000);
+
+        // Warp to be late
+        vm.warp(START + 11_000);
+
+        assertEq(loanManager.getAccruedInterest(),         80);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               1_000_000);
+        assertEq(loanManager.assetsUnderManagement(),      1_000_080);
+        assertEq(loanManager.issuanceRate(),               0.008e30);
+        assertEq(loanManager.domainStart(),                5_000_000);
+        assertEq(loanManager.domainEnd(),                  5_010_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 1);
+        assertEq(loanManager.unrealizedLosses(),           0);
+
+        MockLoan(loan).__setNextPaymentLateInterest(10);
+
+        vm.prank(address(poolManager));
+        ( bool liquidationComplete, uint256 remainingLosses_, uint256 platformFees_ ) = loanManager.triggerDefault(address(loan), address(liquidatorFactory));
+
+        assertTrue(liquidationComplete);
+
+        assertEq(remainingLosses_, 900_113);
+        assertEq(platformFees_,    0);
+
+        assertEq(loanManager.getAccruedInterest(),         0);
+        assertEq(loanManager.accountedInterest(),          0);
+        assertEq(loanManager.principalOut(),               0);
+        assertEq(loanManager.assetsUnderManagement(),      0);
+        assertEq(loanManager.issuanceRate(),               0);
+        assertEq(loanManager.domainStart(),                5_011_000);
+        assertEq(loanManager.domainEnd(),                  5_011_000);
+        assertEq(loanManager.paymentWithEarliestDueDate(), 0);
+        assertEq(loanManager.unrealizedLosses(),           0);
+    }
+
 }
 
 contract FundLoanTests is LoanManagerBaseTest {
