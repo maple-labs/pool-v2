@@ -195,7 +195,7 @@ contract UpgradeTests is LoanManagerBaseTest {
 }
 
 contract SetAllowedSlippage_SetterTests is LoanManagerBaseTest {
-   
+
     function test_setAllowedSlippage_notPoolManager() external {
         vm.expectRevert("LM:SAS:NOT_POOL_MANAGER");
         loanManager.setAllowedSlippage(address(collateralAsset), 1e6);
@@ -224,7 +224,7 @@ contract SetAllowedSlippage_SetterTests is LoanManagerBaseTest {
 }
 
 contract SetMinRatio_SetterTests is LoanManagerBaseTest {
-   
+
     function test_setMinRatio_notPoolManager() external {
         vm.expectRevert("LM:SMR:NOT_POOL_MANAGER");
         loanManager.setMinRatio(address(collateralAsset), 1e6);

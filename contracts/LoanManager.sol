@@ -93,21 +93,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advancePaymentAccounting();
 
-        uint256 paymentId_              = paymentIdOf[loan_];
-        PaymentInfo memory paymentInfo_ = payments[paymentId_];
+        PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
 
-        uint256 previousRate_;
-
-        if (block.timestamp <= paymentInfo_.paymentDueDate) {
-            previousRate_ = _handlePreviousPaymentAccounting(paymentId_);
-        } else {
-            _compareAndSubtractAccountedInterest(paymentInfo_.incomingNetInterest + paymentInfo_.refinanceInterest);
-        }
-
-        // Remove payment from sorted list and get relevant previous parameters.
+        uint256 previousRate_     = _handlePreviousPaymentAccounting(loan_, block.timestamp <= paymentInfo_.paymentDueDate);
         uint256 previousPrincipal = ILoanLike(loan_).principal();
-
-        delete payments[paymentIdOf[loan_]];
 
         // Perform the refinancing, updating the loan state.
         ILoanLike(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
@@ -145,80 +134,50 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external override nonReentrant {
         require(paymentIdOf[msg.sender] != 0, "LM:C:NOT_LOAN");
 
-        // 1. Get relevant data for all below operations.
-        uint256 previousRate_;
-
-        bool onTimePayment = block.timestamp <= previousPaymentDueDate_;
-
-        LiquidationInfo memory liquidationInfo_ = liquidationInfo[msg.sender];
-
-        uint256 paymentId_              = paymentIdOf[msg.sender];
-        PaymentInfo memory paymentInfo_ = payments[paymentId_];
-
-        // 2. Advance the global accounting.
+        // 1. Advance the global accounting.
         //    - Update `domainStart` to the current `block.timestamp`.
         //    - Update `accountedInterest` to account all accrued interest since last update.
         _advancePaymentAccounting();
 
-        // 3. Transfer the funds from the loan to the `pool`, `poolDelegate`, and `mapleTreasury`.
+        // 2. Transfer the funds from the loan to the `pool`, `poolDelegate`, and `mapleTreasury`.
         _distributeClaimedFunds(msg.sender, principal_, interest_);
 
-        // 4. If principal has been paid back, decrement `principalOut`.
+        // 3. If principal has been paid back, decrement `principalOut`.
         if (principal_ != 0) {
             emit PrincipalOutUpdated(principalOut -= _uint128(principal_));
         }
 
-        // 5a. If a payment has been made against a loan that was impaired, reverse the impairment accounting.
-        //     TODO: Consider moving all "5" functions into a helper function and reusing logic in ANT.
-        if (liquidationInfo_.principal != 0) {
-            _revertLoanImpairment(liquidationInfo_);  // NOTE: Don't set the previous rate since it will always be zero.
-            delete liquidationInfo[msg.sender];
-        }
+        // 4. Update the accounting based on the payment that was just made.
+        bool    onTimePayment_ = block.timestamp <= previousPaymentDueDate_;
+        uint256 previousRate_  = _handlePreviousPaymentAccounting(msg.sender, onTimePayment_);
 
-        // 5b. If a payment has been made on time, handle the payment accounting.
-        //     - Remove the payment from the sorted list.
-        //     - Reduce the `accountedInterest` by the value represented by the payment info.
-        else if (onTimePayment) {
-            previousRate_ = _handlePreviousPaymentAccounting(paymentId_);
-        }
-
-        // 5c. If a payment has been made late, its interest has already been fully accounted through `_advancePaymentAccounting` logic.
-        //     It also has been removed from the sorted list, and its `issuanceRate` has been removed from the global `issuanceRate`.
-        //     The only accounting that must be done is to update the `accountedInterest` to account for the payment being made.
-        else {
-            _compareAndSubtractAccountedInterest(paymentInfo_.incomingNetInterest + paymentInfo_.refinanceInterest);
-        }
-
-        // 6. Delete the payment info now that the previous payment has been fully handled.
-        delete payments[paymentIdOf[msg.sender]];
-
-        // 7. If there is no next payment for this loan, update the global accounting and exit.
+        // 5. If there is no next payment for this loan, update the global accounting and exit.
         //    - Delete the paymentId from the `paymentIdOf` mapping since there is no next payment.
         if (nextPaymentDueDate_ == 0) {
             delete paymentIdOf[msg.sender];
             return _updateIssuanceParams(issuanceRate - previousRate_, accountedInterest);
         }
 
-        // 8. Calculate the start date of the next loan payment.
+        // 6. Calculate the start date of the next loan payment.
         //    - If the previous payment is on time or early, the start date is the current `block.timestamp`,
         //      and the `issuanceRate` will be calculated over the interval from `block.timestamp` to the next payment due date.
         //    - If the payment is late, the start date will be the previous payment due date,
         //      and the `issuanceRate` will be calculated over the loan's exact payment interval.
         uint256 nextStartDate_ = _min(block.timestamp, previousPaymentDueDate_);
 
-        // 9. Queue the next payment for the loan.
+        // 7. Queue the next payment for the loan.
         //    - Add the payment to the sorted list.
         //    - Update the `paymentIdOf` mapping.
         //    - Update the `payments` mapping with all of the relevant new payment info.
         uint256 newRate_ = _queueNextPayment(msg.sender, nextStartDate_, nextPaymentDueDate_);
 
-        // 10a. If the payment is early, the `accountedInterest` is already fully up to date.
+        // 8a. If the payment is early, the `accountedInterest` is already fully up to date.
         //      In this case, the `issuanceRate` is the only variable that needs to be updated.
-        if (onTimePayment) {
+        if (onTimePayment_) {
             return _updateIssuanceParams(issuanceRate + newRate_ - previousRate_, accountedInterest);
         }
 
-        // 10b. If the payment is late, the `issuanceRate` from the previous payment has already been removed from the global `issuanceRate`.
+        // 8b. If the payment is late, the `issuanceRate` from the previous payment has already been removed from the global `issuanceRate`.
         //      - Update the global `issuanceRate` to account for the new payments `issuanceRate`.
         //      - Update the `accountedInterest` to represent the interest that has accrued from the `previousPaymentDueDate` to the current `block.timestamp`.
         //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
@@ -230,7 +189,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             );
         }
 
-        // 10c. If the current timestamp is greater than the RESULTING `nextPaymentDueDate`, then the next payment must be
+        // 8c. If the current timestamp is greater than the RESULTING `nextPaymentDueDate`, then the next payment must be
         //      FULLY accounted for, and the new payment must be removed from the sorted list.
         //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
         //      All interest from the aggregate issuance rate has already been accounted for in `_advancePaymentAccounting`.
@@ -425,16 +384,41 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         payments[paymentId_].issuanceRate = 0;
     }
 
-    function _handlePreviousPaymentAccounting(uint256 paymentId_) internal returns (uint256 issuanceRate_) {
+    function _handlePreviousPaymentAccounting(address loan_, bool onTimePayment_) internal returns (uint256 previousRate_) {
+        LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
+
+        uint256 paymentId_              = paymentIdOf[loan_];
         PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
+        // Remove the payment from the mapping once cached to memory.
+        delete payments[paymentId_];
+
+        // If a payment has been made against a loan that was impaired, reverse the impairment accounting.
+        // TODO: Consider moving all "5" functions into a helper function and reusing logic in ANT.
+        if (liquidationInfo_.principal != 0) {
+            _revertLoanImpairment(liquidationInfo_);  // NOTE: Don't set the previous rate since it will always be zero.
+            delete liquidationInfo[loan_];
+            return 0;
+        }
+
+        // If a payment has been made late, its interest has already been fully accounted through `_advancePaymentAccounting` logic.
+        // It also has been removed from the sorted list, and its `issuanceRate` has been removed from the global `issuanceRate`.
+        // The only accounting that must be done is to update the `accountedInterest` to account for the payment being made.
+        if (!onTimePayment_) {
+            _compareAndSubtractAccountedInterest(paymentInfo_.incomingNetInterest + paymentInfo_.refinanceInterest);
+            return 0;
+        }
+
+        // If a payment has been made on time, handle the payment accounting.
+        //   - Remove the payment from the sorted list.
+        //   - Reduce the `accountedInterest` by the value represented by the payment info.
         _removePaymentFromList(paymentId_);
 
-        issuanceRate_ = paymentInfo_.issuanceRate;
+        previousRate_ = paymentInfo_.issuanceRate;
 
         // If the amount of interest claimed is greater than the amount accounted for, set to zero.
         // Discrepancy between accounted and actual is always captured by balance change in the pool from the claimed interest.
-        uint256 paymentAccruedInterest_ = (block.timestamp - paymentInfo_.startDate) * issuanceRate_ / PRECISION;
+        uint256 paymentAccruedInterest_ = (block.timestamp - paymentInfo_.startDate) * previousRate_ / PRECISION;
 
         // Reduce the AUM by the amount of interest that was represented for this payment.
         _compareAndSubtractAccountedInterest(paymentAccruedInterest_ + paymentInfo_.refinanceInterest);
@@ -546,8 +530,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             delete liquidationInfo[loan_];
         }
 
-        // TODO: Add _compareAndSubtractAccountedInterest()
-
         _compareAndSubtractAccountedInterest(netInterest_);
 
         // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
@@ -600,48 +582,53 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Standard Procedure Update Functions                                                                           ***/
     /******************************************************************************************************************************/
 
-    function _accountPreviousDomains() internal {
+    function _advancePaymentAccounting() internal {
         uint256 domainEnd_ = domainEnd;
 
-        if (domainEnd_ == 0 || block.timestamp <= domainEnd_) return;
+        uint256 accountedInterest_;
 
-        uint256 paymentId_ = paymentWithEarliestDueDate;
+        // If the earliest payment in the list is in the past, then the payment accounting must be retroactively updated.
+        if (domainEnd_ != 0 && block.timestamp > domainEnd_) {
 
-        // Cache variables for looping.
-        uint256 accountedInterest_ = accountedInterest;
-        uint256 domainStart_       = domainStart;
-        uint256 issuanceRate_      = issuanceRate;
+            uint256 paymentId_ = paymentWithEarliestDueDate;
 
-        // Advance payments in previous domains to "catch up" to current state.
-        while (block.timestamp > domainEnd_) {
-            uint256 next_ = sortedPayments[paymentId_].next;
+            // Cache variables for looping.
+            uint256 domainStart_  = domainStart;
+            uint256 issuanceRate_ = issuanceRate;
 
-            ( uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_ ) = _accountToEndOfPayment(paymentId_, issuanceRate_, domainStart_, domainEnd_);
+            // Advance payment accounting in previous domains to "catch up" to current state.
+            while (block.timestamp > domainEnd_) {
+                uint256 next_ = sortedPayments[paymentId_].next;
 
-            accountedInterest_ += accountedInterestIncrease_;
-            issuanceRate_      -= issuanceRateReduction_;
+                // 1. Calculate the interest that has accrued over the domain period in the past (domainEnd - domainStart).
+                // 2. Remove the earliest payment from the list
+                // 3. Return the `issuanceRate` reduction (the payment's `issuanceRate`).
+                // 4. Return the `accountedInterest` increase (the amount of interest accrued over the domain).
+                ( uint256 accountedInterestIncrease_, uint256 issuanceRateReduction_ ) = _accountToEndOfPayment(paymentId_, issuanceRate_, domainStart_, domainEnd_);
 
-            domainStart_ = domainEnd_;
-            domainEnd_   = payments[paymentWithEarliestDueDate].paymentDueDate;
+                // Update cached aggregate values for updating the global state.
+                accountedInterest_ += accountedInterestIncrease_;
+                issuanceRate_      -= issuanceRateReduction_;
 
-            // If the end of the list has been reached, exit the loop.
-            if ((paymentId_ = next_) == 0) break;
+                // Update the domain start and end.
+                // - Set the domain start to the previous domain end.
+                // - Set the domain end to the next earliest payment.
+                //   - If this value is still in the past, this loop will continue.
+                domainStart_ = domainEnd_;
+                domainEnd_   = payments[paymentWithEarliestDueDate].paymentDueDate;
+
+                // If the end of the list has been reached, exit the loop.
+                if ((paymentId_ = next_) == 0) break;
+            }
+
+            // Update global accounting to reflect the changes made in the loop.
+            domainStart  = _uint48(domainStart_);
+            domainEnd    = _uint48(domainEnd_);
+            issuanceRate = issuanceRate_;
         }
 
-        // Update global accounting.
-        accountedInterest = _uint112(accountedInterest_);
-        domainStart       = _uint48(domainStart_);
-        domainEnd         = _uint48(domainEnd_);
-        issuanceRate      = issuanceRate_;
-    }
-
-    // TODO: Move logic from _accountPreviousDomains into this function
-    function _advancePaymentAccounting() internal {
-        // If VPF is in the past, account for all previous issuance domains and get to current state.
-        _accountPreviousDomains();
-
-        // Accrue interest to the current timestamp.
-        accountedInterest += _uint112(getAccruedInterest());
+        // Update the accounted interest to the current timestamp, and update the domainStart to the current timestamp.
+        accountedInterest += _uint112(accountedInterest_ + getAccruedInterest());
         domainStart        = _uint48(block.timestamp);
     }
 
