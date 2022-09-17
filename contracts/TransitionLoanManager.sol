@@ -63,10 +63,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
         uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
 
-        principalOut += _uint128(IMapleLoanLike(loan_).principal());
-        issuanceRate += newRate_;
-        domainStart   = _uint48(block.timestamp);
-        domainEnd     = payments[paymentWithEarliestDueDate].paymentDueDate;
+        emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanLike(loan_).principal()));
+
+        _updateIssuanceParams(issuanceRate += newRate_, accountedInterest);
     }
 
     function setOwnershipTo(address[] calldata loans_, address newLender_) external override {
@@ -85,9 +84,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         }
     }
 
-    /***************************************/
+    /******************************************/
     /*** Internal Payment Sorting Functions ***/
-    /***************************************/
+    /******************************************/
 
     function _addPaymentToList(uint48 paymentDueDate_) internal returns (uint24 paymentId_) {
         paymentId_ = ++paymentCounter;
@@ -149,34 +148,52 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
             managementFeeRate_         = HUNDRED_PERCENT;
         }
 
-        uint256 netInterest_;
-        uint256 netRefinanceInterest_;
+        ( , uint256[3] memory interest_, )  = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
-        {
-            ( , uint256 interest_, )  = IMapleLoanLike(loan_).getNextPaymentBreakdown();
-            uint256 refinanceInterest = IMapleLoanLike(loan_).refinanceInterest();
+        newRate_ = (_getNetInterest(interest_[0], managementFeeRate_) * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
-            netInterest_          = _getNetInterest(interest_ - refinanceInterest, managementFeeRate_);
-            netRefinanceInterest_ = _getNetInterest(refinanceInterest,             managementFeeRate_);
-        }
+        uint256 incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / 1e30;  // NOTE: Use issuanceRate to capture rounding errors.
 
-        newRate_ = (netInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
+        uint256 paymentId_ = paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_));  // Add the payment to the sorted list.
 
-        // Add the payment to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-        payments[
-            paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_))
-        ] = PaymentInfo({
+        uint256 netRefinanceInterest_ = _getNetInterest(interest_[2], managementFeeRate_);
+
+        payments[paymentId_] = PaymentInfo({
             platformManagementFeeRate: _uint24(platformManagementFeeRate_),
             delegateManagementFeeRate: _uint24(delegateManagementFeeRate_),
             startDate:                 _uint48(startDate_),
             paymentDueDate:            _uint48(nextPaymentDueDate_),
-            incomingNetInterest:       _uint128(netInterest_),
+            incomingNetInterest:       _uint128(incomingNetInterest_),
             refinanceInterest:         _uint128(netRefinanceInterest_),
             issuanceRate:              newRate_
         });
 
         // Update the accounted interest to reflect what is present in the loan.
-        accountedInterest += _uint112(netRefinanceInterest_) + _uint112(newRate_ * (_min(block.timestamp, nextPaymentDueDate_) - startDate_) / PRECISION);
+        accountedInterest += _uint112(netRefinanceInterest_);
+
+        emit PaymentAdded(
+            loan_,
+            paymentId_,
+            platformManagementFeeRate_,
+            delegateManagementFeeRate_,
+            startDate_,
+            nextPaymentDueDate_,
+            netRefinanceInterest_,
+            newRate_
+        );
+    }
+
+    function _updateIssuanceParams(uint256 issuanceRate_, uint112 accountedInterest_) internal {
+        // If there are no more payments in the list, set domain end to block.timestamp, otherwise, set it to the next upcoming payment.
+        uint48 domainEnd_ = paymentWithEarliestDueDate == 0
+            ? _uint48(block.timestamp)
+            : payments[paymentWithEarliestDueDate].paymentDueDate;
+
+        emit IssuanceParamsUpdated(
+            domainEnd         = domainEnd_,
+            issuanceRate      = issuanceRate_,
+            accountedInterest = accountedInterest_
+        );
     }
 
     /**********************/

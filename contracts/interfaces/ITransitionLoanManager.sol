@@ -17,7 +17,36 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
      *  @param issuanceRate_      New value for the issuance rate.
      *  @param accountedInterest_ The amount of accounted interest.
      */
-    event IssuanceParamsUpdated(uint256 principalOut_, uint256 domainStart_, uint256 domainEnd_, uint256 issuanceRate_, uint256 accountedInterest_);
+    event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
+
+    /**
+     *  @dev   Emitted when a payment is removed from the LoanManager payments array.
+     *  @param loan_      The address of the loan.
+     *  @param paymentId_ The payment ID of the payment that was removed.
+     */
+    event PaymentAdded(
+        address indexed loan_,
+        uint256 indexed paymentId_,
+        uint256 platformManagementFeeRate_,
+        uint256 delegateManagementFeeRate_,
+        uint256 startDate_,
+        uint256 nextPaymentDueDate_,
+        uint256 netRefinanceInterest_,
+        uint256 newRate_
+    );
+
+    /**
+     *  @dev   Emitted when a payment is removed from the LoanManager payments array.
+     *  @param loan_      The address of the loan.
+     *  @param paymentId_ The payment ID of the payment that was removed.
+     */
+    event PaymentRemoved(address indexed loan_, uint256 indexed paymentId_);
+
+    /**
+     *  @dev   Emitted when principal out is updated
+     *  @param principalOut_ The new value for principal out.
+     */
+    event PrincipalOutUpdated(uint128 principalOut_);
 
     /**
      *  @dev   Emitted when unrealized losses is updated.

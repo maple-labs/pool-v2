@@ -18,7 +18,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      */
     event AllowedSlippageSet(address collateralAsset_, uint256 newSlippage_);
 
-     /**
+    /**
      *  @dev   Emitted when the issuance parameters are changed.
      *  @param domainEnd_         The timestamp of the domain end.
      *  @param issuanceRate_      New value for the issuance rate.
@@ -32,6 +32,29 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      *  @param newMinRatio_     New value for `minRatio`.
      */
     event MinRatioSet(address collateralAsset_, uint256 newMinRatio_);
+
+    /**
+     *  @dev   Emitted when a payment is removed from the LoanManager payments array.
+     *  @param loan_      The address of the loan.
+     *  @param paymentId_ The payment ID of the payment that was removed.
+     */
+    event PaymentAdded(
+        address indexed loan_,
+        uint256 indexed paymentId_,
+        uint256 platformManagementFeeRate_,
+        uint256 delegateManagementFeeRate_,
+        uint256 startDate_,
+        uint256 nextPaymentDueDate_,
+        uint256 netRefinanceInterest_,
+        uint256 newRate_
+    );
+
+    /**
+     *  @dev   Emitted when a payment is removed from the LoanManager payments array.
+     *  @param loan_      The address of the loan.
+     *  @param paymentId_ The payment ID of the payment that was removed.
+     */
+    event PaymentRemoved(address indexed loan_, uint256 indexed paymentId_);
 
     /**
      *  @dev   Emitted when principal out is updated

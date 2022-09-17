@@ -393,6 +393,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Remove the payment from the mapping once cached to memory.
         delete payments[paymentId_];
 
+        emit PaymentRemoved(loan_, paymentId_);
+
         // If a payment has been made against a loan that was impaired, reverse the impairment accounting.
         // TODO: Consider moving all "5" functions into a helper function and reusing logic in ANT.
         if (liquidationInfo_.principal != 0) {
@@ -437,26 +439,37 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ( , uint256[3] memory interest_, )  = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
-        uint256 netInterest_          = _getNetInterest(interest_[0], managementFeeRate_);
+        newRate_ = (_getNetInterest(interest_[0], managementFeeRate_) * PRECISION) / (nextPaymentDueDate_ - startDate_);
+
+        uint256 incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / 1e30;  // NOTE: Use issuanceRate to capture rounding errors.
+
+        uint256 paymentId_ = paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_));  // Add the payment to the sorted list.
+
         uint256 netRefinanceInterest_ = _getNetInterest(interest_[2], managementFeeRate_);
 
-        newRate_ = (netInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
-
-        // Add the payment to the sorted list, making sure to take the effective start date (and not the current block timestamp).
-        payments[
-            paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_))
-        ] = PaymentInfo({
+        payments[paymentId_] = PaymentInfo({
             platformManagementFeeRate: _uint24(platformManagementFeeRate_),
             delegateManagementFeeRate: _uint24(delegateManagementFeeRate_),
             startDate:                 _uint48(startDate_),
             paymentDueDate:            _uint48(nextPaymentDueDate_),
-            incomingNetInterest:       _uint128(newRate_ * (nextPaymentDueDate_ - startDate_) / 1e30),  // NOTE: Use issuanceRate to capture rounding errors.
+            incomingNetInterest:       _uint128(incomingNetInterest_),
             refinanceInterest:         _uint128(netRefinanceInterest_),
             issuanceRate:              newRate_
         });
 
         // Update the accounted interest to reflect what is present in the loan.
         accountedInterest += _uint112(netRefinanceInterest_);
+
+        emit PaymentAdded(
+            loan_,
+            paymentId_,
+            platformManagementFeeRate_,
+            delegateManagementFeeRate_,
+            startDate_,
+            nextPaymentDueDate_,
+            netRefinanceInterest_,
+            newRate_
+        );
     }
 
     function _revertLoanImpairment(LiquidationInfo memory liquidationInfo_) internal {
