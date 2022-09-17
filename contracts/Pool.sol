@@ -98,13 +98,13 @@ contract Pool is IPool, ERC20 {
     }
 
     // TODO: Ensure no one can redeem other accounts' LP tokens
-    function redeem(uint256 shares_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 assets_) {
+    function redeem(uint256 shares_, address receiver_, address owner_) external virtual override nonReentrant checkCall("P:redeem") returns (uint256 assets_) {
         uint256 redeemableShares_;
         ( redeemableShares_, assets_ ) = IPoolManagerLike(manager).processRedeem(shares_, owner_);
         _burn(redeemableShares_, assets_, receiver_, owner_, msg.sender);
     }
 
-    function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant returns (uint256 shares_) {
+    function withdraw(uint256 assets_, address receiver_, address owner_) external virtual override nonReentrant checkCall("P:withdraw") returns (uint256 shares_) {
         ( shares_, assets_ ) = IPoolManagerLike(manager).processRedeem(convertToExitShares(assets_), owner_);
         _burn(shares_, assets_, receiver_, owner_, msg.sender);
     }
@@ -136,7 +136,7 @@ contract Pool is IPool, ERC20 {
     /*** Withdrawal Request Functions ***/
     /************************************/
 
-    function removeShares(uint256 shares_) external override nonReentrant returns (uint256 sharesReturned_) {
+    function removeShares(uint256 shares_) external override nonReentrant checkCall("P:removeShares") returns (uint256 sharesReturned_) {
         emit SharesRemoved(
             msg.sender,
             sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, msg.sender)
@@ -145,7 +145,7 @@ contract Pool is IPool, ERC20 {
 
     // TODO: Add user and approvals.
     // TODO: To be grammatically correct ths should be `requestRedemption` since the event is `RedemptionRequested`.
-    function requestRedeem(uint256 shares_) external override nonReentrant returns (uint256 escrowedShares_) {
+    function requestRedeem(uint256 shares_) external override nonReentrant checkCall("P:requestRedeem") returns (uint256 escrowedShares_) {
         emit RedemptionRequested(
             msg.sender,
             shares_,
@@ -154,7 +154,7 @@ contract Pool is IPool, ERC20 {
     }
 
     // TODO: To be grammatically correct ths should be `requestWithdrawal` with a `WithdrawalRequested` event. Also, see `requestRedeem`.
-    function requestWithdraw(uint256 assets_) external override nonReentrant returns (uint256 escrowedShares_) {
+    function requestWithdraw(uint256 assets_) external override nonReentrant checkCall("P:requestWithdraw") returns (uint256 escrowedShares_) {
         emit WithdrawRequested(
             msg.sender,
             assets_,

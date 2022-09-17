@@ -567,6 +567,10 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         hasSufficientCover_ = true;
     }
 
+    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address destination_) {
+        ( escrowShares_, destination_) = (shares_, address(this));
+    }
+
     function previewRedeem(address account_, uint256 shares_) external view returns (uint256 assets_) {
         assets_ = _previewRedeemAmount;
     }
@@ -583,7 +587,9 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     function processWithdraw(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
-    }
+    }       
+
+    function requestRedeem(uint256 shares_, address owner_) external { }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
         delegateManagementFeeRate = delegateManagementFeeRate_;

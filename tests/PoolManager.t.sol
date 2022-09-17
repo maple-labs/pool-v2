@@ -1732,6 +1732,50 @@ contract CanCallTests is PoolManagerBase {
         assertEq(errorMessage_, "P:MWP:DEPOSIT_GT_LIQ_CAP");
     }
 
+    function test_canCall_redeem() external {
+        bytes32 functionId_ = bytes32("P:redeem");
+
+        bytes memory params = abi.encode(1_000e6, address(this), address(this));
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_removeShares() external {
+        bytes32 functionId_ = bytes32("P:removeShares");
+
+        bytes memory params = abi.encode(1_000e6);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_requestRedeem() external {
+        bytes32 functionId_ = bytes32("P:requestRedeem");
+
+        bytes memory params = abi.encode(1_000e6);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_requestWithdraw() external {
+        bytes32 functionId_ = bytes32("P:requestWithdraw");
+
+        bytes memory params = abi.encode(1_000e6);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
     function test_canCall_transfer_notOpenToPublic() external {
         bytes32 functionId_ = bytes32("P:transfer");
         address recipient_  = address(this);
@@ -1819,6 +1863,17 @@ contract CanCallTests is PoolManagerBase {
         poolManager.setAllowedLender(recipient_, true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(canCall_);
+        assertEq(errorMessage_, "");
+    }
+
+    function test_canCall_withdraw() external {
+        bytes32 functionId_ = bytes32("P:withdraw");
+
+        bytes memory params = abi.encode(1_000e6);
+
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");

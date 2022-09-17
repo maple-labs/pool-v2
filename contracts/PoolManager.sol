@@ -411,6 +411,16 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             return (false, "PM:CC:PROTOCOL_PAUSED");
         }
 
+        if (
+            functionId_ == "P:redeem"          ||
+            functionId_ == "P:withdraw"        ||
+            functionId_ == "P:removeShares"    ||
+            functionId_ == "P:requestRedeem"   ||
+            functionId_ == "P:requestWithdraw"
+        ) {
+            return (true, "");
+        }
+
         if (functionId_ == "P:deposit") {
             ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));
             return _canDeposit(assets_, receiver_, "P:D:");

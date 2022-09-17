@@ -596,6 +596,18 @@ contract RedeemTests is PoolBase {
         MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
     }
 
+    function test_redeem_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+        asset.mint(address(pool), 1_000e6);
+
+        vm.prank(user);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.redeem(500e6, user, user);  // Redeem half of tokens at 2:1
+    }
+
     function test_redeem_reentrancy() external {
         asset.setReentrancy(address(pool));
 
@@ -701,6 +713,87 @@ contract RedeemTests is PoolBase {
 
 }
 
+contract RemoveSharesTests is PoolBase {
+
+    uint256 depositAmount = 1_000e6;
+
+    function setUp() public override {
+        super.setUp();
+
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+
+        asset.mint(address(pool), 1_000e6);
+
+        vm.prank(user);
+        pool.requestRedeem(500e6);
+    }
+
+    function test_removeShares_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        vm.prank(user);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.removeShares(500e6);         
+    }
+
+}
+
+contract RequestRedeemTests is PoolBase {
+
+    uint256 depositAmount = 1_000e6;
+
+    function setUp() public override {
+        super.setUp();
+
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
+    }
+
+    function test_requestRedeem_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+        asset.mint(address(pool), 1_000e6);
+
+        vm.prank(user);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.requestRedeem(500e6); 
+    }
+
+}
+
+contract RequestWithdraw is PoolBase {
+
+    uint256 depositAmount = 1_000e6;
+
+    function setUp() public override {
+        super.setUp();
+
+        _deposit(address(pool), address(poolManager), user, depositAmount);
+
+        MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
+    }
+
+    function test_requestWithdraw_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+        asset.mint(address(pool), 1_000e6);
+
+        vm.prank(user);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.requestWithdraw(500e6); 
+    }
+
+}
+
 contract TransferTests is PoolBase {
 
     address RECIPIENT = address(new Address());
@@ -760,6 +853,18 @@ contract WithdrawTests is PoolBase {
 
         MockPoolManager(poolManager).__setRedeemableShares(depositAmount);
         MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
+    }
+
+    function test_withdraw_checkCall() public {
+        MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
+
+        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+        asset.mint(address(pool), 1_000e6);
+
+        vm.prank(user);
+        vm.expectRevert("TEST_MESSAGE");
+        pool.withdraw(500e6, user, user);
     }
 
     function test_withdraw_reentrancy() external {
