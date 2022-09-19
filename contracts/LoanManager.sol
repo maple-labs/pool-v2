@@ -218,7 +218,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _removePaymentFromList(paymentId_);
 
-        _updateIssuanceParams(issuanceRate - paymentInfo_.issuanceRate, accountedInterest);
+        // NOTE: Use issuance rate from payment info in storage, because it would have been set to zero and accounted for already if late.
+        _updateIssuanceParams(issuanceRate - payments[paymentId_].issuanceRate, accountedInterest);
 
         ( uint256 netInterest_, uint256 netLateInterest_, uint256 platformFees_ ) = _getDefaultInterestAndFees(loan_, paymentInfo_);
 
@@ -698,14 +699,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         netLateInterest_ = _getNetInterest(grossLateInterest_, paymentInfo_.platformManagementFeeRate + paymentInfo_.delegateManagementFeeRate);
 
         // Calculate the platform management and service fees.
-        platformFees_ =
-            ((grossPaymentInterest_ + grossLateInterest_) * paymentInfo_.platformManagementFeeRate) / HUNDRED_PERCENT +
-            serviceFees_[1];
+        uint256 platformManagementFees_ = ((grossPaymentInterest_ + grossLateInterest_) * paymentInfo_.platformManagementFeeRate) / HUNDRED_PERCENT;
 
         // If the payment is early, scale back the management fees pro-rata based on the current timestamp.
         if (grossLateInterest_ == 0) {
-            platformFees_ = _getAccruedAmount(platformFees_, paymentInfo_.startDate, paymentInfo_.paymentDueDate, block.timestamp);
+            platformManagementFees_ = _getAccruedAmount(platformManagementFees_, paymentInfo_.startDate, paymentInfo_.paymentDueDate, block.timestamp);
         }
+
+        platformFees_ = platformManagementFees_ + serviceFees_[1];
     }
 
     function _getPaymentAccruedInterest(uint256 startTime_, uint256 endTime_, uint256 paymentIssuanceRate_, uint256 refinanceInterest_) internal pure returns (uint256 accruedInterest_) {

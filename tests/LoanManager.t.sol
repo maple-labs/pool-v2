@@ -582,7 +582,7 @@ contract ImpairLoanTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    20 + 3,          // 20 + (100 * 60% * 5%)  (serviceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -612,7 +612,7 @@ contract ImpairLoanTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    20 + 3,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -683,7 +683,7 @@ contract ImpairLoanTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    20 + 3,  // (20 * 60%) + (100 * 60% * 5%)  (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -788,7 +788,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    20 + 3,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -876,7 +876,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,               // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
+            platformFees:    20 + 3,  // (20 * 60%) + (100 * 60% * 5%) (accruedPlatformServiceFee + accruedPlatformManagementFee)
             liquidator:      address(0)
         });
 
@@ -3084,7 +3084,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,
+            platformFees:    20 + 3,
             liquidator:      address(0)
         });
 
@@ -3095,7 +3095,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
 
         assertTrue(liquidationComplete);
         assertEq(remainingLosses, 1_000_048);
-        assertEq(platformFees,    15);
+        assertEq(platformFees,    20 + 3);
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          0);
@@ -3135,7 +3135,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,
+            platformFees:    20 + 3,
             liquidator:      address(0)
         });
 
@@ -3146,7 +3146,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
 
         assertTrue(!liquidationComplete);
         assertEq(remainingLosses_, 0);
-        assertEq(platformFees_,    15);
+        assertEq(platformFees_,    20 +3);
 
         assertEq(loanManager.getAccruedInterest(),         0);
         assertEq(loanManager.accountedInterest(),          48);
@@ -3165,7 +3165,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             principal:       1_000_000,
             interest:        48,
             lateInterest:    0,
-            platformFees:    15,
+            platformFees:    20 + 3,
             liquidator:      address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D)
         });
     }
