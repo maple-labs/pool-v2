@@ -91,7 +91,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:ANT:NOT_ADMIN");
 
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
 
@@ -114,7 +114,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function fund(address loan_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
 
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         IMapleLoanLike(loan_).fundLoan(address(this));
 
@@ -137,7 +137,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // 1. Advance the global accounting.
         //    - Update `domainStart` to the current `block.timestamp`.
         //    - Update `accountedInterest` to account all accrued interest since last update.
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         // 2. Transfer the funds from the loan to the `pool`, `poolDelegate`, and `mapleTreasury`.
         _distributeClaimedFunds(msg.sender, principal_, interest_);
@@ -181,7 +181,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         //      - Update the global `issuanceRate` to account for the new payments `issuanceRate`.
         //      - Update the `accountedInterest` to represent the interest that has accrued from the `previousPaymentDueDate` to the current `block.timestamp`.
         //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
-        //      All interest from the aggregate issuance rate has already been accounted for in `_advancePaymentAccounting`.
+        //      All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
         if (block.timestamp > previousPaymentDueDate_ && block.timestamp <= nextPaymentDueDate_) {
             return _updateIssuanceParams(
                 issuanceRate + newRate_,
@@ -192,7 +192,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // 8c. If the current timestamp is greater than the RESULTING `nextPaymentDueDate`, then the next payment must be
         //      FULLY accounted for, and the new payment must be removed from the sorted list.
         //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
-        //      All interest from the aggregate issuance rate has already been accounted for in `_advancePaymentAccounting`.
+        //      All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
         else {
             ( uint256 accountedInterestIncrease_, ) = _accountToEndOfPayment(paymentIdOf[msg.sender], newRate_, previousPaymentDueDate_, nextPaymentDueDate_);
 
@@ -214,7 +214,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         uint256 paymentId_              = paymentIdOf[loan_];
         PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         _removePaymentFromList(paymentId_);
 
@@ -241,7 +241,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:RLI:NOT_PM");
 
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         IMapleLoanLike(loan_).removeLoanImpairment();
 
@@ -275,7 +275,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
         require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
 
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         // Philosophy for this function is triggerDefault should figure out all the details,
         // and finish should use that info and execute the liquidation and accounting updates.
@@ -321,7 +321,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
 
         // NOTE: This will cause this payment to be removed from the list, so no need to remove it explciity afterwards.
-        _advancePaymentAccounting();
+        _advanceGlobalPaymentAccounting();
 
         uint256 netInterest_;
         uint256 netLateInterest_;
@@ -403,7 +403,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             return 0;
         }
 
-        // If a payment has been made late, its interest has already been fully accounted through `_advancePaymentAccounting` logic.
+        // If a payment has been made late, its interest has already been fully accounted through `_advanceGlobalPaymentAccounting` logic.
         // It also has been removed from the sorted list, and its `issuanceRate` has been removed from the global `issuanceRate`.
         // The only accounting that must be done is to update the `accountedInterest` to account for the payment being made.
         if (!onTimePayment_) {
@@ -554,7 +554,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         // Reduce accounted interest by the interest portion of the shortfall, as the loss has been realized, and therefore this interest has been accounted for.
         // Don't reduce by late interest, since we never account for this interest in the issuance rate, only via discrete updates.
-        // NOTE: Don't reduce issuance rate by payments's issuance rate since it was done in `_advancePaymentAccounting`.
+        // NOTE: Don't reduce issuance rate by payments's issuance rate since it was done in `_advanceGlobalPaymentAccounting`.
         _updateIssuanceParams(issuanceRate, accountedInterest);
 
         delete payments[paymentIdOf[loan_]];
@@ -602,7 +602,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Standard Procedure Update Functions                                                                           ***/
     /******************************************************************************************************************************/
 
-    function _advancePaymentAccounting() internal {
+    function _advanceGlobalPaymentAccounting() internal {
         uint256 domainEnd_ = domainEnd;
 
         uint256 accountedInterest_;
