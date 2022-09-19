@@ -239,7 +239,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external override nonReentrant {
-        require(msg.sender == poolManager, "LM:RDW:NOT_PM");
+        require(msg.sender == poolManager, "LM:RLI:NOT_PM");
 
         _advancePaymentAccounting();
 
@@ -249,7 +249,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         PaymentInfo memory paymentInfo_         = payments[paymentId_];
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
 
-        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RDW:NOT_AUTHORIZED");
+        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RLI:NOT_AUTHORIZED");
 
         _revertLoanImpairment(liquidationInfo_);
 

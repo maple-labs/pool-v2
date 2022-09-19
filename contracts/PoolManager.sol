@@ -286,7 +286,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function removeLoanImpairment(address loan_) external override whenProtocolNotPaused nonReentrant {
         bool isGovernor_ = msg.sender == governor();
 
-        require(msg.sender == poolDelegate || isGovernor_, "PM:RDW:NOT_AUTHORIZED");
+        require(msg.sender == poolDelegate || isGovernor_, "PM:RLI:NOT_AUTHORIZED");
 
         ILoanManagerLike(loanManagers[loan_]).removeLoanImpairment(loan_, isGovernor_);
 

@@ -720,7 +720,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.impairLoan(address(loan), false);
 
-        vm.expectRevert("LM:RDW:NOT_PM");
+        vm.expectRevert("LM:RLI:NOT_PM");
         loanManager.removeLoanImpairment(address(loan), false);
 
         vm.prank(address(poolManager));
@@ -734,7 +734,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.impairLoan(address(loan), true);
 
-        vm.expectRevert("LM:RDW:NOT_PM");
+        vm.expectRevert("LM:RLI:NOT_PM");
         loanManager.removeLoanImpairment(address(loan), true);
 
         vm.prank(address(poolManager));
@@ -748,7 +748,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.impairLoan(address(loan), true); // Trigger was called by governor.
 
-        vm.expectRevert("LM:RDW:NOT_AUTHORIZED");
+        vm.expectRevert("LM:RLI:NOT_AUTHORIZED");
         vm.prank(address(poolManager));
         loanManager.removeLoanImpairment(address(loan), false); // PD can't remove it.
 

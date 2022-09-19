@@ -966,7 +966,7 @@ contract RemoveLoanImpairmentTests is PoolManagerBase {
     }
 
     function test_removeLoanImpairment_notPoolDelegate() external {
-        vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
+        vm.expectRevert("PM:RLI:NOT_AUTHORIZED");
         poolManager.removeLoanImpairment(LOAN);
 
         vm.prank(POOL_DELEGATE);
@@ -974,7 +974,7 @@ contract RemoveLoanImpairmentTests is PoolManagerBase {
     }
 
     function test_removeLoanImpairment_notGovernor() external {
-        vm.expectRevert("PM:RDW:NOT_AUTHORIZED");
+        vm.expectRevert("PM:RLI:NOT_AUTHORIZED");
         poolManager.removeLoanImpairment(LOAN);
 
         vm.prank(GOVERNOR);
