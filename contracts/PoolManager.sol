@@ -247,19 +247,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         uint256 unaccountedFunds_ = IMapleLoanLike(loan_).getUnaccountedAmount(asset_);
 
-        // If loan already has more unaccounted for funds that required, then skim the funds to the pool as cash.
-        // NOTE: Since we cannot skim a specific amount, we must take all of it and then funds back what is required.
-        if (unaccountedFunds_ > principal_) {
-            unaccountedFunds_ -= IMapleLoanLike(loan_).skim(asset_, pool_);
+        // If loan has unaccounted funds then skim the funds to the pool as cash. 
+        // A more efficient practice would be to only fund for the difference, however this would result in different values for principal out in the loan manager.
+        if (unaccountedFunds_ > 0) {
+            IMapleLoanLike(loan_).skim(asset_, pool_);
         }
 
         // Fetching locked liquidity needs to be done prior to transferring the tokens, because the withdrawal manager checks the pool balance to determine total assets.
         uint256 lockedLiquidity =  IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
-        // If loan already has unaccounted for funds, but less that required, fewer funds are required to be transferred from the pool.
-        if (principal_ > unaccountedFunds_) {
-            require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_ - unaccountedFunds_), "PM:F:TRANSFER_FAIL");
-        }
+        // Fund for the full amount of principal requested.
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
 
         // The remaining liquidity (i.e. the balance of the funds asset in the pool) msu be greater than the amount required ot be locked.
         require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity, "PM:F:LOCKED_LIQUIDITY");
