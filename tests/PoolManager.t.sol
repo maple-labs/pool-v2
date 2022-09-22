@@ -347,7 +347,7 @@ contract SetActive_SetterTests is PoolManagerBase {
         poolManager.setActive(true);
     }
 
-    function test_setActive_notGovernor() external {
+    function test_setActive_notGlobals() external {
         assertTrue(!poolManager.active());
 
         vm.expectRevert("PM:SA:NOT_GLOBALS");
@@ -1879,8 +1879,83 @@ contract CanCallTests is PoolManagerBase {
         assertEq(errorMessage_, "");
     }
 
-    function test_canCall_protocolPaused() external {
+    function test_canCall_protocolPaused_transfer() external {
         bytes32 functionId_ = bytes32("P:transfer");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_protocolPaused_redeem() external {
+        bytes32 functionId_ = bytes32("P:redeem");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_protocolPaused_withdraw() external {
+        bytes32 functionId_ = bytes32("P:withdraw");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_protocolPaused_removeShares() external {
+        bytes32 functionId_ = bytes32("P:removeShares");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_protocolPaused_requestRedeem() external {
+        bytes32 functionId_ = bytes32("P:requestRedeem");
+        address recipient_  = address(this);
+        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+
+        // Set protocol paused
+        MockGlobals(globals).setProtocolPause(true);
+
+        // Call cannot be performed
+        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+
+        assertTrue(!canCall_);
+        assertEq(errorMessage_, "PM:CC:PROTOCOL_PAUSED");
+    }
+
+    function test_canCall_protocolPaused_requestWithdraw() external {
+        bytes32 functionId_ = bytes32("P:requestWithdraw");
         address recipient_  = address(this);
         bytes memory params = abi.encode(recipient_, uint256(1_000e6));
 
