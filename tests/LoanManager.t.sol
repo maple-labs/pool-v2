@@ -520,6 +520,15 @@ contract ImpairLoanTests is LoanManagerBaseTest {
         loanManager.impairLoan(address(loan), false);
     }
 
+    function test_impairLoan_alreadyImpaired() public {
+        vm.prank(address(poolManager));
+        loanManager.impairLoan(address(loan), false);
+
+        vm.prank(address(poolManager));
+        vm.expectRevert("LM:IL:ALREADY_IMPAIRED");
+        loanManager.impairLoan(address(loan), false);
+    }
+
     function test_impairLoan_success() public {
         // Warp 60% into the payment interval
         vm.warp(START + 6_000);
