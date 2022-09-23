@@ -4147,3 +4147,63 @@ contract UpdateAccountingTests is LoanManagerClaimBaseTest {
     }
 
 }
+
+contract SetterTests is LoanManagerBaseTest {
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager.__setDomainStart(START);
+        loanManager.__setDomainEnd(START + 1_000_000);
+        loanManager.__setIssuanceRate(0.1e30);
+        loanManager.__setPrincipalOut(1_000_000e6);
+        loanManager.__setAccountedInterest(10_000e6);
+    }
+    
+    function test_getAccruedInterest() external {
+        // At the start accrued interest is zero.
+        assertEq(loanManager.getAccruedInterest(), 0);
+
+        vm.warp(START + 1_000);
+        assertEq(loanManager.getAccruedInterest(), 100);
+
+        vm.warp(START + 22_222);
+        assertEq(loanManager.getAccruedInterest(), 2222);
+
+        vm.warp(START + 888_888);
+        assertEq(loanManager.getAccruedInterest(), 88888);
+
+        vm.warp(START + 1_000_000);
+        assertEq(loanManager.getAccruedInterest(), 100_000);
+
+        vm.warp(START + 1_000_000 + 1);
+        assertEq(loanManager.getAccruedInterest(), 100_000);
+
+        vm.warp(START + 2_000_000);
+        assertEq(loanManager.getAccruedInterest(), 100_000);
+    }
+
+    function test_getAssetsUnderManagement() external {
+        // At the start there's only principal out and accounted interest
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6);
+
+         vm.warp(START + 1_000);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 100);
+
+        vm.warp(START + 22_222);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 2222);
+
+        vm.warp(START + 888_888);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 88888);
+
+        vm.warp(START + 1_000_000);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 100_000);
+
+        vm.warp(START + 1_000_000 + 1);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 100_000);
+
+        vm.warp(START + 2_000_000);
+        assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 100_000);
+    }
+
+}

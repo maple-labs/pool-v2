@@ -15,6 +15,26 @@ contract LoanManagerHarness is LoanManager {
         _removePaymentFromList(paymentId_);
     }
 
+    function __setAccountedInterest(uint112 accountedInterest_) external {
+        accountedInterest = accountedInterest_;
+    }
+
+    function __setDomainEnd(uint256 domainEnd_) external {
+        domainEnd = uint48(domainEnd_);
+    }
+
+    function __setDomainStart(uint256 domainStart_) external {
+        domainStart = uint48(domainStart_);
+    }
+
+    function __setIssuanceRate(uint256 issuanceRate_) external {
+        issuanceRate = issuanceRate_;
+    }
+
+    function __setPrincipalOut(uint256 principalOut_) external {
+        principalOut = uint128(principalOut_);
+    }
+
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
         unrealizedLosses = _uint128(unrealizedLosses_);
     }
