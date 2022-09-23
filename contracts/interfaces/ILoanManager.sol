@@ -142,6 +142,12 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      */
     function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
+    /**
+     *  @dev Updates the issuance parameters of the LoanManager, callable by the Governor and the PoolDegate.
+     *       Useful to call when `block.timestamp` is greater than `domainEnd` and the LoanManager is not accruing interest.
+     */
+    function updateAccounting() external;
+
     /**********************/
     /*** View Functions ***/
     /**********************/

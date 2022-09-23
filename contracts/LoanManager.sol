@@ -85,6 +85,18 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     /******************************************************************************************************************************/
+    /*** Manual Accounting Update Function                                                                                      ***/
+    /******************************************************************************************************************************/
+
+    function updateAccounting() external override {
+        require(msg.sender == poolDelegate() || msg.sender == governor(), "LM:UA:NOT_AUTHORIZED");
+
+        _advanceGlobalPaymentAccounting();
+
+        _updateIssuanceParams(issuanceRate, accountedInterest);
+    }
+
+    /******************************************************************************************************************************/
     /*** Loan Funding and Refinancing Functions                                                                                 ***/
     /******************************************************************************************************************************/
 

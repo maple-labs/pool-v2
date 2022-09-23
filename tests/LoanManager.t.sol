@@ -3995,3 +3995,155 @@ contract UintCastingTests is LoanManagerBaseTest {
         assertEq(castedValue, 2 ** 128 - 1);
     }
 }
+
+contract UpdateAccountingFailureTests is LoanManagerBaseTest {
+
+    function test_updateAccounting_notPoolDelegate() external {
+        vm.expectRevert("LM:UA:NOT_AUTHORIZED");
+        loanManager.updateAccounting();
+
+        vm.prank(poolDelegate);
+        loanManager.updateAccounting();
+    }
+
+    function test_updateAccounting_notGovernor() external {
+        vm.expectRevert("LM:UA:NOT_AUTHORIZED");
+        loanManager.updateAccounting();
+
+        vm.prank(governor);
+        loanManager.updateAccounting();
+    }
+
+}
+
+contract UpdateAccountingTests is LoanManagerClaimBaseTest {
+
+    MockLoan loan1;
+    MockLoan loan2;
+
+    function setUp() public override {
+        super.setUp();
+
+        loan1 = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan2 = new MockLoan(address(collateralAsset), address(fundsAsset));
+
+        // Set next payment information for loanManager to use.
+        loan1.__setPrincipal(1_000_000);
+        loan2.__setPrincipal(1_000_000);
+        loan1.__setPrincipalRequested(1_000_000);
+        loan2.__setPrincipalRequested(1_000_000);
+        loan1.__setNextPaymentInterest(100);
+        loan2.__setNextPaymentInterest(125);
+        loan1.__setNextPaymentDueDate(START + 10_000);
+        loan2.__setNextPaymentDueDate(START + 16_000);  // 10_000 second interval
+
+        vm.startPrank(address(poolManager));
+        loanManager.fund(address(loan1));
+        vm.warp(START + 6_000);
+        loanManager.fund(address(loan2));
+        vm.stopPrank();
+
+        /**
+         *  Loan 1
+         *    Start date:    0sec
+         *    Issuance rate: 0.008e30 (100 * 0.8 / 10_000)
+         *  Loan 2
+         *    Start date:    6_000sec
+         *    Issuance rate: 0.01e30 (125 * 0.8 / 10_000)
+         */
+    }
+
+    function test_updateAccounting_beforeDomainEnd() external {
+        vm.warp(START + 8_000);
+
+        _assertLoanManagerState({
+            accruedInterest:       16 + 20,
+            accountedInterest:     48,             // Accounted during loan2 funding.
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_084,
+            issuanceRate:          0.018e30,
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_084);
+
+        vm.prank(poolDelegate);
+        loanManager.updateAccounting();
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     84,             // Accounted during loan2 funding.
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_084,
+            issuanceRate:          0.018e30,
+            domainStart:           START + 8_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_084);
+    }
+
+    function test_updateAccounting_afterDomainEnd() external {
+        vm.warp(START + 12_000);
+
+        _assertLoanManagerState({
+            accruedInterest:       32 + 40,
+            accountedInterest:     48,             // Accounted during loan2 funding.
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_120,
+            issuanceRate:          0.018e30,
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_120);
+
+        vm.prank(poolDelegate);
+        loanManager.updateAccounting();
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     140,             // 120 + 20 from loan2
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_140,
+            issuanceRate:          0.01e30,
+            domainStart:           START + 12_000,
+            domainEnd:             START + 16_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_140);
+    }
+
+    function test_updateAccounting_afterTwoDomainEnds() external {
+        vm.warp(START + 20_000);
+
+        _assertLoanManagerState({
+            accruedInterest:       32 + 40,
+            accountedInterest:     48,             // Accounted during loan2 funding.
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_120,
+            issuanceRate:          0.018e30,
+            domainStart:           START + 6_000,
+            domainEnd:             START + 10_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_120);
+
+        vm.prank(poolDelegate);
+        loanManager.updateAccounting();
+
+        _assertLoanManagerState({
+            accruedInterest:       0,
+            accountedInterest:     180,             // Accounted during loan2 funding.
+            principalOut:          2_000_000,
+            assetsUnderManagement: 2_000_180,
+            issuanceRate:          0,
+            domainStart:           START + 20_000,
+            domainEnd:             START + 20_000  // End of loan1 payment interval
+        });
+
+        _assertTotalAssets(2_000_180);
+    }
+
+}
