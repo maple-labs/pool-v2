@@ -915,6 +915,15 @@ contract ImpairLoanTests is PoolManagerBase {
         vm.stopPrank();
     }
 
+    function test_impairLoan_protocolPaused() external {
+        vm.prank(GOVERNOR);
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.impairLoan(LOAN);
+    }
+
     function test_impairLoan_notPoolDelegate() external {
         vm.expectRevert("PM:IL:NOT_AUTHORIZED");
         poolManager.impairLoan(LOAN);

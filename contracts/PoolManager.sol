@@ -247,7 +247,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         uint256 unaccountedFunds_ = IMapleLoanLike(loan_).getUnaccountedAmount(asset_);
 
-        // If loan has unaccounted funds then skim the funds to the pool as cash. 
+        // If loan has unaccounted funds then skim the funds to the pool as cash.
         // A more efficient practice would be to only fund for the difference, however this would result in different values for principal out in the loan manager.
         if (unaccountedFunds_ > 0) {
             IMapleLoanLike(loan_).skim(asset_, pool_);
@@ -313,7 +313,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CollateralLiquidationFinished(loan_, losses_);
     }
 
-    function impairLoan(address loan_) external override {
+    function impairLoan(address loan_) external override whenProtocolNotPaused {
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:IL:NOT_AUTHORIZED");
