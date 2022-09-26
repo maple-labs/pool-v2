@@ -58,7 +58,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         uint256 dueDate_ = IMapleLoanLike(loan_).nextPaymentDueDate();
 
-        require(dueDate_ != 0, "LM:A:EXPIRED_LOAN");
+        require(dueDate_ != 0 && block.timestamp < dueDate_, "LM:A:INVALID_LOAN");
 
         uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
         uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
@@ -148,15 +148,22 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
             managementFeeRate_         = HUNDRED_PERCENT;
         }
 
-        ( , uint256[3] memory interest_, )  = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
+        uint256 incomingNetInterest_;
+        uint256 netRefinanceInterest_;
 
-        newRate_ = (_getNetInterest(interest_[0], managementFeeRate_) * PRECISION) / (nextPaymentDueDate_ - startDate_);
+        {
+            ( , uint256 interest_, )  = IMapleLoanLike(loan_).getNextPaymentBreakdown();
+            uint256 refinanceInterest = IMapleLoanLike(loan_).refinanceInterest();
 
-        uint256 incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / 1e30;  // NOTE: Use issuanceRate to capture rounding errors.
+            incomingNetInterest_  = _getNetInterest(interest_ - refinanceInterest, managementFeeRate_);
+            netRefinanceInterest_ = _getNetInterest(refinanceInterest,             managementFeeRate_);
+        }
+
+        newRate_ = (incomingNetInterest_ * PRECISION) / (nextPaymentDueDate_ - startDate_);
+
+        incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / PRECISION;  // NOTE: Use issuanceRate to capture rounding errors.
 
         uint256 paymentId_ = paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_));  // Add the payment to the sorted list.
-
-        uint256 netRefinanceInterest_ = _getNetInterest(interest_[2], managementFeeRate_);
 
         payments[paymentId_] = PaymentInfo({
             platformManagementFeeRate: _uint24(platformManagementFeeRate_),
@@ -169,7 +176,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         });
 
         // Update the accounted interest to reflect what is present in the loan.
-        accountedInterest += _uint112(netRefinanceInterest_);
+        accountedInterest += _uint112(netRefinanceInterest_) + _uint112(newRate_ * (block.timestamp - startDate_) / PRECISION);
 
         emit PaymentAdded(
             loan_,
