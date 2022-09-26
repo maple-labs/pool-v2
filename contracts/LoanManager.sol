@@ -592,9 +592,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         updatedRemainingLosses_ = (remainingLosses_ -= toPool_);
 
-        address fundsAsset_ = fundsAsset;
+        address fundsAsset_    = fundsAsset;
+        address mapleTreasury_ = mapleTreasury();
 
-        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury(),                  toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
+        require(mapleTreasury_ != address(0), "LM:DLF:ZERO_ADDRESS");
+
+        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury_,                   toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
         require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                             toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
         require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, IMapleLoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
     }
@@ -607,9 +610,13 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             ? interest_ * payments[paymentId_].delegateManagementFeeRate / HUNDRED_PERCENT
             : 0;
 
-        require(ERC20Helper.transfer(fundsAsset, pool, principal_ + interest_ - platformFee_ - delegateFee_), "LM:CL:POOL_TRANSFER");
-        require(ERC20Helper.transfer(fundsAsset, mapleTreasury(), platformFee_),                              "LM:CL:MT_TRANSFER");
-        require(delegateFee_ == 0 || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_),          "LM:CL:PD_TRANSFER");
+        address mapleTreasury_ = mapleTreasury();
+
+        require(mapleTreasury_ != address(0), "LM:DCF:ZERO_ADDRESS");
+
+        require(ERC20Helper.transfer(fundsAsset, pool, principal_ + interest_ - platformFee_ - delegateFee_), "LM:DCF:POOL_TRANSFER");
+        require(ERC20Helper.transfer(fundsAsset, mapleTreasury_, platformFee_),                               "LM:DCF:MT_TRANSFER");
+        require(delegateFee_ == 0 || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_),          "LM:DCF:PD_TRANSFER");
     }
 
     /******************************************************************************************************************************/

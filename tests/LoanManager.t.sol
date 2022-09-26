@@ -4159,7 +4159,7 @@ contract SetterTests is LoanManagerBaseTest {
         loanManager.__setPrincipalOut(1_000_000e6);
         loanManager.__setAccountedInterest(10_000e6);
     }
-    
+
     function test_getAccruedInterest() external {
         // At the start accrued interest is zero.
         assertEq(loanManager.getAccruedInterest(), 0);
@@ -4204,6 +4204,36 @@ contract SetterTests is LoanManagerBaseTest {
 
         vm.warp(START + 2_000_000);
         assertEq(loanManager.assetsUnderManagement(), 1_000_000e6 + 10_000e6 + 100_000);
+    }
+
+}
+
+contract DisburseLiquidationFundsTests is LoanManagerBaseTest {
+
+    function test_disburseLiquidationFunds_mapleTreasuryNotSet() external {
+        globals.setMapleTreasury(address(0));
+
+        MockLoan loan = new MockLoan(address(collateralAsset), address(fundsAsset));
+
+        fundsAsset.mint(address(loanManager), 300);
+
+        vm.expectRevert("LM:DLF:ZERO_ADDRESS");
+        loanManager.disburseLiquidationFunds(address(loan), 100, 100, 100);
+    }
+
+}
+
+contract DistributeClaimedFunds is LoanManagerBaseTest {
+
+    function test_distributeClaimedFunds_mapleTreasuryNotSet() external {
+        globals.setMapleTreasury(address(0));
+
+        MockLoan loan = new MockLoan(address(collateralAsset), address(fundsAsset));
+
+        fundsAsset.mint(address(loanManager), 200);
+
+        vm.expectRevert("LM:DCF:ZERO_ADDRESS");
+        loanManager.distributeClaimedFunds(address(loan), 100, 100);
     }
 
 }

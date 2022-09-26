@@ -15,6 +15,14 @@ contract LoanManagerHarness is LoanManager {
         _removePaymentFromList(paymentId_);
     }
 
+    function disburseLiquidationFunds(address loan_, uint256 recoveredFunds_, uint256 platformFees_, uint256 remainingLosses_) external {
+        _disburseLiquidationFunds(loan_, recoveredFunds_, platformFees_, remainingLosses_);
+    }
+
+    function distributeClaimedFunds(address loan_, uint256 principal_, uint256 interest_) external {
+        _distributeClaimedFunds(loan_, principal_, interest_);
+    }
+
     function __setAccountedInterest(uint112 accountedInterest_) external {
         accountedInterest = accountedInterest_;
     }
