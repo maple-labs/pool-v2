@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 import { Address }               from "../../modules/contract-test-utils/contracts/test.sol";
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { ERC20Helper }           from "../../modules/erc20-helper/src/ERC20Helper.sol";
 
 import { IMapleLoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
 
@@ -299,6 +300,10 @@ contract MockLoan {
         delete unimpairedPaymentDueDate;
 
         isImpaired = false;
+    }
+
+    function skim(address asset_, address destination_) external returns (uint256 skimmed_) {
+        ERC20Helper.transfer(asset_, destination_, unaccountedAmounts[asset_]);
     }
 
     function impairLoan() external {

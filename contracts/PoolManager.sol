@@ -213,18 +213,25 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address pool_        = pool;
         address loanManager_ = loanManagers[loan_];
 
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-
         require(msg.sender == poolDelegate,                                               "PM:ANT:NOT_PD");
         require(isLoanManager[loanManager_],                                              "PM:ANT:INVALID_LOAN_MANAGER");
         require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
         require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:ANT:ZERO_SUPPLY");
         require(_hasSufficientCover(globals_, asset_),                                    "PM:ANT:INSUFFICIENT_COVER");
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_),       "PM:ANT:TRANSFER_FAIL");
 
-        uint256 remainingLiquidity_ = IERC20Like(asset_).balanceOf(address(pool_));
+        // If loan has unaccounted funds then skim the funds to the pool as cash.
+        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
+            IMapleLoanLike(loan_).skim(asset_, pool_);
+        }
 
-        require(remainingLiquidity_ >= lockedLiquidity_, "PM:ANT:LOCKED_LIQUIDITY");
+        // Fetching locked liquidity needs to be done prior to transferring the tokens.
+        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+
+        // Transfer the required principal.
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "PM:ANT:TRANSFER_FAIL");
+
+        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
+        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:ANT:LOCKED_LIQUIDITY");
 
         ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_);
 
@@ -245,21 +252,18 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         loanManagers[loan_] = loanManager_;
 
-        uint256 unaccountedFunds_ = IMapleLoanLike(loan_).getUnaccountedAmount(asset_);
-
         // If loan has unaccounted funds then skim the funds to the pool as cash.
-        // A more efficient practice would be to only fund for the difference, however this would result in different values for principal out in the loan manager.
-        if (unaccountedFunds_ > 0) {
+        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
             IMapleLoanLike(loan_).skim(asset_, pool_);
         }
 
-        // Fetching locked liquidity needs to be done prior to transferring the tokens, because the withdrawal manager checks the pool balance to determine total assets.
-        uint256 lockedLiquidity =  IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+        // Fetching locked liquidity needs to be done prior to transferring the tokens.
+        uint256 lockedLiquidity = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
         // Fund for the full amount of principal requested.
         require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
 
-        // The remaining liquidity (i.e. the balance of the funds asset in the pool) msu be greater than the amount required ot be locked.
+        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
         require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity, "PM:F:LOCKED_LIQUIDITY");
 
         ILoanManagerLike(loanManager_).fund(loan_);

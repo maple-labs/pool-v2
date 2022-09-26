@@ -668,6 +668,22 @@ contract AcceptNewTermsTests is PoolManagerBase {
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
     }
 
+    function test_acceptNewTerms_unaccountedFunds() external {
+        address refinancer = address(new Address());
+
+        // Add unaccounted funds to the loan.
+        asset.mint(address(loan), 1);
+        loan.__setUnaccountedAmount(address(asset), 1);
+
+        assertEq(asset.balanceOf(address(pool)), 500_000e18);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp, new bytes[](0), 500_000e18);
+
+        // Confirm unaccounted funds were skimmed to the pool.
+        assertEq(asset.balanceOf(address(pool)), 1);
+    }
+
 }
 
 contract FundTests is PoolManagerBase {
@@ -827,6 +843,21 @@ contract FundTests is PoolManagerBase {
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
         assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
+    }
+
+    function test_fund_success_skimUnaccountedFunds() external {
+        loan.__setUnaccountedAmount(address(asset), 1);
+
+        asset.mint(address(loan), 1);
+
+        assertEq(asset.balanceOf(address(loan)), 1);
+        assertEq(asset.balanceOf(address(pool)), principalRequested);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+
+        assertEq(asset.balanceOf(address(loan)), principalRequested);
+        assertEq(asset.balanceOf(address(pool)), 1);
     }
 }
 
