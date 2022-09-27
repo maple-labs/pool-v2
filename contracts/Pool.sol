@@ -136,29 +136,28 @@ contract Pool is IPool, ERC20 {
     /*** Withdrawal Request Functions ***/
     /************************************/
 
-    function removeShares(uint256 shares_) external override nonReentrant checkCall("P:removeShares") returns (uint256 sharesReturned_) {
+    function removeShares(uint256 shares_, address owner_) external override nonReentrant checkCall("P:removeShares") returns (uint256 sharesReturned_) {
+        if (msg.sender != owner_) _decreaseAllowance(owner_, msg.sender, shares_);
+
         emit SharesRemoved(
-            msg.sender,
-            sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, msg.sender)
+            owner_,
+            sharesReturned_ = IPoolManagerLike(manager).removeShares(shares_, owner_)
         );
     }
 
-    // TODO: Add user and approvals.
-    // TODO: To be grammatically correct ths should be `requestRedemption` since the event is `RedemptionRequested`.
-    function requestRedeem(uint256 shares_) external override nonReentrant checkCall("P:requestRedeem") returns (uint256 escrowedShares_) {
+    function requestRedeem(uint256 shares_, address owner_) external override nonReentrant checkCall("P:requestRedeem") returns (uint256 escrowedShares_) {
         emit RedemptionRequested(
-            msg.sender,
+            owner_,
             shares_,
-            escrowedShares_ = _requestRedeem(shares_)
+            escrowedShares_ = _requestRedeem(shares_, owner_)
         );
     }
 
-    // TODO: To be grammatically correct ths should be `requestWithdrawal` with a `WithdrawalRequested` event. Also, see `requestRedeem`.
-    function requestWithdraw(uint256 assets_) external override nonReentrant checkCall("P:requestWithdraw") returns (uint256 escrowedShares_) {
+    function requestWithdraw(uint256 assets_, address owner_) external override nonReentrant checkCall("P:requestWithdraw") returns (uint256 escrowedShares_) {
         emit WithdrawRequested(
-            msg.sender,
+            owner_,
             assets_,
-            escrowedShares_ = _requestRedeem(convertToExitShares(assets_))
+            escrowedShares_ = _requestRedeem(convertToExitShares(assets_), owner_)
         );
     }
 
@@ -198,19 +197,20 @@ contract Pool is IPool, ERC20 {
         require(ERC20Helper.transferFrom(asset, caller_, address(this), assets_), "P:M:TRANSFER_FROM");
     }
 
-    // TODO: To be grammatically correct this should be `_requestRedemption`.
-    function _requestRedeem(uint256 shares_) internal returns (uint256 escrowShares_) {
+    function _requestRedeem(uint256 shares_, address owner_) internal returns (uint256 escrowShares_) {
         require(shares_ != 0, "P:RR:ZERO_SHARES");
+
+        if (msg.sender != owner_) _decreaseAllowance(owner_, msg.sender, shares_);
 
         address destination_;
 
-        ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(msg.sender, shares_);
+        ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(owner_, shares_);
 
         if (escrowShares_ != 0 && destination_ != address(0)) {
-            _transfer(msg.sender, destination_, escrowShares_);
+            _transfer(owner_, destination_, escrowShares_);
         }
 
-        IPoolManagerLike(manager).requestRedeem(escrowShares_, msg.sender);
+        IPoolManagerLike(manager).requestRedeem(escrowShares_, owner_);
     }
 
     /*******************************/

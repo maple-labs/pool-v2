@@ -729,7 +729,7 @@ contract RemoveSharesTests is PoolBase {
         asset.mint(address(pool), 1_000e6);
 
         vm.prank(user);
-        pool.requestRedeem(500e6);
+        pool.requestRedeem(500e6, address(user));
     }
 
     function test_removeShares_checkCall() public {
@@ -737,7 +737,41 @@ contract RemoveSharesTests is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.removeShares(500e6);         
+        pool.removeShares(500e6, address(user));         
+    }
+
+    function test_removeShares_failWithoutApproval() public {
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.removeShares(500e6, address(user));         
+    }
+
+    function test_removeShares_insufficientApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6 - 1);
+
+        assertEq(pool.allowance(user, address(this)), 500e6 - 1);
+
+        // Fail with insufficient approval
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.removeShares(500e6, address(user));    
+
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        pool.removeShares(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
+    }
+
+    function test_removeShares_withApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        assertEq(pool.allowance(user, address(this)), 500e6);
+
+        pool.removeShares(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
     }
 
 }
@@ -763,7 +797,41 @@ contract RequestRedeemTests is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.requestRedeem(500e6); 
+        pool.requestRedeem(500e6, address(user)); 
+    }
+
+    function test_requestRedeem_failWithoutApproval() public {
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.requestRedeem(500e6, address(user)); 
+    }
+
+    function test_requestRedeem_insufficientApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6 - 1);
+
+        assertEq(pool.allowance(user, address(this)), 500e6 - 1);
+
+        // Fail with insufficient approval
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.requestRedeem(500e6, address(user));    
+
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        pool.requestRedeem(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
+    }
+
+    function test_requestRedeem_withApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        assertEq(pool.allowance(user, address(this)), 500e6);
+
+        pool.requestRedeem(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
     }
 
 }
@@ -789,7 +857,41 @@ contract RequestWithdraw is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.requestWithdraw(500e6); 
+        pool.requestWithdraw(500e6, address(user)); 
+    }
+
+    function test_requestWithdraw_failWithoutApproval() public {
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.requestWithdraw(500e6, address(user)); 
+    }
+
+    function test_requestWithdraw_insufficientApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6 - 1);
+
+        assertEq(pool.allowance(user, address(this)), 500e6 - 1);
+
+        // Fail with insufficient approval
+        vm.expectRevert(ARITHMETIC_ERROR);
+        pool.requestWithdraw(500e6, address(user));    
+
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        pool.requestWithdraw(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
+    }
+
+    function test_requestWithdraw_withApproval() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        assertEq(pool.allowance(user, address(this)), 500e6);
+
+        pool.requestWithdraw(500e6, address(user)); 
+
+        assertEq(pool.allowance(user, address(this)), 0);
     }
 
 }

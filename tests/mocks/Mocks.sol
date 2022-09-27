@@ -596,6 +596,8 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
 
     function requestRedeem(uint256 shares_, address owner_) external { }
 
+    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) { }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
         delegateManagementFeeRate = delegateManagementFeeRate_;
     }
@@ -660,7 +662,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
         unrealizedLosses = unrealizedLosses_;
     }
-
+    
 }
 
 contract MockReenteringERC20 is MockERC20 {
