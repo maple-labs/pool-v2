@@ -24,9 +24,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision.
 
-    /*****************/
-    /*** Modifiers ***/
-    /*****************/
+    /******************************************************************************************************************************/
+    /*** Modifiers                                                                                                              ***/
+    /******************************************************************************************************************************/
 
     modifier nonReentrant() {
         require(_locked == 1, "P:LOCKED");
@@ -43,9 +43,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _;
     }
 
-    /***************************/
-    /*** Migration Functions ***/
-    /***************************/
+    /******************************************************************************************************************************/
+    /*** Migration Functions                                                                                                    ***/
+    /******************************************************************************************************************************/
 
     // NOTE: Can't add whenProtocolNotPaused modifier here, as globals won't be set until
     //       initializer.initialize() is called, and this function is what triggers that initialization.
@@ -75,9 +75,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
-    /************************************/
-    /*** Ownership Transfer Functions ***/
-    /************************************/
+    /******************************************************************************************************************************/
+    /*** Ownership Transfer Functions                                                                                           ***/
+    /******************************************************************************************************************************/
 
     function acceptPendingPoolDelegate() external override whenProtocolNotPaused {
         require(msg.sender == pendingPoolDelegate, "PM:APPD:NOT_PENDING_PD");
@@ -100,9 +100,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit PendingDelegateSet(poolDelegate_, pendingPoolDelegate_);
     }
 
-    /********************************/
-    /*** Administrative Functions ***/
-    /********************************/
+    /******************************************************************************************************************************/
+    /*** Administrative Functions                                                                                               ***/
+    /******************************************************************************************************************************/
 
     function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
@@ -173,7 +173,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function setLiquidityCap(uint256 liquidityCap_) external override whenProtocolNotPaused {
         require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
-        // TODO: Add range check call to globals
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
@@ -195,9 +194,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);  // NOTE: Can be zero in order to temporarily pause withdrawals.
     }
 
-    /**********************/
-    /*** Loan Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** Loan Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     function acceptNewTerms(
         address loan_,
@@ -238,7 +237,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
     }
 
-    // TODO: Investigate why gas costs are so high for funding.
     function fund(uint256 principal_, address loan_, address loanManager_) external override whenProtocolNotPaused nonReentrant {
         address asset_   = asset;
         address globals_ = globals();
@@ -271,9 +269,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanFunded(loan_, loanManager_, principal_);
     }
 
-    /*****************************/
-    /*** Liquidation Functions ***/
-    /*****************************/
+    /******************************************************************************************************************************/
+    /*** Liquidation Functions                                                                                                  ***/
+    /******************************************************************************************************************************/
 
     function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:FCL:NOT_AUTHORIZED");
@@ -327,9 +325,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanImpaired(loan_, block.timestamp);
     }
 
-    /**********************/
-    /*** Exit Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** Exit Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     // TODO: Should be called `processRedemption` and `RedemptionProcessed` for grammatical correctness. See `processWithdraw`.
     function processRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused nonReentrant returns (uint256 redeemableShares_, uint256 resultingAssets_) {
@@ -359,11 +357,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit RedeemRequested(owner_, shares_);
     }
 
-    /***********************/
-    /*** Cover Functions ***/
-    /***********************/
+    /******************************************************************************************************************************/
+    /*** Cover Functions                                                                                                        ***/
+    /******************************************************************************************************************************/
 
-    // TODO: implement deposit cover with permit
     function depositCover(uint256 amount_) external override whenProtocolNotPaused {
         require(ERC20Helper.transferFrom(asset, msg.sender, poolDelegateCover, amount_), "PM:DC:TRANSFER_FAIL");
         emit CoverDeposited(amount_);
@@ -384,9 +381,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CoverWithdrawn(amount_);
     }
 
-    /*********************************/
-    /*** Internal Helper Functions ***/
-    /*********************************/
+    /******************************************************************************************************************************/
+    /*** Internal Helper Functions                                                                                              ***/
+    /******************************************************************************************************************************/
 
     function _handleCover(uint256 losses_, uint256 platformFees_) internal {
         address globals_ = globals();
@@ -404,9 +401,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         }
     }
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view override returns (bool canCall_, string memory errorMessage_) {
         if (IMapleGlobalsLike(globals()).protocolPaused()) {
@@ -487,9 +484,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         }
     }
 
-    /*******************************/
-    /*** LP Token View Functions ***/
-    /*******************************/
+    /******************************************************************************************************************************/
+    /*** LP Token View Functions                                                                                                ***/
+    /******************************************************************************************************************************/
 
     function convertToExitShares(uint256 assets_) public view override returns (uint256 shares_) {
         shares_ = IPoolLike(pool).convertToExitShares(assets_);
@@ -542,9 +539,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         unrealizedLosses_ = _min(unrealizedLosses_, totalAssets());
     }
 
-    /**************************/
-    /*** Internal Functions ***/
-    /**************************/
+    /******************************************************************************************************************************/
+    /*** Internal Functions                                                                                                     ***/
+    /******************************************************************************************************************************/
 
     function _canDeposit(uint256 assets_, address receiver_, string memory errorPrefix_) internal view returns (bool canDeposit_, string memory errorMessage_) {
         if (!active)                                    return (false, _formatErrorMessage(errorPrefix_, "NOT_ACTIVE"));

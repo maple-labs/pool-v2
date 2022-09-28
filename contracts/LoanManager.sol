@@ -410,7 +410,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         emit PaymentRemoved(loan_, paymentId_);
 
         // If a payment has been made against a loan that was impaired, reverse the impairment accounting.
-        // TODO: Consider moving all "5" functions into a helper function and reusing logic in ANT.
         if (liquidationInfo_.principal != 0) {
             _revertLoanImpairment(liquidationInfo_);  // NOTE: Don't set the previous rate since it will always be zero.
             delete liquidationInfo[loan_];

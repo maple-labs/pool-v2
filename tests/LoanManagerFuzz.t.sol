@@ -25,8 +25,6 @@ import { ILoanManagerStructs } from "./interfaces/ILoanManagerStructs.sol";
 
 import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
 
-// TODO: Can we add tests for 2 claims on the same loan without any payments between them?
-
 contract LoanManagerBaseTest is TestUtils {
 
     uint256 constant START = 5_000_000;

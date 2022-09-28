@@ -265,8 +265,6 @@ contract Pool is IPool, ERC20 {
         shares_ = _divRoundUp(amount_ * totalSupply, totalAssets() - unrealizedLosses());
     }
 
-    // TODO consider unrealized losses
-
     function previewDeposit(uint256 assets_) public view virtual override returns (uint256 shares_) {
         // As per https://eips.ethereum.org/EIPS/eip-4626#security-considerations,
         // it should round DOWN if it’s calculating the amount of shares to issue to a user, given an amount of assets provided.

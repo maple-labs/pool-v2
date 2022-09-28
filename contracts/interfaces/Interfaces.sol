@@ -57,14 +57,7 @@ interface ILiquidatorLike {
 
     function pullFunds(address token_, address destination_, uint256 amount_) external;
 
-    function setCollateralRemaining(uint256 collateralAmount_) external; 
-
-}
-
-interface ILoanV3Like {
-
-    // TODO: Investigate why this works, update to V3 - potentially V2
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function setCollateralRemaining(uint256 collateralAmount_) external;
 
 }
 

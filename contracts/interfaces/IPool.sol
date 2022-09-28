@@ -7,9 +7,9 @@ import { IERC4626 } from "./IERC4626.sol";
 
 interface IPool is IERC20, IERC4626 {
 
-    /**************/
-    /*** Events ***/
-    /**************/
+    /******************************************************************************************************************************/
+    /*** Events                                                                                                                 ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev   `newOwner_` has accepted the transferral of RDT ownership from `previousOwner_`.
@@ -48,9 +48,9 @@ interface IPool is IERC20, IERC4626 {
      */
     event WithdrawRequested(address indexed owner_, uint256 assets_, uint256 escrowedShares_);
 
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
+    /******************************************************************************************************************************/
+    /*** State Variables                                                                                                        ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev The address of the account that is allowed to update the vesting schedule.
@@ -58,9 +58,9 @@ interface IPool is IERC20, IERC4626 {
      */
     function manager() external view returns (address manager_);
 
-    /********************/
-    /*** LP Functions ***/
-    /********************/
+    /******************************************************************************************************************************/
+    /*** LP Functions                                                                                                           ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev    Does a ERC4626 `deposit` with a ERC-2612 `permit`.
@@ -87,9 +87,9 @@ interface IPool is IERC20, IERC4626 {
      */
     function mintWithPermit(uint256 shares_, address receiver_, uint256 maxAssets_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) external returns (uint256 assets_);
 
-    /************************************/
-    /*** Withdrawal Request Functions ***/
-    /************************************/
+    /******************************************************************************************************************************/
+    /*** Withdrawal Request Functions                                                                                           ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev    Requests a redemption of shares from the pool.
@@ -115,9 +115,9 @@ interface IPool is IERC20, IERC4626 {
      */
     function requestRedeem(uint256 shares_, address owner_) external returns (uint256 escrowShares_);
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev    Returns the amount of underlying assets owned by the specified account.

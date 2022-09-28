@@ -434,7 +434,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         assertEq(loanManager.assetsUnderManagement(),      1_000_080);
         assertEq(loanManager.issuanceRate(),               0);
         assertEq(loanManager.domainStart(),                5_011_000);
-        assertEq(loanManager.domainEnd(),                  5_011_000);  // TODO: This should never become 0, but does because there are no loans left.
+        assertEq(loanManager.domainEnd(),                  5_011_000);
         assertEq(loanManager.paymentWithEarliestDueDate(), 0);
         assertEq(loanManager.unrealizedLosses(),           1_000_080);
 
@@ -1400,8 +1400,6 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
 }
 
-// TODO: Refactor above tests to use 80%
-// TODO: Update helper function to include loan issuance rate.
 contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
     MockLoan loan1;
@@ -1484,9 +1482,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  Resulting total assets: 2_000_000 + 0         + 48 + 180 = 1_000_228
          */
 
-        /**********************/
-        /*** Loan 1 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 1 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 10_000);
 
@@ -1550,9 +1548,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_120);
 
-        /**********************/
-        /*** Loan 2 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 2 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 16_000);
 
@@ -1661,9 +1659,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  Resulting total assets: 2_000_000 + 0         + 53 + 180 = 1_000_233
          */
 
-        /**********************/
-        /*** Loan 1 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 1 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 8_000);
 
@@ -1727,9 +1725,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_100);
 
-        /**********************/
-        /*** Loan 2 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 2 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 16_000);
 
@@ -1839,9 +1837,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
          *  Resulting total assets: 2_000_000 + 48        + 0         + 204 = 2_000_252
          */
 
-        /**********************/
-        /*** Loan 1 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 1 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 12_000);
 
@@ -1906,9 +1904,9 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_181);
 
-        /**********************/
-        /*** Loan 2 Payment ***/
-        /**********************/
+        /******************************************************************************************************************************/
+        /*** Loan 2 Payment                                                                                                         ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 16_000);
 
@@ -2179,7 +2177,6 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
          */
     }
 
-    // TODO: Simulate loan catching all the way back up
     function test_claim_domainStart_gt_domainEnd() external {
         /**
          *  ********************************
@@ -2241,9 +2238,9 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
          *  Resulting total assets: 2_000_000 + 0  + (80 + 50) + 180 = 2_000_310
          */
 
-        /*******************/
-        /*** Loan 2 Fund ***/
-        /*******************/
+        /******************************************************************************************************************************/
+        /*** Loan 2 Fund                                                                                                            ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 12_000);
 
@@ -2252,9 +2249,9 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         fundsAsset.burn(address(pool), 1_000_000);  // Mock pool moving cash
 
-        /***********************************/
-        /*** Loan 2 Payment (t = 24_000) ***/
-        /***********************************/
+        /******************************************************************************************************************************/
+        /*** Loan 2 Payment (t = 24_000)                                                                                            ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 24_000);
 
@@ -2266,9 +2263,9 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
             nextPaymentDueDate:  START + 32_000
         });
 
-        /***********************************/
-        /*** Loan 1 Payment (t = 27_000) ***/
-        /***********************************/
+        /******************************************************************************************************************************/
+        /*** Loan 1 Payment (t = 27_000)                                                                                            ***/
+        /******************************************************************************************************************************/
 
         vm.warp(START + 27_000);
 
@@ -2308,9 +2305,9 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
 
         _assertTotalAssets(2_000_230 + 1);
 
-        /**********************************/
-        /*** Loan 1 Payment (t = 10_000 ***/
-        /**********************************/
+        /******************************************************************************************************************************/
+        /*** Loan 1 Payment (t = 10_000                                                                                             ***/
+        /******************************************************************************************************************************/
 
         _makePayment({
             loan:                address(loan1),
@@ -2358,8 +2355,6 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
     }
 }
 
-// TODO: Create mock refinance interest values
-// TODO: Add fuzzing to automate amortized tests
 contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
 
     MockLoan loan;
@@ -3419,9 +3414,9 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         latestPaymentInfo.paymentDueDate       = 30;
     }
 
-    /*******************/
-    /*** Add Payemnt ***/
-    /*******************/
+    /******************************************************************************************************************************/
+    /*** Add Payemnt                                                                                                            ***/
+    /******************************************************************************************************************************/
 
     function test_addPaymentToList_single() external {
         loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
@@ -3658,9 +3653,9 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
         assertEq(next,     0);
     }
 
-    /**********************/
-    /*** Remove Payemnt ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** Remove Payemnt                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     // TODO: Add recognizePayment coverage
     function test_removePaymentFromList_invalidPaymentId() external {

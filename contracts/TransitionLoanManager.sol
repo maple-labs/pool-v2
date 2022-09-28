@@ -15,9 +15,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     uint256 public override constant PRECISION       = 1e30;
     uint256 public override constant HUNDRED_PERCENT = 1e6;  // 100.0000%
 
-    /*****************/
-    /*** Modifiers ***/
-    /*****************/
+    /******************************************************************************************************************************/
+    /*** Modifiers                                                                                                              ***/
+    /******************************************************************************************************************************/
 
     modifier nonReentrant() {
         require(_locked == 1, "TLM:LOCKED");
@@ -29,9 +29,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         _locked = 1;
     }
 
-    /********************************/
-    /*** Upgradeability Functions ***/
-    /********************************/
+    /******************************************************************************************************************************/
+    /*** Upgradeability Functions                                                                                               ***/
+    /******************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) override external {
         require(msg.sender == _factory(),        "TLM:M:NOT_FACTORY");
@@ -49,9 +49,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
 
-    /*************************************/
-    /*** Liquidity Migration Functions ***/
-    /*************************************/
+    /******************************************************************************************************************************/
+    /*** Liquidity Migration Functions                                                                                          ***/
+    /******************************************************************************************************************************/
 
     function add(address loan_) external override nonReentrant {
         require(msg.sender == migrationAdmin(), "TLM:A:NOT_MA");
@@ -90,9 +90,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         }
     }
 
-    /******************************************/
-    /*** Internal Payment Sorting Functions ***/
-    /******************************************/
+    /******************************************************************************************************************************/
+    /*** Internal Payment Sorting Functions                                                                                     ***/
+    /******************************************************************************************************************************/
 
     function _addPaymentToList(uint48 paymentDueDate_) internal returns (uint24 paymentId_) {
         paymentId_ = ++paymentCounter;
@@ -139,9 +139,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         delete sortedPayments[paymentId_];
     }
 
-    /*********************************************/
-    /*** Internal Payment Accounting Functions ***/
-    /*********************************************/
+    /******************************************************************************************************************************/
+    /*** Internal Payment Accounting Functions                                                                                  ***/
+    /******************************************************************************************************************************/
 
     function _queueNextPayment(address loan_, uint256 startDate_, uint256 nextPaymentDueDate_) internal returns (uint256 newRate_) {
         uint256 platformManagementFeeRate_ = IMapleGlobalsLike(globals()).platformManagementFeeRate(poolManager);
@@ -209,9 +209,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         );
     }
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     function assetsUnderManagement() public view virtual override returns (uint256 assetsUnderManagement_) {
         assetsUnderManagement_ = principalOut + accountedInterest + getAccruedInterest();
@@ -242,9 +242,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         migrationAdmin_ = IMapleGlobalsLike(globals()).migrationAdmin();
     }
 
-    /*********************************/
-    /*** Internal Helper Functions ***/
-    /*********************************/
+    /******************************************************************************************************************************/
+    /*** Internal Helper Functions                                                                                              ***/
+    /******************************************************************************************************************************/
 
     function _getNetInterest(uint256 interest_, uint256 feeRate_) internal pure returns (uint256 netInterest_) {
         netInterest_ = interest_ * (HUNDRED_PERCENT - feeRate_) / HUNDRED_PERCENT;
