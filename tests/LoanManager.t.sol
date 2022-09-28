@@ -259,16 +259,18 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
         uint256 incomingNetInterest,
         uint256 refinanceInterest,
         uint256 startDate,
-        uint256 paymentDueDate
+        uint256 paymentDueDate,
+        uint256 issuanceRate
     )
         internal
     {
-        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loan));
+        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, uint256 issuanceRate_ ) = loanManager.payments(loanManager.paymentIdOf(loan));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
         assertEq(startDate_,           startDate);
         assertEq(paymentDueDate_,      paymentDueDate);
+        assertEq(issuanceRate_,        issuanceRate);
     }
 
     function _assertLoanManagerState(
@@ -982,7 +984,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1016,7 +1019,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1053,7 +1057,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1087,7 +1092,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 4_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.005e30
         });
 
         _assertLoanManagerState({
@@ -1124,7 +1130,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1159,7 +1166,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1197,7 +1205,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1231,7 +1240,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1269,7 +1279,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1303,7 +1314,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 4_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.005e30
         });
 
         _assertLoanManagerState({
@@ -1341,7 +1353,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1376,7 +1389,8 @@ contract SingleLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1493,7 +1507,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1527,7 +1542,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1559,7 +1575,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
-            paymentDueDate:      START + 16_000
+            paymentDueDate:      START + 16_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -1593,7 +1610,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
-            paymentDueDate:      START + 26_000
+            paymentDueDate:      START + 26_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -1670,7 +1688,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1704,7 +1723,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 79,
             refinanceInterest:   0,
             startDate:           START + 8_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.006666666666666666666666666666e30
         });
 
         _assertLoanManagerState({
@@ -1736,7 +1756,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
-            paymentDueDate:      START + 16_000
+            paymentDueDate:      START + 16_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -1770,7 +1791,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
-            paymentDueDate:      START + 26_000
+            paymentDueDate:      START + 26_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -1848,7 +1870,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1883,7 +1906,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.008e30
         });
 
         _assertLoanManagerState({
@@ -1915,7 +1939,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 6_000,
-            paymentDueDate:      START + 16_000
+            paymentDueDate:      START + 16_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -1949,7 +1974,8 @@ contract TwoLoanAtomicClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 16_000,
-            paymentDueDate:      START + 26_000
+            paymentDueDate:      START + 26_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2061,7 +2087,8 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 120,
             refinanceInterest:   0,
             startDate:           START + 18_000,
-            paymentDueDate:      START + 28_000
+            paymentDueDate:      START + 28_000,
+            issuanceRate:        0.012e30
         });
 
         _assertLoanManagerState({
@@ -2120,7 +2147,8 @@ contract ThreeLoanPastDomainEndClaimTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 120,
             refinanceInterest:   0,
             startDate:           START + 18_000,
-            paymentDueDate:      START + 28_000
+            paymentDueDate:      START + 28_000,
+            issuanceRate:        0.012e30
         });
 
         _assertLoanManagerState({
@@ -2275,7 +2303,8 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0
         });
 
         // Loan 2
@@ -2284,7 +2313,8 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 22_000,
-            paymentDueDate:      START + 32_000
+            paymentDueDate:      START + 32_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2323,7 +2353,8 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
             incomingNetInterest: 80,
             refinanceInterest:   0,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000  // In the past - LU > DE
+            paymentDueDate:      START + 20_000,  // In the past - LU > DE
+            issuanceRate:        0
         });
 
         // Loan 2 (No change)
@@ -2332,7 +2363,8 @@ contract ClaimDomainStartGtDomainEnd is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START + 22_000,
-            paymentDueDate:      START + 32_000
+            paymentDueDate:      START + 32_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2425,7 +2457,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2466,7 +2499,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   100,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2523,7 +2557,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 20_000,
-            paymentDueDate:      START + 30_000
+            paymentDueDate:      START + 30_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2589,7 +2624,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2627,7 +2663,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   60,
             startDate:           START + 6_000,
-            paymentDueDate:      START + 16_000
+            paymentDueDate:      START + 16_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2684,7 +2721,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 16_000,
-            paymentDueDate:      START + 26_000
+            paymentDueDate:      START + 26_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2750,7 +2788,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2788,7 +2827,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   148,
             startDate:           START + 14_000,
-            paymentDueDate:      START + 24_000
+            paymentDueDate:      START + 24_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2845,7 +2885,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 24_000,
-            paymentDueDate:      START + 34_000
+            paymentDueDate:      START + 34_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -2912,7 +2953,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 100,
             refinanceInterest:   0,
             startDate:           START,
-            paymentDueDate:      START + 10_000
+            paymentDueDate:      START + 10_000,
+            issuanceRate:        0.01e30
         });
 
         _assertLoanManagerState({
@@ -2950,7 +2992,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   100,
             startDate:           START + 10_000,
-            paymentDueDate:      START + 20_000
+            paymentDueDate:      START + 20_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
@@ -3007,7 +3050,8 @@ contract RefinanceAccountingSingleLoanTests is LoanManagerClaimBaseTest {
             incomingNetInterest: 300,
             refinanceInterest:   0,
             startDate:           START + 20_000,
-            paymentDueDate:      START + 30_000
+            paymentDueDate:      START + 30_000,
+            issuanceRate:        0.03e30
         });
 
         _assertLoanManagerState({
