@@ -27,6 +27,14 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
 
     /**
+     *  @dev   A fee payment was made.
+     *  @param loan_                  The address of the loan contract.
+     *  @param delegateManagementFee_ The amount of delegate management fee paid.
+     *  @param platformManagementFee_ The amount of platform management fee paid.
+    */
+    event ManagementFeesPaid(address loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_);
+
+    /**
      *  @dev   Emitted when `setMinRatio` is called.
      *  @param collateralAsset_ Address of a collateral asset.
      *  @param newMinRatio_     New value for `minRatio`.

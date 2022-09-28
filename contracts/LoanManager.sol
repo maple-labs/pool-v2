@@ -617,6 +617,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(ERC20Helper.transfer(fundsAsset, pool, principal_ + interest_ - platformFee_ - delegateFee_), "LM:DCF:POOL_TRANSFER");
         require(ERC20Helper.transfer(fundsAsset, mapleTreasury_, platformFee_),                               "LM:DCF:MT_TRANSFER");
         require(delegateFee_ == 0 || ERC20Helper.transfer(fundsAsset, poolDelegate(), delegateFee_),          "LM:DCF:PD_TRANSFER");
+
+        emit ManagementFeesPaid(loan_, delegateFee_, platformFee_);
     }
 
     /******************************************************************************************************************************/
