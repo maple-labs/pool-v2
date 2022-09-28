@@ -20,7 +20,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /*****************/
 
     modifier nonReentrant() {
-        require(_locked == 1, "P:LOCKED");
+        require(_locked == 1, "TLM:LOCKED");
 
         _locked = 2;
 
@@ -34,17 +34,17 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /********************************/
 
     function migrate(address migrator_, bytes calldata arguments_) override external {
-        require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
-        require(_migrate(migrator_, arguments_), "LM:M:FAILED");
+        require(msg.sender == _factory(),        "TLM:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_), "TLM:M:FAILED");
     }
 
     function setImplementation(address implementation_) override external {
-        require(msg.sender == _factory(), "LM:SI:NOT_FACTORY");
+        require(msg.sender == _factory(), "TLM:SI:NOT_FACTORY");
         _setImplementation(implementation_);
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
-        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
+        require(msg.sender == migrationAdmin(), "TLM:U:NOT_MA");
 
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
@@ -54,11 +54,17 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     /*************************************/
 
     function add(address loan_) external override nonReentrant {
-        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
+        require(msg.sender == migrationAdmin(), "TLM:A:NOT_MA");
 
         uint256 dueDate_ = IMapleLoanLike(loan_).nextPaymentDueDate();
 
-        require(dueDate_ != 0 && block.timestamp < dueDate_, "LM:A:INVALID_LOAN");
+        require(dueDate_ != 0 && block.timestamp < dueDate_, "TLM:A:INVALID_LOAN");
+
+        uint256 domainStart_ = domainStart;
+
+        if (domainStart_ == 0 || domainStart_ != block.timestamp) {
+            domainStart = _uint48(block.timestamp);
+        }
 
         uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
         uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
@@ -69,7 +75,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     }
 
     function setOwnershipTo(address[] calldata loans_, address newLender_) external override {
-        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
+        require(msg.sender == migrationAdmin(), "TLM:SOT:NOT_MA");
 
         for (uint256 i_ = 0; i_ < loans_.length; i_++) {
             IMapleLoanLike(loans_[i_]).setPendingLender(newLender_);
@@ -77,7 +83,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     }
 
     function takeOwnership(address[] calldata loans_) external override {
-        require(msg.sender == migrationAdmin(), "LM:F:NOT_MIGRATION_ADMIN");
+        require(msg.sender == migrationAdmin(), "TLM:TO:NOT_MA");
 
         for (uint256 i_ = 0; i_ < loans_.length; i_++) {
             IMapleLoanLike(loans_[i_]).acceptLender();
@@ -253,22 +259,22 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     }
 
     function _uint24(uint256 input_) internal pure returns (uint24 output_) {
-        require(input_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
+        require(input_ <= type(uint24).max, "TLM:UINT24_CAST_OOB");
         output_ = uint24(input_);
     }
 
     function _uint48(uint256 input_) internal pure returns (uint32 output_) {
-        require(input_ <= type(uint32).max, "LM:UINT32_CAST_OOB");
+        require(input_ <= type(uint32).max, "TLM:UINT32_CAST_OOB");
         output_ = uint32(input_);
     }
 
     function _uint112(uint256 input_) internal pure returns (uint112 output_) {
-        require(input_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
+        require(input_ <= type(uint112).max, "TLM:UINT112_CAST_OOB");
         output_ = uint112(input_);
     }
 
     function _uint128(uint256 input_) internal pure returns (uint128 output_) {
-        require(input_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        require(input_ <= type(uint128).max, "TLM:UINT128_CAST_OOB");
         output_ = uint128(input_);
     }
 

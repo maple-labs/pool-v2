@@ -737,12 +737,12 @@ contract RemoveSharesTests is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.removeShares(500e6, address(user));         
+        pool.removeShares(500e6, address(user));
     }
 
     function test_removeShares_failWithoutApproval() public {
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.removeShares(500e6, address(user));         
+        pool.removeShares(500e6, address(user));
     }
 
     function test_removeShares_insufficientApproval() public {
@@ -753,12 +753,12 @@ contract RemoveSharesTests is PoolBase {
 
         // Fail with insufficient approval
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.removeShares(500e6, address(user));    
+        pool.removeShares(500e6, address(user));
 
         vm.prank(user);
         pool.approve(address(this), 500e6);
 
-        pool.removeShares(500e6, address(user)); 
+        pool.removeShares(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }
@@ -769,7 +769,7 @@ contract RemoveSharesTests is PoolBase {
 
         assertEq(pool.allowance(user, address(this)), 500e6);
 
-        pool.removeShares(500e6, address(user)); 
+        pool.removeShares(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }
@@ -797,12 +797,12 @@ contract RequestRedeemTests is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.requestRedeem(500e6, address(user)); 
+        pool.requestRedeem(500e6, address(user));
     }
 
     function test_requestRedeem_failWithoutApproval() public {
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.requestRedeem(500e6, address(user)); 
+        pool.requestRedeem(500e6, address(user));
     }
 
     function test_requestRedeem_insufficientApproval() public {
@@ -813,12 +813,12 @@ contract RequestRedeemTests is PoolBase {
 
         // Fail with insufficient approval
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.requestRedeem(500e6, address(user));    
+        pool.requestRedeem(500e6, address(user));
 
         vm.prank(user);
         pool.approve(address(this), 500e6);
 
-        pool.requestRedeem(500e6, address(user)); 
+        pool.requestRedeem(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }
@@ -829,7 +829,7 @@ contract RequestRedeemTests is PoolBase {
 
         assertEq(pool.allowance(user, address(this)), 500e6);
 
-        pool.requestRedeem(500e6, address(user)); 
+        pool.requestRedeem(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }
@@ -857,12 +857,12 @@ contract RequestWithdraw is PoolBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.requestWithdraw(500e6, address(user)); 
+        pool.requestWithdraw(500e6, address(user));
     }
 
     function test_requestWithdraw_failWithoutApproval() public {
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.requestWithdraw(500e6, address(user)); 
+        pool.requestWithdraw(500e6, address(user));
     }
 
     function test_requestWithdraw_insufficientApproval() public {
@@ -873,12 +873,12 @@ contract RequestWithdraw is PoolBase {
 
         // Fail with insufficient approval
         vm.expectRevert(ARITHMETIC_ERROR);
-        pool.requestWithdraw(500e6, address(user));    
+        pool.requestWithdraw(500e6, address(user));
 
         vm.prank(user);
         pool.approve(address(this), 500e6);
 
-        pool.requestWithdraw(500e6, address(user)); 
+        pool.requestWithdraw(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }
@@ -889,7 +889,7 @@ contract RequestWithdraw is PoolBase {
 
         assertEq(pool.allowance(user, address(this)), 500e6);
 
-        pool.requestWithdraw(500e6, address(user)); 
+        pool.requestWithdraw(500e6, address(user));
 
         assertEq(pool.allowance(user, address(this)), 0);
     }

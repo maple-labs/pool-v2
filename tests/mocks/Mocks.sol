@@ -54,7 +54,7 @@ contract MockERC20Pool is Pool {
 
 contract MockGlobals {
 
-    uint256 public constant HUNDRED_PERCENT = 1e18;
+    uint256 public constant HUNDRED_PERCENT = 1e6;
 
     bool internal _factorySet;
     bool internal _failTransferOwnedPoolManager;
@@ -592,7 +592,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     function processWithdraw(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
-    }       
+    }
 
     function requestRedeem(uint256 shares_, address owner_) external { }
 
