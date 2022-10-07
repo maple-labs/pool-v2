@@ -38,11 +38,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _locked = 1;
     }
 
-    modifier whenProtocolNotPaused {
-        require(!IMapleGlobalsLike(globals()).protocolPaused(), "PM:PROTOCOL_PAUSED");
-        _;
-    }
-
     /******************************************************************************************************************************/
     /*** Migration Functions                                                                                                    ***/
     /******************************************************************************************************************************/
@@ -54,12 +49,16 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
     }
 
-    function setImplementation(address implementation_) external override whenProtocolNotPaused {
+    function setImplementation(address implementation_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == _factory(), "PM:SI:NOT_FACTORY");
         _setImplementation(implementation_);
     }
 
-    function upgrade(uint256 version_, bytes calldata arguments_) external override whenProtocolNotPaused {
+    function upgrade(uint256 version_, bytes calldata arguments_) external override {
+        _whenProtocolNotPaused();
+
         address poolDelegate_ = poolDelegate;
 
         require(msg.sender == poolDelegate_ || msg.sender == governor(), "PM:U:NOT_AUTHORIZED");
@@ -99,7 +98,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Ownership Transfer Functions                                                                                           ***/
     /******************************************************************************************************************************/
 
-    function acceptPendingPoolDelegate() external override whenProtocolNotPaused {
+    function acceptPendingPoolDelegate() external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == pendingPoolDelegate, "PM:APPD:NOT_PENDING_PD");
 
         IMapleGlobalsLike(globals()).transferOwnedPoolManager(poolDelegate, msg.sender);
@@ -110,7 +111,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         pendingPoolDelegate = address(0);
     }
 
-    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenProtocolNotPaused {
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external override {
+        _whenProtocolNotPaused();
+
         address poolDelegate_ = poolDelegate;
 
         require(msg.sender == poolDelegate_, "PM:SPA:NOT_PD");
@@ -124,7 +127,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Globals Admin Functions                                                                                                ***/
     /******************************************************************************************************************************/
 
-    function setActive(bool active_) external override whenProtocolNotPaused {
+    function setActive(bool active_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == globals(), "PM:SA:NOT_GLOBALS");
         emit SetAsActive(active = active_);
     }
@@ -133,14 +138,18 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate OR Governor Admin Functions                                                                              ***/
     /******************************************************************************************************************************/
 
-    function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override whenProtocolNotPaused {
+    function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SAS:NOT_AUTHORIZED");
         require(isLoanManager[loanManager_],                            "PM:SAS:NOT_LM");
 
         ILoanManagerLike(loanManager_).setAllowedSlippage(collateralAsset_, allowedSlippage_);
     }
 
-    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override whenProtocolNotPaused {
+    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SMR:NOT_AUTHORIZED");
         require(isLoanManager[loanManager_],                            "PM:SMR:NOT_LM");
 
@@ -151,7 +160,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate Admin Functions                                                                                                ***/
     /******************************************************************************************************************************/
 
-    function addLoanManager(address loanManager_) external override whenProtocolNotPaused {
+    function addLoanManager(address loanManager_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
         require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");
 
@@ -162,7 +173,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanManagerAdded(loanManager_);
     }
 
-    function removeLoanManager(address loanManager_) external override whenProtocolNotPaused {
+    function removeLoanManager(address loanManager_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:RLM:NOT_PD");
 
         isLoanManager[loanManager_] = false;
@@ -178,30 +191,40 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanManagerRemoved(loanManager_);
     }
 
-    function setAllowedLender(address lender_, bool isValid_) external override whenProtocolNotPaused {
+    function setAllowedLender(address lender_, bool isValid_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:SAL:NOT_PD");
         emit AllowedLenderSet(lender_, isValidLender[lender_] = isValid_);
     }
 
-    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override whenProtocolNotPaused {
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate,                    "PM:SDMFR:NOT_PD");
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
-    function setLiquidityCap(uint256 liquidityCap_) external override whenProtocolNotPaused {
+    function setLiquidityCap(uint256 liquidityCap_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
-    function setOpenToPublic() external override whenProtocolNotPaused {
+    function setOpenToPublic() external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:SOTP:NOT_PD");
         openToPublic = true;
         emit OpenToPublic();
     }
 
-    function setWithdrawalManager(address withdrawalManager_) external override whenProtocolNotPaused {
+    function setWithdrawalManager(address withdrawalManager_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:SWM:NOT_PD");
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);  // NOTE: Can be zero in order to temporarily pause withdrawals.
     }
@@ -217,8 +240,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         bytes[] calldata calls_,
         uint256 principalIncrease_
     )
-        external override whenProtocolNotPaused nonReentrant
+        external override nonReentrant
     {
+        _whenProtocolNotPaused();
+
         address asset_       = asset;
         address globals_     = globals();
         address pool_        = pool;
@@ -249,7 +274,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
     }
 
-    function fund(uint256 principal_, address loan_, address loanManager_) external override whenProtocolNotPaused nonReentrant {
+    function fund(uint256 principal_, address loan_, address loanManager_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
         address asset_   = asset;
         address globals_ = globals();
         address pool_    = pool;
@@ -285,7 +312,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Loan Impairment Functions                                                                                              ***/
     /******************************************************************************************************************************/
 
-    function impairLoan(address loan_) external override whenProtocolNotPaused {
+    function impairLoan(address loan_) external override {
+        _whenProtocolNotPaused();
+
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:IL:NOT_AUTHORIZED");
@@ -295,7 +324,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanImpaired(loan_, block.timestamp);
     }
 
-    function removeLoanImpairment(address loan_) external override whenProtocolNotPaused nonReentrant {
+    function removeLoanImpairment(address loan_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
         bool isGovernor_ = msg.sender == governor();
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:RLI:NOT_AUTHORIZED");
@@ -309,7 +340,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Loan Default Functions                                                                                                 ***/
     /******************************************************************************************************************************/
 
-    function finishCollateralLiquidation(address loan_) external override whenProtocolNotPaused nonReentrant {
+    function finishCollateralLiquidation(address loan_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:FCL:NOT_AUTHORIZED");
 
         ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
@@ -319,7 +352,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit CollateralLiquidationFinished(loan_, losses_);
     }
 
-    function triggerDefault(address loan_, address liquidatorFactory_) external override whenProtocolNotPaused nonReentrant {
+    function triggerDefault(address loan_, address liquidatorFactory_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
         bool isFactory_ = IMapleGlobalsLike(globals()).isFactory("LIQUIDATOR", liquidatorFactory_);
 
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:TD:NOT_AUTHORIZED");
@@ -345,13 +380,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Exit Functions                                                                                                    ***/
     /******************************************************************************************************************************/
 
-    function processRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused nonReentrant returns (uint256 redeemableShares_, uint256 resultingAssets_) {
+    function processRedeem(uint256 shares_, address owner_) external override nonReentrant returns (uint256 redeemableShares_, uint256 resultingAssets_) {
+        _whenProtocolNotPaused();
+
         require(msg.sender == pool, "PM:PR:NOT_POOL");
         ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, shares_);
         emit RedeemProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 
-    function removeShares(uint256 shares_, address owner_) external override whenProtocolNotPaused nonReentrant returns (uint256 sharesReturned_) {
+    function removeShares(uint256 shares_, address owner_) external override nonReentrant returns (uint256 sharesReturned_) {
+        _whenProtocolNotPaused();
+
         require(msg.sender == pool, "PM:RS:NOT_POOL");
 
         emit SharesRemoved(
@@ -360,7 +399,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         );
     }
 
-    function requestRedeem(uint256 shares_, address owner_) external override whenProtocolNotPaused nonReentrant {
+    function requestRedeem(uint256 shares_, address owner_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
         address pool_ = pool;
 
         require(msg.sender == pool_,                                    "PM:RR:NOT_POOL");
@@ -375,12 +416,16 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate Cover Functions                                                                                          ***/
     /******************************************************************************************************************************/
 
-    function depositCover(uint256 amount_) external override whenProtocolNotPaused {
+    function depositCover(uint256 amount_) external override {
+        _whenProtocolNotPaused();
+
         require(ERC20Helper.transferFrom(asset, msg.sender, poolDelegateCover, amount_), "PM:DC:TRANSFER_FAIL");
         emit CoverDeposited(amount_);
     }
 
-    function withdrawCover(uint256 amount_, address recipient_) external override whenProtocolNotPaused {
+    function withdrawCover(uint256 amount_, address recipient_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == poolDelegate, "PM:WC:NOT_PD");
 
         require(
@@ -587,6 +632,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         minimum_ = a_ < b_ ? a_ : b_;
+    }
+
+    // Necessary to reduce bytecode size.
+    function _whenProtocolNotPaused() internal view {
+        require(!IMapleGlobalsLike(globals()).protocolPaused(), "PM:PROTOCOL_PAUSED");
     }
 
 }
