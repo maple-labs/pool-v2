@@ -19,6 +19,14 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     event AllowedSlippageSet(address collateralAsset_, uint256 newSlippage_);
 
     /**
+     *  @dev   Funds have been claimed and distributed into the Pool.
+     *  @param loan_        The address of the loan contract.
+     *  @param principal_   The amount of principal paid.
+     *  @param netInterest_ The amount of net interest paid.
+    */
+    event FundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_);
+
+    /**
      *  @dev   Emitted when the issuance parameters are changed.
      *  @param domainEnd_         The timestamp of the domain end.
      *  @param issuanceRate_      New value for the issuance rate.
@@ -32,7 +40,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      *  @param delegateManagementFee_ The amount of delegate management fee paid.
      *  @param platformManagementFee_ The amount of platform management fee paid.
     */
-    event ManagementFeesPaid(address loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_);
+    event ManagementFeesPaid(address indexed loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_);
 
     /**
      *  @dev   Emitted when `setMinRatio` is called.
