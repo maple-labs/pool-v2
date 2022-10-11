@@ -303,9 +303,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
         require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity, "PM:F:LOCKED_LIQUIDITY");
 
-        ILoanManagerLike(loanManager_).fund(loan_);
-
         emit LoanFunded(loan_, loanManager_, principal_);
+
+        ILoanManagerLike(loanManager_).fund(loan_);
     }
 
     /******************************************************************************************************************************/
