@@ -564,7 +564,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function previewWithdraw(address owner_, uint256 assets_) external view virtual override returns (uint256 shares_) {
-        ( shares_, ) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, convertToExitShares(assets_));
+        ( , shares_ ) = IWithdrawalManagerLike(withdrawalManager).previewWithdraw(owner_, assets_);
     }
 
     function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
