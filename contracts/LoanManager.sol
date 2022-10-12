@@ -709,12 +709,15 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function _getDefaultInterestAndFees(address loan_, PaymentInfo memory paymentInfo_) internal view returns (uint256 netInterest_, uint256 netLateInterest_, uint256 platformFees_) {
         // Calculate the accrued interest on the payment using IR to capture rounding errors.
         // Accrue the interest only up to the current time if the payment due date has not been reached yet.
-        netInterest_ = _getPaymentAccruedInterest({
-            startTime_:           paymentInfo_.startDate,
-            endTime_:             _min(paymentInfo_.paymentDueDate, block.timestamp),
-            paymentIssuanceRate_: paymentInfo_.issuanceRate,
-            refinanceInterest_:   paymentInfo_.refinanceInterest
-        });
+        netInterest_ =
+            paymentInfo_.issuanceRate == 0
+                ? paymentInfo_.incomingNetInterest
+                : _getPaymentAccruedInterest({
+                    startTime_:           paymentInfo_.startDate,
+                    endTime_:             _min(paymentInfo_.paymentDueDate, block.timestamp),
+                    paymentIssuanceRate_: paymentInfo_.issuanceRate,
+                    refinanceInterest_:   paymentInfo_.refinanceInterest
+                });
 
         ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
