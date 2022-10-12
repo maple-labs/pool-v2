@@ -242,66 +242,21 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     )
         external override nonReentrant
     {
-        _whenProtocolNotPaused();
-
-        address asset_       = asset;
-        address globals_     = globals();
-        address pool_        = pool;
         address loanManager_ = loanManagers[loan_];
-
-        require(msg.sender == poolDelegate,                                               "PM:ANT:NOT_PD");
-        require(isLoanManager[loanManager_],                                              "PM:ANT:INVALID_LOAN_MANAGER");
-        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:ANT:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:ANT:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                                    "PM:ANT:INSUFFICIENT_COVER");
-
-        // If loan has unaccounted funds then skim the funds to the pool as cash.
-        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
-            IMapleLoanLike(loan_).skim(asset_, pool_);
-        }
-
-        // Fetching locked liquidity needs to be done prior to transferring the tokens.
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-
-        // Transfer the required principal.
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principalIncrease_), "PM:ANT:TRANSFER_FAIL");
-
-        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
-        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:ANT:LOCKED_LIQUIDITY");
-
-        ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_);
+        
+        _whenProtocolNotPaused();
+        _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
 
         emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
+
+        ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_);
     }
 
     function fund(uint256 principal_, address loan_, address loanManager_) external override nonReentrant {
         _whenProtocolNotPaused();
-
-        address asset_   = asset;
-        address globals_ = globals();
-        address pool_    = pool;
-
-        require(msg.sender == poolDelegate,                                               "PM:F:NOT_PD");
-        require(isLoanManager[loanManager_],                                              "PM:F:INVALID_LOAN_MANAGER");
-        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:F:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:F:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                                    "PM:F:INSUFFICIENT_COVER");
+        _validateAndFundLoan(loan_, loanManager_, principal_);
 
         loanManagers[loan_] = loanManager_;
-
-        // If loan has unaccounted funds then skim the funds to the pool as cash.
-        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
-            IMapleLoanLike(loan_).skim(asset_, pool_);
-        }
-
-        // Fetching locked liquidity needs to be done prior to transferring the tokens.
-        uint256 lockedLiquidity = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-
-        // Fund for the full amount of principal requested.
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:F:TRANSFER_FAIL");
-
-        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
-        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity, "PM:F:LOCKED_LIQUIDITY");
 
         emit LoanFunded(loan_, loanManager_, principal_);
 
@@ -458,6 +413,32 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         if (toPool_ != 0) {
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
+    }
+
+    function _validateAndFundLoan(address loan_, address loanManager_, uint256 principal_) internal {
+        address asset_   = asset;
+        address globals_ = globals();
+        address pool_    = pool;
+        
+        require(msg.sender == poolDelegate,                                               "PM:VAFL:NOT_PD");
+        require(isLoanManager[loanManager_],                                              "PM:VAFL:INVALID_LOAN_MANAGER");
+        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:VAFL:INVALID_BORROWER");
+        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:VAFL:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),                                    "PM:VAFL:INSUFFICIENT_COVER");
+
+        // If loan has unaccounted funds then skim the funds to the pool as cash.
+        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
+            IMapleLoanLike(loan_).skim(asset_, pool_);
+        }
+
+        // Fetching locked liquidity needs to be done prior to transferring the tokens.
+        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+
+        // Transfer the required principal.
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:VAFL:TRANSFER_FAIL");
+
+        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
+        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:VAFL:LOCKED_LIQUIDITY");
     }
 
     /******************************************************************************************************************************/

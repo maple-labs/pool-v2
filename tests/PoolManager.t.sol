@@ -660,7 +660,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
         address refinancer = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:ANT:LOCKED_LIQUIDITY");
+        vm.expectRevert("PM:VAFL:LOCKED_LIQUIDITY");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18);
 
         // Accepting new terms with less than one succeeds
@@ -723,7 +723,7 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_notPoolDelegate() external {
-        vm.expectRevert("PM:F:NOT_PD");
+        vm.expectRevert("PM:VAFL:NOT_PD");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -731,7 +731,7 @@ contract FundTests is PoolManagerBase {
         MockGlobals(globals).setValidBorrower(BORROWER, false);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:INVALID_BORROWER");
+        vm.expectRevert("PM:VAFL:INVALID_BORROWER");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -739,7 +739,7 @@ contract FundTests is PoolManagerBase {
         pool.burn(address(1), 1);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:ZERO_SUPPLY");
+        vm.expectRevert("PM:VAFL:ZERO_SUPPLY");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
     }
@@ -748,7 +748,7 @@ contract FundTests is PoolManagerBase {
         asset.burn(address(poolManager.pool()), 1_000_000e18);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:TRANSFER_FAIL");
+        vm.expectRevert("PM:VAFL:TRANSFER_FAIL");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -759,7 +759,7 @@ contract FundTests is PoolManagerBase {
         poolManager.removeLoanManager(address(loanManager));
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:INVALID_LOAN_MANAGER");
+        vm.expectRevert("PM:VAFL:INVALID_LOAN_MANAGER");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -770,7 +770,7 @@ contract FundTests is PoolManagerBase {
         asset.mint(poolManager.poolDelegateCover(), 1_000e18 - 1);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:INSUFFICIENT_COVER");
+        vm.expectRevert("PM:VAFL:INSUFFICIENT_COVER");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
         asset.mint(poolManager.poolDelegateCover(), 1);
@@ -783,7 +783,7 @@ contract FundTests is PoolManagerBase {
         MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:F:LOCKED_LIQUIDITY");
+        vm.expectRevert("PM:VAFL:LOCKED_LIQUIDITY");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
         vm.prank(POOL_DELEGATE);
