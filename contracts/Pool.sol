@@ -167,8 +167,8 @@ contract Pool is IPool, ERC20 {
 
     function _burn(uint256 shares_, uint256 assets_, address receiver_, address owner_, address caller_) internal {
         require(receiver_ != address(0), "P:B:ZERO_RECEIVER");
-        require(shares_   != uint256(0), "P:B:ZERO_SHARES");
-        require(assets_   != uint256(0), "P:B:ZERO_ASSETS");
+
+        if (shares_ == 0) return;
 
         if (caller_ != owner_) {
             _decreaseAllowance(owner_, caller_, shares_);

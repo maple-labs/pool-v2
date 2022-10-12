@@ -585,7 +585,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     }
 
     function processRedeem(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
-        redeemableShares_ = shares_;
+        redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
     }
 

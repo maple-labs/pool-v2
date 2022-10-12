@@ -609,6 +609,8 @@ contract RedeemTests is PoolBase {
     }
 
     function test_redeem_reentrancy() external {
+        MockPoolManager(address(poolManager)).__setRedeemableShares(depositAmount);
+
         asset.setReentrancy(address(pool));
 
         vm.startPrank(user);
@@ -620,20 +622,36 @@ contract RedeemTests is PoolBase {
     }
 
     function test_redeem_zeroShares() external {
+        MockPoolManager(poolManager).__setRedeemableShares(0);
+        MockPoolManager(poolManager).__setRedeemableAssets(0);
+
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
+
         vm.prank(user);
-        vm.expectRevert("P:B:ZERO_SHARES");
-        pool.redeem(0, user, user);
+        pool.redeem(1, user, user);
+
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
     }
 
     function test_redeem_zeroAssets() external {
+        MockPoolManager(poolManager).__setRedeemableShares(1);
         MockPoolManager(poolManager).__setRedeemableAssets(0);
 
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
+
         vm.prank(user);
-        vm.expectRevert("P:B:ZERO_SHARES");
-        pool.redeem(0, user, user);
+        pool.redeem(1, user, user);
+
+        assertEq(pool.balanceOf(user),  1000e6 - 1);
+        assertEq(asset.balanceOf(user), 0);
     }
 
     function test_redeem_insufficientApprove() external {
+        MockPoolManager(poolManager).__setRedeemableShares(depositAmount);
+
         address user2 = address(new Address());
 
         vm.prank(user);
@@ -651,6 +669,8 @@ contract RedeemTests is PoolBase {
     }
 
     function test_redeem_insufficientAmount() external {
+        MockPoolManager(poolManager).__setRedeemableShares(depositAmount + 1);
+
         vm.prank(user);
         vm.expectRevert(ARITHMETIC_ERROR);
         pool.redeem(depositAmount + 1, user, user);
@@ -659,7 +679,9 @@ contract RedeemTests is PoolBase {
     function test_redeem_success() external {
         // Add extra assets to the pool.
         MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableShares(500e6);
         MockPoolManager(address(poolManager)).__setRedeemableAssets(1_000e6);
+
         asset.mint(address(pool), 1_000e6);
 
         assertEq(pool.totalSupply(),    1_000e6);
@@ -683,6 +705,7 @@ contract RedeemTests is PoolBase {
     function test_redeem_success_differentUser() external {
         // Add extra assets to the pool.
         MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
+        MockPoolManager(address(poolManager)).__setRedeemableShares(500e6);
         MockPoolManager(address(poolManager)).__setRedeemableAssets(1000e6);
         asset.mint(address(pool), 1000e6);
 
@@ -988,10 +1011,30 @@ contract WithdrawTests is PoolBase {
 
     function test_withdraw_zeroShares() external {
         MockPoolManager(poolManager).__setRedeemableShares(0);
+        MockPoolManager(poolManager).__setRedeemableAssets(0);
+
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
 
         vm.prank(user);
-        vm.expectRevert("P:B:ZERO_SHARES");
-        pool.withdraw(0, user, user);
+        pool.withdraw(1, user, user);
+
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
+    }
+
+    function test_withdraw_zeroAssets() external {
+        MockPoolManager(poolManager).__setRedeemableShares(1);
+        MockPoolManager(poolManager).__setRedeemableAssets(0);
+
+        assertEq(pool.balanceOf(user),  1000e6);
+        assertEq(asset.balanceOf(user), 0);
+
+        vm.prank(user);
+        pool.withdraw(1, user, user);
+
+        assertEq(pool.balanceOf(user),  1000e6 - 1);
+        assertEq(asset.balanceOf(user), 0);
     }
 
     function test_withdraw_insufficientApprove() external {
