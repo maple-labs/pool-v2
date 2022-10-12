@@ -3,8 +3,15 @@
 ![Foundry CI](https://github.com/maple-labs/poolV2/actions/workflows/push-to-main.yaml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Setup
+```sh
+git clone git@github.com:maple-labs/pool-v2.git
+forge install
+```
 
-## Usage
+## Running Tests
+
+- To run all unit/fuzz tests: `make test` (runs `./test.sh`)
+- To run specific unit tests: `./test.sh -t <test_name>` (e.g., `./test.sh -t test_getAccruedInterest`)
 
 ## About Maple
 Maple is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
