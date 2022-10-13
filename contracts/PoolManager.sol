@@ -3,6 +3,7 @@ pragma solidity 0.8.7;
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+import { IMapleProxied }         from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
@@ -29,7 +30,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /******************************************************************************************************************************/
 
     modifier nonReentrant() {
-        require(_locked == 1, "P:LOCKED");
+        require(_locked == 1, "PM:LOCKED");
 
         _locked = 2;
 
@@ -425,6 +426,11 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:VAFL:INVALID_BORROWER");
         require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:VAFL:ZERO_SUPPLY");
         require(_hasSufficientCover(globals_, asset_),                                    "PM:VAFL:INSUFFICIENT_COVER");
+
+        address loanFactory_ = IMapleProxied(loan_).factory();
+
+        require(IMapleGlobalsLike(globals_).isFactory("LOAN", loanFactory_), "PM:VAFL:INVALID_LOAN_FACTORY");
+        require(IMapleProxyFactory(loanFactory_).isInstance(loan_),          "PM:VAFL:INVALID_LOAN_INSTANCE");
 
         // If loan has unaccounted funds then skim the funds to the pool as cash.
         if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {

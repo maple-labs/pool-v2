@@ -203,6 +203,7 @@ contract MockLoan {
     address public collateralAsset;
     address public feeManager;
     address public fundsAsset;
+    address public factory;
 
     bool public isImpaired;
 
@@ -330,6 +331,10 @@ contract MockLoan {
 
     function __setDelegateServiceFee(uint256 delegateServiceFee_) external {
         delegateServiceFee = delegateServiceFee_;
+    }
+
+    function __setFactory(address factory_) external {
+        factory = factory_;
     }
 
     function __setFeeManager(address feeManager_) external {
@@ -662,7 +667,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
         unrealizedLosses = unrealizedLosses_;
     }
-    
+
 }
 
 contract MockReenteringERC20 is MockERC20 {
@@ -815,8 +820,14 @@ contract MockLiquidator {
 
 contract MockFactory {
 
+    mapping(address => bool) public isInstance;
+
     function createInstance(bytes calldata arguments_, bytes32 salt_) external returns (address instance_) {
         instance_ = address(new MockLiquidator());
+    }
+
+    function __setIsInstance(address instance, bool status) external {
+        isInstance[instance] = status;
     }
 
 }

@@ -629,6 +629,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
     address BORROWER = address(new Address());
     address LP       = address(new Address());
 
+    MockFactory     loanFactory;
     MockLoan        loan;
     MockLoanManager loanManager;
 
@@ -640,12 +641,16 @@ contract AcceptNewTermsTests is PoolManagerBase {
 
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
+        loanFactory = new MockFactory();
         loan        = new MockLoan(address(asset), address(asset));
         loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
         loan.__setPrincipal(principalRequested);
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
+        loan.__setFactory(address(loanFactory));
+
+        loanFactory.__setIsInstance(address(loan), true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
@@ -665,6 +670,26 @@ contract AcceptNewTermsTests is PoolManagerBase {
 
         // Accepting new terms with less than one succeeds
         vm.prank(POOL_DELEGATE);
+        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
+    }
+
+    function test_acceptNewTerms_invalidFactory() external {
+       MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), false);
+
+       address refinancer = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:VAFL:INVALID_LOAN_FACTORY");
+        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
+    }
+
+    function test_acceptNewTerms_invalidInstance() external {
+        loanFactory.__setIsInstance(address(loan), false);
+
+       address refinancer = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:VAFL:INVALID_LOAN_INSTANCE");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
     }
 
@@ -693,6 +718,7 @@ contract FundTests is PoolManagerBase {
 
     MockLoan        loan;
     MockLoanManager loanManager;
+    MockFactory     loanFactory;
 
     uint256 principalRequested = 1_000_000e18;
     uint256 collateralRequired = 0;
@@ -702,12 +728,16 @@ contract FundTests is PoolManagerBase {
 
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
+        loanFactory = new MockFactory();
         loan        = new MockLoan(address(asset), address(asset));
         loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
         loan.__setPrincipal(principalRequested);
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
+        loan.__setFactory(address(loanFactory));
+
+        loanFactory.__setIsInstance(address(loan), true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
@@ -776,6 +806,22 @@ contract FundTests is PoolManagerBase {
         asset.mint(poolManager.poolDelegateCover(), 1);
 
         vm.prank(POOL_DELEGATE);
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_fund_invalidFactory() external {
+       MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:VAFL:INVALID_LOAN_FACTORY");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
+    }
+
+    function test_acceptNewTerms_invalidInstance() external {
+        loanFactory.__setIsInstance(address(loan), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:VAFL:INVALID_LOAN_INSTANCE");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -879,9 +925,14 @@ contract TriggerDefault is PoolManagerBase {
 
         poolDelegateCover = poolManager.poolDelegateCover();
 
+        MockFactory loanFactory = new MockFactory();
+
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
+        MockLoan(loan).__setFactory(address(loanFactory));
         MockGlobals(globals).setValidBorrower(BORROWER, true);
+
+        loanFactory.__setIsInstance(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
@@ -1057,9 +1108,14 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         _bootstrapGlobals(address(asset), POOL_DELEGATE);
 
+        MockFactory loanFactory = new MockFactory();
+
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
+        MockLoan(loan).__setFactory(address(loanFactory));
         MockGlobals(globals).setValidBorrower(BORROWER, true);
+
+        loanFactory.__setIsInstance(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
