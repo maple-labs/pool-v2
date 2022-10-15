@@ -10,10 +10,10 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
 import {
     IERC20Like,
+    ILoanFactoryLike,
     ILoanManagerLike,
     IMapleGlobalsLike,
     IMapleLoanLike,
-    IMapleProxyFactoryLike,
     IPoolDelegateCoverLike,
     IPoolLike,
     IWithdrawalManagerLike
@@ -244,7 +244,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         external override nonReentrant
     {
         address loanManager_ = loanManagers[loan_];
-        
+
         _whenProtocolNotPaused();
         _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
 
@@ -420,7 +420,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address asset_   = asset;
         address globals_ = globals();
         address pool_    = pool;
-        
+
         require(msg.sender == poolDelegate,                                               "PM:VAFL:NOT_PD");
         require(isLoanManager[loanManager_],                                              "PM:VAFL:INVALID_LOAN_MANAGER");
         require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:VAFL:INVALID_BORROWER");
@@ -430,7 +430,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address loanFactory_ = IMapleProxied(loan_).factory();
 
         require(IMapleGlobalsLike(globals_).isFactory("LOAN", loanFactory_), "PM:VAFL:INVALID_LOAN_FACTORY");
-        require(IMapleProxyFactory(loanFactory_).isInstance(loan_),          "PM:VAFL:INVALID_LOAN_INSTANCE");
+        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                "PM:VAFL:INVALID_LOAN_INSTANCE");
 
         // If loan has unaccounted funds then skim the funds to the pool as cash.
         if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
@@ -504,7 +504,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function globals() public view override returns (address globals_) {
-        globals_ = IMapleProxyFactoryLike(_factory()).mapleGlobals();
+        globals_ = IMapleProxyFactory(_factory()).mapleGlobals();
     }
 
     function governor() public view override returns (address governor_) {

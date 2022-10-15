@@ -831,3 +831,17 @@ contract MockFactory {
     }
 
 }
+
+contract MockLoanFactory {
+
+    mapping(address => bool) public isLoan;
+
+    function createInstance(bytes calldata arguments_, bytes32 salt_) external returns (address instance_) {
+        instance_ = address(new MockLiquidator());
+    }
+
+    function __setIsLoan(address instance, bool status) external {
+        isLoan[instance] = status;
+    }
+
+}

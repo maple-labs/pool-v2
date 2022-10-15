@@ -187,6 +187,12 @@ interface IMapleProxyFactoryLike {
 
 }
 
+interface ILoanFactoryLike {
+
+    function isLoan(address loan_) external view returns (bool isLoan_);
+
+}
+
 interface IPoolDelegateCoverLike {
 
     function moveFunds(uint256 amount_, address recipient_) external;
