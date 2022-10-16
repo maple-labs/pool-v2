@@ -6,11 +6,13 @@
 
 This repository contains the core contracts of the Maple V2 protocol that are responsible for the deployment and management of lending pools:
 
-- [Pool](https://github.com/maple-labs/maple-core-v2/wiki/Pools) - Each pool represents a different lending pool with a unique strategy and pool delegate that issues loans on behalf of the liquidity providers. The `Pool` contract is compatible with the [ERC-4626 Tokenized Vault standard](https://eips.ethereum.org/EIPS/eip-4626).
-- [Pool Manager](https://github.com/maple-labs/maple-core-v2/wiki/PoolManager) - Used by the pool delegate to manage pool level parameters and to issue loans to borrowers.
-- [Loan Manager](https://github.com/maple-labs/maple-core-v2/wiki/LoanManager) - Owns and keeps track of value of all outstanding loans.
-- [Pool Delegate Cover](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Delegate-Cover) - Holds first-loss capital in escrow on behalf of the pool delegate.
-- [Pool Deployer](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Creation) - Used to deploy new pools with all the required dependencies.
+| Contract | Description |
+| -------- | ------- |
+| [`Pool`](https://github.com/maple-labs/maple-core-v2/wiki/Pools) | Each pool represents a different lending pool with a unique strategy and pool delegate that issues loans on behalf of the liquidity providers. The `Pool` contract is compatible with the [ERC-4626 Tokenized Vault standard](https://eips.ethereum.org/EIPS/eip-4626). |
+| [`PoolManager`](https://github.com/maple-labs/maple-core-v2/wiki/PoolManager) | Used by the pool delegate to manage pool level parameters and to issue loans to borrowers. |
+| [`LoanManager`](https://github.com/maple-labs/maple-core-v2/wiki/LoanManager) | Owns and keeps track of value of all outstanding loans. |
+| [`PoolDelegateCover`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Delegate-Cover) | Holds first-loss capital in escrow on behalf of the pool delegate. |
+| [`PoolDeployer`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Creation) | Used to deploy new pools with all the required dependencies. |
 
 ## Setup
 
