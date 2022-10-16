@@ -178,7 +178,7 @@ contract MockLiquidationStrategy {
         auctioneer = auctioneer_;
     }
 
-    function flashBorrowLiquidation(address lender_, uint256 swapAmount_, address collateralAsset_, address fundsAsset_, address source_) external {
+    function flashBorrowLiquidation(address lender_, uint256 swapAmount_, address collateralAsset_, address fundsAsset_, address) external {
         uint256 repaymentAmount = ILiquidatorLike(lender_).getExpectedAmount(swapAmount_);
 
         MockERC20(fundsAsset_).approve(lender_, repaymentAmount);
@@ -236,7 +236,7 @@ contract MockLoan {
         fundsAsset      = fundsAsset_;
     }
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+    function acceptNewTerms(address, uint256, bytes[] calldata) external returns (bytes32 refinanceCommitment_) {
         nextPaymentInterest  = refinanceNextPaymentInterest;
         nextPaymentDueDate   = refinanceNextPaymentDueDate;
         nextPaymentPrincipal = refinanceNextPaymentPrincipal;
@@ -250,6 +250,8 @@ contract MockLoan {
         refinancePaymentInterval      = 0;
         refinancePrincipal            = 0;
         refinancePrincipalRequested   = 0;
+
+        refinanceCommitment_ = 0; // Mock return
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external {
@@ -291,8 +293,9 @@ contract MockLoan {
         return unaccountedAmounts[asset_];
     }
 
-    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
+    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsAssetRepossessed_) {
         collateralRepossessed_ = collateral;
+        fundsAssetRepossessed_ = 0;
         MockERC20(collateralAsset).transfer(destination_, collateral);
     }
 
@@ -304,7 +307,8 @@ contract MockLoan {
     }
 
     function skim(address asset_, address destination_) external returns (uint256 skimmed_) {
-        ERC20Helper.transfer(asset_, destination_, unaccountedAmounts[asset_]);
+        skimmed_ = unaccountedAmounts[asset_];
+        ERC20Helper.transfer(asset_, destination_, skimmed_);
     }
 
     function impairLoan() external {
@@ -458,6 +462,10 @@ contract MockLoanManager is LoanManagerStorage {
     }
 
     function triggerDefault(address, address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
+        liquidationComplete_ = true;
+        remainingLosses_     = 0;
+        platformFees_        = 0;
+
         unrealizedLosses += increasedUnrealizedLosses;
     }
 
@@ -564,7 +572,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
     mapping(address => uint256) public maxRedeem;
     mapping(address => uint256) public maxWithdraw;
 
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_) {
+    function canCall(bytes32, address, bytes memory) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;
         errorMessage_ = errorMessage;
     }
@@ -577,24 +585,24 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         hasSufficientCover_ = true;
     }
 
-    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address destination_) {
+    function getEscrowParams(address, uint256 shares_) external view returns (uint256 escrowShares_, address destination_) {
         ( escrowShares_, destination_) = (shares_, address(this));
     }
 
-    function previewRedeem(address account_, uint256 shares_) external view returns (uint256 assets_) {
+    function previewRedeem(address, uint256) external view returns (uint256 assets_) {
         assets_ = _previewRedeemAmount;
     }
 
-    function previewWithdraw(address account_, uint256 shares_) external view returns (uint256 assets_) {
+    function previewWithdraw(address, uint256) external view returns (uint256 assets_) {
         assets_ = _previewWithdrawAmount;
     }
 
-    function processRedeem(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
+    function processRedeem(uint256, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
     }
 
-    function processWithdraw(uint256 shares_, address owner_) external view returns (uint256 redeemableShares_, uint256 assets_) {
+    function processWithdraw(uint256, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
     }
@@ -713,7 +721,7 @@ contract MockRevertingERC20 {
         _decimals = decimals_;
     }
 
-    function approve(address spender_, uint256 amount_) external returns (bool success_) {
+    function approve(address, uint256) external view returns (bool success_) {
         require(!isRevertingApprove, "ERC20:A:REVERT");
         success_ = true;
     }
@@ -751,7 +759,7 @@ contract MockMigrator {
 
 contract MockPoolManagerInitializer is MockMigrator {
 
-    function encodeArguments(address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) external pure
+    function encodeArguments(address, address, uint256, string memory, string memory) external pure
         returns (bytes memory encodedArguments_) {
 
         encodedArguments_ = new bytes(0);
@@ -761,16 +769,19 @@ contract MockPoolManagerInitializer is MockMigrator {
         returns (address globals_, address owner_, address asset_, uint256 initialSupply_, string memory name_, string memory symbol_) {
         // Do nothing.
     }
+
 }
 
 contract MockLoanManagerInitializer is MockMigrator {
-    function encodeArguments(address pool_) external pure returns (bytes memory calldata_) {
+
+    function encodeArguments(address) external pure returns (bytes memory calldata_) {
         calldata_ = new bytes(0);
     }
 
     function decodeArguments(bytes calldata calldata_) public pure returns (address pool_) {
         // Do nothing.
     }
+
 }
 
 contract MockWithdrawalManager is MapleProxiedInternals {
@@ -822,7 +833,7 @@ contract MockFactory {
 
     mapping(address => bool) public isInstance;
 
-    function createInstance(bytes calldata arguments_, bytes32 salt_) external returns (address instance_) {
+    function createInstance(bytes calldata, bytes32) external returns (address instance_) {
         instance_ = address(new MockLiquidator());
     }
 

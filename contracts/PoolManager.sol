@@ -21,6 +21,17 @@ import {
 
 import { IPoolManager } from "./interfaces/IPoolManager.sol";
 
+/*
+
+    ██████╗  ██████╗  ██████╗ ██╗         ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
+    ██╔══██╗██╔═══██╗██╔═══██╗██║         ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+    ██████╔╝██║   ██║██║   ██║██║         ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
+    ██╔═══╝ ██║   ██║██║   ██║██║         ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
+    ██║     ╚██████╔╝╚██████╔╝███████╗    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
+    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+*/
+
 contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
 
     uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision.
@@ -243,9 +254,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     )
         external override nonReentrant
     {
+        _whenProtocolNotPaused();
+
         address loanManager_ = loanManagers[loan_];
 
-        _whenProtocolNotPaused();
         _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
 
         emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
@@ -255,6 +267,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function fund(uint256 principal_, address loan_, address loanManager_) external override nonReentrant {
         _whenProtocolNotPaused();
+
         _validateAndFundLoan(loan_, loanManager_, principal_);
 
         loanManagers[loan_] = loanManager_;
@@ -451,7 +464,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** View Functions                                                                                                         ***/
     /******************************************************************************************************************************/
 
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view override returns (bool canCall_, string memory errorMessage_) {
+    function canCall(bytes32 functionId_, address, bytes memory data_) external view override returns (bool canCall_, string memory errorMessage_) {
+        // NOTE: `caller_` param not named to avoid compiler warning.
+
         if (IMapleGlobalsLike(globals()).protocolPaused()) {
             return (false, "PM:CC:PROTOCOL_PAUSED");
         }
@@ -538,7 +553,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         shares_ = IPoolLike(pool).convertToExitShares(assets_);
     }
 
-    function getEscrowParams(address owner_, uint256 shares_) external view override returns (uint256 escrowShares_, address destination_) {
+    function getEscrowParams(address, uint256 shares_) external view override returns (uint256 escrowShares_, address destination_) {
+        // NOTE: `owner_` param not named to avoid compiler warning.
         ( escrowShares_, destination_) = (shares_, address(this));
     }
 

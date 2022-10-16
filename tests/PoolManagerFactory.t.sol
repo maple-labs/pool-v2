@@ -39,7 +39,6 @@ contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
         vm.stopPrank();
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
-
     }
 
 }

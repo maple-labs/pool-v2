@@ -23,7 +23,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      *  @param loan_        The address of the loan contract.
      *  @param principal_   The amount of principal paid.
      *  @param netInterest_ The amount of net interest paid.
-    */
+     */
     event FundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_);
 
     /**
@@ -91,14 +91,14 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     /**
      *  @dev   Accepts new loan terms triggering a loan refinance.
      *  @param loan_       Loan to be refinanced.
-     *  @param refinancer_ The addres of the refinancer.
+     *  @param refinancer_ The address of the refinancer.
      *  @param deadline_   The new deadline to execute the refinance.
      *  @param calls_      The encoded calls to set new loan terms.
      */
     function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
 
     /**
-     *  @dev   Called by loans when payments are maid, this adjust the accounting.
+     *  @dev   Called by loans when payments are made, updating the accounting.
      *  @param principal_              The amount of principal paid.
      *  @param interest_               The amount of interest paid.
      *  @param previousPaymentDueDate_ The previous payment due date.
@@ -107,7 +107,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external;
 
     /**
-     *  @dev    Finishes the collateral liquidation
+     *  @dev    Finishes the collateral liquidation.
      *  @param  loan_            Loan that had its collateral liquidated.
      *  @return remainingLosses_ The amount of remaining losses.
      *  @return platformFees_    The amount of platform fees.
@@ -136,6 +136,8 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
     /**
      *  @dev   Sets the minimum ratio for a collateral asset liquidation.
+     *         This ratio is expressed as a decimal representation of units of fundsAsset
+     *         per unit collateralAsset in fundsAsset decimal precision.
      *  @param collateralAsset_  Address of a collateral asset.
      *  @param minRatio_         New value for `minRatio`.
      */
@@ -159,7 +161,7 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     /**
-     *  @dev Updates the issuance parameters of the LoanManager, callable by the Governor and the PoolDegate.
+     *  @dev Updates the issuance parameters of the LoanManager, callable by the Governor and the PoolDelegate.
      *       Useful to call when `block.timestamp` is greater than `domainEnd` and the LoanManager is not accruing interest.
      */
     function updateAccounting() external;

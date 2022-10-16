@@ -25,8 +25,6 @@ import { ILoanManagerStructs } from "./interfaces/ILoanManagerStructs.sol";
 
 import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
 
-// TODO: Can we add tests for 2 claims on the same loan without any payments between them?
-
 contract LoanManagerBaseTest is TestUtils {
 
     uint256 constant START = 5_000_000;
@@ -3459,7 +3457,7 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     /******************************************************************************************************************************/
-    /*** Add Payemnt                                                                                                            ***/
+    /*** Add Payment                                                                                                            ***/
     /******************************************************************************************************************************/
 
     function test_addPaymentToList_single() external {
@@ -3698,10 +3696,9 @@ contract LoanManagerSortingTests is LoanManagerBaseTest {
     }
 
     /******************************************************************************************************************************/
-    /*** Remove Payemnt                                                                                                         ***/
+    /*** Remove Payment                                                                                                         ***/
     /******************************************************************************************************************************/
 
-    // TODO: Add recognizePayment coverage
     function test_removePaymentFromList_invalidPaymentId() external {
         loanManager.addPaymentToList(earliestPaymentInfo.paymentDueDate);
 

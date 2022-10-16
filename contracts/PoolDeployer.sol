@@ -5,9 +5,21 @@ import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol"
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { ILoanManagerInitializerLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
-import { IPoolDeployer }                                  from "./interfaces/IPoolDeployer.sol";
-import { IPoolManager }                                   from "./interfaces/IPoolManager.sol";
-import { IPoolManagerInitializer }                        from "./interfaces/IPoolManagerInitializer.sol";
+
+import { IPoolDeployer }           from "./interfaces/IPoolDeployer.sol";
+import { IPoolManager }            from "./interfaces/IPoolManager.sol";
+import { IPoolManagerInitializer } from "./interfaces/IPoolManagerInitializer.sol";
+
+/*
+
+    ██████╗  ██████╗  ██████╗ ██╗         ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███████╗██████╗
+    ██╔══██╗██╔═══██╗██╔═══██╗██║         ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝██╔════╝██╔══██╗
+    ██████╔╝██║   ██║██║   ██║██║         ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ █████╗  ██████╔╝
+    ██╔═══╝ ██║   ██║██║   ██║██║         ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██╔══╝  ██╔══██╗
+    ██║     ╚██████╔╝╚██████╔╝███████╗    ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║   ███████╗██║  ██║
+    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝    ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝
+
+*/
 
 contract PoolDeployer is IPoolDeployer {
 
@@ -35,7 +47,8 @@ contract PoolDeployer is IPoolDeployer {
 
         IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals);
 
-        require(globals_.isPoolDelegate(poolDelegate_),  "PD:DP:INVALID_PD");
+        require(globals_.isPoolDelegate(poolDelegate_), "PD:DP:INVALID_PD");
+
         require(globals_.isFactory("POOL_MANAGER",       factories_[0]), "PD:DP:INVALID_PM_FACTORY");
         require(globals_.isFactory("LOAN_MANAGER",       factories_[1]), "PD:DP:INVALID_LM_FACTORY");
         require(globals_.isFactory("WITHDRAWAL_MANAGER", factories_[2]), "PD:DP:INVALID_WM_FACTORY");

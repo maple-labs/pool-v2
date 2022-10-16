@@ -5,6 +5,17 @@ import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
 import { IPoolDelegateCover } from "./interfaces/IPoolDelegateCover.sol";
 
+/*
+
+    ██████╗ ██████╗      ██████╗ ██████╗ ██╗   ██╗███████╗██████╗
+    ██╔══██╗██╔══██╗    ██╔════╝██╔═══██╗██║   ██║██╔════╝██╔══██╗
+    ██████╔╝██║  ██║    ██║     ██║   ██║██║   ██║█████╗  ██████╔╝
+    ██╔═══╝ ██║  ██║    ██║     ██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██╗
+    ██║     ██████╔╝    ╚██████╗╚██████╔╝ ╚████╔╝ ███████╗██║  ██║
+    ╚═╝     ╚═════╝      ╚═════╝ ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝
+
+*/
+
 contract PoolDelegateCover is IPoolDelegateCover {
 
     address public override asset;

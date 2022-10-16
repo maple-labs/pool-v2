@@ -10,6 +10,24 @@ import { IMapleGlobalsLike, IMapleLoanLike, IPoolManagerLike } from "./interface
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
+/*
+
+    ████████╗██████╗  █████╗ ███╗   ██╗███████╗██╗████████╗██╗ ██████╗ ███╗   ██╗
+    ╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║██╔════╝██║╚══██╔══╝██║██╔═══██╗████╗  ██║
+       ██║   ██████╔╝███████║██╔██╗ ██║███████╗██║   ██║   ██║██║   ██║██╔██╗ ██║
+       ██║   ██╔══██╗██╔══██║██║╚██╗██║╚════██║██║   ██║   ██║██║   ██║██║╚██╗██║
+       ██║   ██║  ██║██║  ██║██║ ╚████║███████║██║   ██║   ██║╚██████╔╝██║ ╚████║
+       ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+
+    ██╗      ██████╗  █████╗ ███╗   ██╗    ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
+    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+    ██║     ██║   ██║███████║██╔██╗ ██║    ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
+    ██║     ██║   ██║██╔══██║██║╚██╗██║    ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
+    ███████╗╚██████╔╝██║  ██║██║ ╚████║    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
+    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+*/
+
 contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals, LoanManagerStorage {
 
     uint256 public override constant PRECISION       = 1e30;
@@ -263,9 +281,9 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         output_ = uint24(input_);
     }
 
-    function _uint48(uint256 input_) internal pure returns (uint32 output_) {
-        require(input_ <= type(uint32).max, "TLM:UINT32_CAST_OOB");
-        output_ = uint32(input_);
+    function _uint48(uint256 input_) internal pure returns (uint48 output_) {
+        require(input_ <= type(uint48).max, "TLM:UINT48_CAST_OOB");
+        output_ = uint48(input_);
     }
 
     function _uint112(uint256 input_) internal pure returns (uint112 output_) {

@@ -39,6 +39,7 @@ interface ILoanManagerLike {
     function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
 }
 
 interface ILoanManagerInitializerLike {
@@ -179,6 +180,7 @@ interface IMapleLoanLike {
     function impairLoan() external;
 
     function unimpairedPaymentDueDate() external view returns (uint256 unimpairedPaymentDueDate_);
+
 }
 
 interface IMapleProxyFactoryLike {
@@ -274,6 +276,7 @@ interface IPoolManagerLike {
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
     function withdrawalManager() external view returns (address withdrawalManager_);
+
 }
 
 interface IWithdrawalManagerLike {

@@ -20,6 +20,7 @@ import {
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
 contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
+
     address poolDelegate = address(new Address());
 
     address asset;
@@ -174,5 +175,6 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             configParams_
         );
     }
+
 }
 

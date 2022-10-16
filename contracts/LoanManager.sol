@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.7;
 
-import { console } from "../modules/contract-test-utils/contracts/test.sol";
-
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
@@ -18,6 +16,17 @@ import {
 } from "./interfaces/Interfaces.sol";
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
+
+/*
+
+    ██╗      ██████╗  █████╗ ███╗   ██╗    ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
+    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+    ██║     ██║   ██║███████║██╔██╗ ██║    ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
+    ██║     ██║   ██║██╔══██║██║╚██╗██║    ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
+    ███████╗╚██████╔╝██║  ██║██║ ╚████║    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
+    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+*/
 
 contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage {
 
@@ -190,10 +199,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
 
         // 8b. If the payment is late, the `issuanceRate` from the previous payment has already been removed from the global `issuanceRate`.
-        //      - Update the global `issuanceRate` to account for the new payments `issuanceRate`.
-        //      - Update the `accountedInterest` to represent the interest that has accrued from the `previousPaymentDueDate` to the current `block.timestamp`.
-        //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
-        //      All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
+        //     - Update the global `issuanceRate` to account for the new payments `issuanceRate`.
+        //     - Update the `accountedInterest` to represent the interest that has accrued from the `previousPaymentDueDate` to the current `block.timestamp`.
+        //     Payment `issuanceRate` is used for this calculation as the issuance has occurred in isolation and entirely in the past.
+        //     All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
         if (block.timestamp > previousPaymentDueDate_ && block.timestamp <= nextPaymentDueDate_) {
             return _updateIssuanceParams(
                 issuanceRate + newRate_,
@@ -202,9 +211,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
 
         // 8c. If the current timestamp is greater than the RESULTING `nextPaymentDueDate`, then the next payment must be
-        //      FULLY accounted for, and the new payment must be removed from the sorted list.
-        //      Payment `issuanceRate` is used for this calculation as the issuance has occured in isolation and entirely in the past.
-        //      All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
+        //     FULLY accounted for, and the new payment must be removed from the sorted list.
+        //     Payment `issuanceRate` is used for this calculation as the issuance has occurred in isolation and entirely in the past.
+        //     All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
         else {
             ( uint256 accountedInterestIncrease_, ) = _accountToEndOfPayment(paymentIdOf[msg.sender], newRate_, previousPaymentDueDate_, nextPaymentDueDate_);
 
@@ -334,7 +343,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
         PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
 
-        // NOTE: This will cause this payment to be removed from the list, so no need to remove it explciity afterwards.
+        // NOTE: This will cause this payment to be removed from the list, so no need to remove it explicitly afterwards.
         _advanceGlobalPaymentAccounting();
 
         uint256 netInterest_;
@@ -425,8 +434,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         }
 
         // If a payment has been made on time, handle the payment accounting.
-        //   - Remove the payment from the sorted list.
-        //   - Reduce the `accountedInterest` by the value represented by the payment info.
+        // - Remove the payment from the sorted list.
+        // - Reduce the `accountedInterest` by the value represented by the payment info.
         _removePaymentFromList(paymentId_);
 
         previousRate_ = paymentInfo_.issuanceRate;
@@ -491,7 +500,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     /******************************************************************************************************************************/
-    /*** Internal Loan Reposession Functions                                                                                    ***/
+    /*** Internal Loan Repossession Functions                                                                                   ***/
     /******************************************************************************************************************************/
 
     function _handleLiquidatingRepossession(
@@ -839,7 +848,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 / uint256(10) ** uint256(collateralAssetDecimals_)              // Convert from `fromAsset` decimal precision.
                 / HUNDRED_PERCENT;                                              // Divide basis points for slippage.
 
-        // TODO: Document precision of minRatioFor is decimal representation of min ratio in fundsAsset decimal precision.
         uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / (uint256(10) ** collateralAssetDecimals_);
 
         returnAmount_ = oracleAmount > minRatioAmount ? oracleAmount : minRatioAmount;

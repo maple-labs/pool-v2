@@ -53,7 +53,7 @@ interface IPool is IERC20, IERC4626 {
     /******************************************************************************************************************************/
 
     /**
-     *  @dev The address of the account that is allowed to update the vesting schedule.
+     *  @dev    The address of the account that is allowed to update the vesting schedule.
      *  @return manager_ The address of the pool manager.
      */
     function manager() external view returns (address manager_);
@@ -94,7 +94,7 @@ interface IPool is IERC20, IERC4626 {
     /**
      *  @dev    Requests a redemption of shares from the pool.
      *  @param  shares_         The amount of shares to redeem.
-     *  @param  owner_          The owner of the shares.        
+     *  @param  owner_          The owner of the shares.
      *  @return sharesReturned_ The amount of shares withdrawn.
      */
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);

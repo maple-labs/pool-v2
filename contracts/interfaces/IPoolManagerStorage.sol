@@ -23,7 +23,7 @@ interface IPoolManagerStorage {
 
     /**
      *  @dev    Returns whether or not the given address is a loan manager.
-     *  @param  loan_ The address of the loan.
+     *  @param  loan_          The address of the loan.
      *  @return isLoanManager_ True if the address is a loan manager.
      */
     function isLoanManager(address loan_) external view returns (bool isLoanManager_);

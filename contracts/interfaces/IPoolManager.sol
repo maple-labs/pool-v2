@@ -15,7 +15,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @dev   Emitted when a new allowed lender is called.
      *  @param lender_ The address of the new lender.
      *  @param isValid_ Whether the new lender is valid.
-    */
+     */
     event AllowedLenderSet(address indexed lender_, bool isValid_);
 
     /**
@@ -91,7 +91,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Emitted when a loan is refinanced.
      *  @param loan_              Loan to be refinanced.
-     *  @param refinancer_        The addres of the refinancer.
+     *  @param refinancer_        The address of the refinancer.
      *  @param deadline_          The new deadline to execute the refinance.
      *  @param calls_             The encoded calls to set new loan terms.
      *  @param principalIncrease_ The amount of principal increase.
@@ -120,7 +120,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Emitted when the pool is configured the pool.
      *  @param loanManager_               The address of the new loan manager.
-     *  @param withdrawalManager_         The address of thewithdrawal manager.
+     *  @param withdrawalManager_         The address of the withdrawal manager.
      *  @param liquidityCap_              The new liquidity cap.
      *  @param delegateManagementFeeRate_ The management fee rate.
      */
@@ -135,7 +135,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event RedeemProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
-     *  @dev    Emitted when a redemption of shares from the pool is requested.
+     *  @dev   Emitted when a redemption of shares from the pool is requested.
      *  @param owner_  The owner of the shares.
      *  @param shares_ The amount of redeemable shares.
      */
@@ -190,7 +190,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Configures the pool.
      *  @param loanManager_       The address of the new loan manager.
-     *  @param withdrawalManager_ The address of thewithdrawal manager.
+     *  @param withdrawalManager_ The address of the withdrawal manager.
      *  @param liquidityCap_      The new liquidity cap.
      *  @param managementFee_     The management fee rate.
      */
@@ -251,7 +251,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     /**
      *  @dev Sets pool open to public depositors.
-      */
+     */
     function setOpenToPublic() external;
 
     /**
@@ -267,7 +267,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Accepts new loan terms triggering a loan refinance.
      *  @param loan_              Loan to be refinanced.
-     *  @param refinancer_        The addres of the refinancer.
+     *  @param refinancer_        The address of the refinancer.
      *  @param deadline_          The new deadline to execute the refinance.
      *  @param calls_             The encoded calls to set new loan terms.
      *  @param principalIncrease_ The amount of principal increase.
@@ -285,7 +285,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /******************************************************************************************************************************/
     /*** Liquidation Functions                                                                                                  ***/
     /******************************************************************************************************************************/
-
 
     /**
      *  @dev   Finishes the collateral liquidation
@@ -373,35 +372,35 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Gets the amount of assets that can be deposited.
      *  @param receiver_  The address to check the deposit for.
-     *  @param maxAssets_ The maximum aamount assets to deposit.
+     *  @param maxAssets_ The maximum amount assets to deposit.
      */
     function maxDeposit(address receiver_) external view returns (uint256 maxAssets_);
 
     /**
      *  @dev   Gets the amount of shares that can be minted.
      *  @param receiver_  The address to check the mint for.
-     *  @param maxShares_ The maximum aamount shares to mint.
+     *  @param maxShares_ The maximum amount shares to mint.
      */
     function maxMint(address receiver_) external view returns (uint256 maxShares_);
 
     /**
      *  @dev   Gets the amount of shares that can be redeemed.
      *  @param owner_     The address to check the redemption for.
-     *  @param maxShares_ The maximum aamount shares to redeem.
+     *  @param maxShares_ The maximum amount shares to redeem.
      */
     function maxRedeem(address owner_) external view returns (uint256 maxShares_);
 
     /**
      *  @dev   Gets the amount of assets that can be withdrawn.
      *  @param owner_     The address to check the withdraw for.
-     *  @param maxAssets_ The maximum aamount assets to withdraw.
+     *  @param maxAssets_ The maximum amount assets to withdraw.
      */
     function maxWithdraw(address owner_) external view returns (uint256 maxAssets_);
 
     /**
      *  @dev    Gets the amount of shares that can be redeemed.
      *  @param  owner_   The address to check the redemption for.
-     *  @param  shares_  The aamount of requested shares to redeem.
+     *  @param  shares_  The amount of requested shares to redeem.
      *  @return assets_  The amount of assets that will be returned for `shares_`.
      */
     function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
@@ -409,7 +408,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev    Gets the amount of assets that can be redeemed.
      *  @param  owner_   The address to check the redemption for.
-     *  @param  assets_  The aamount of requested shares to redeem.
+     *  @param  assets_  The amount of requested shares to redeem.
      *  @return shares_  The amount of assets that will be returned for `assets_`.
      */
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);

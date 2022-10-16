@@ -138,7 +138,7 @@ interface ILoanManagerStorage {
 
     /**
      *  @dev    Returns the amount unrealized losses.
-     *  @return unrealizedLosses_  Amount of unrealized losses.
+     *  @return unrealizedLosses_ Amount of unrealized losses.
      */
     function unrealizedLosses() external view returns (uint128 unrealizedLosses_);
 

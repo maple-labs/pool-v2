@@ -14,9 +14,8 @@ interface ILoanManagerStructs {
         address liquidator;           //         address - 20 bytes
     }
 
-
     struct PaymentInfo {
-        uint24  platformManagementFeeRate;  //         uint24  -  3 bytes: max = 1.6e7  (1600%)
+        uint24  platformManagementFeeRate;  // Slot 1: uint24  -  3 bytes: max = 1.6e7  (1600%)
         uint24  delegateManagementFeeRate;  //         uint24  -  3 bytes: max = 1.6e7  (1600%)
         uint48  startDate;                  //         uint48  -  6 bytes: max = 2.8e14 (>8m years)
         uint48  paymentDueDate;             //         uint48  -  6 bytes: max = 2.8e14 (>8m years)

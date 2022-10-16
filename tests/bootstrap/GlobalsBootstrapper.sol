@@ -11,6 +11,7 @@ import { MockGlobals } from "../mocks/Mocks.sol";
 contract GlobalsBootstrapper is TestUtils {
 
     address globals;
+
     address GOVERNOR = address(new Address());
     address TREASURY = address(new Address());
 
