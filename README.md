@@ -1,6 +1,6 @@
 # Pool V2
 
-![Foundry CI](https://github.com/maple-labs/poolV2/actions/workflows/push-to-main.yaml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+![Foundry CI](https://github.com/maple-labs/poolV2/actions/workflows/forge.yaml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Overview
 
@@ -13,6 +13,21 @@ This repository contains the core contracts of the Maple V2 protocol that are re
 | [`LoanManager`](https://github.com/maple-labs/maple-core-v2/wiki/LoanManager) | Owns and keeps track of value of all outstanding loans. |
 | [`PoolDelegateCover`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Delegate-Cover) | Holds first-loss capital in escrow on behalf of the pool delegate. |
 | [`PoolDeployer`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Creation) | Used to deploy new pools with all the required dependencies. |
+
+## Dependencies/Inheritance
+
+Contracts in this repo inherit and import code from:
+- [`maple-labs/erc20`](https://github.com/maple-labs/erc20)
+- [`maple-labs/erc20-helper`](https://github.com/maple-labs/erc20-helper)
+- [`maple-labs/maple-proxy-factory`](https://github.com/maple-labs/maple-proxy-factory)
+
+Contracts inherit and import code in the following ways:
+- `Pool` inherits `ERC20` for fungible token functionality.
+- `PoolDelegateCover`, `PoolDeployer` and `PoolManager` use `ERC20Helper` for token interactions.
+- `LoanManager`, `PoolManager`, and `TransitionLoanManager` inherit `MapleProxiedInternals` for proxy logic.
+- `LoanManagerFactory` and `PoolManagerFactory` inherit `MapleProxyFactory` for proxy deployment and management.
+
+Versions of dependencies can be checked with `git submodule status`.
 
 ## Setup
 
