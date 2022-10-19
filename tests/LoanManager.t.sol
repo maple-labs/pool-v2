@@ -4089,6 +4089,14 @@ contract UpdateAccountingTests is LoanManagerClaimBaseTest {
          */
     }
 
+    function test_updateAccounting_failifPaused() external {
+        globals.__setProtocolPaused(true);
+
+        vm.prank(poolDelegate);
+        vm.expectRevert("LM:UA:PROTOCOL_PAUSED");
+        loanManager.updateAccounting();
+    }
+
     function test_updateAccounting_beforeDomainEnd() external {
         vm.warp(START + 8_000);
 

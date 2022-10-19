@@ -98,6 +98,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function updateAccounting() external override {
+        require(!IMapleGlobalsLike(globals()).protocolPaused(),           "LM:UA:PROTOCOL_PAUSED");
         require(msg.sender == poolDelegate() || msg.sender == governor(), "LM:UA:NOT_AUTHORIZED");
 
         _advanceGlobalPaymentAccounting();

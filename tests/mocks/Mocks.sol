@@ -96,12 +96,16 @@ contract MockGlobals {
         _isValidScheduledCall = isValid_;
     }
 
+    function __setLatestPrice(address asset_, uint256 latestPrice_) external {
+        getLatestPrice[asset_] = latestPrice_;
+    }
+
     function __setOwnedPoolManager(address owner_, address poolManager_) external {
         ownedPoolManager[owner_] = poolManager_;
     }
 
-    function __setLatestPrice(address asset_, uint256 latestPrice_) external {
-        getLatestPrice[asset_] = latestPrice_;
+    function __setProtocolPaused(bool paused_) external {
+        protocolPaused = paused_;
     }
 
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_) {
