@@ -64,6 +64,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
         address poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
 
+        require(!IMapleGlobalsLike(globals()).protocolPaused(),          "LM:U:PROTOCOL_PAUSED");
         require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NOT_AUTHORIZED");
 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());

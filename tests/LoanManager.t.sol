@@ -156,6 +156,15 @@ contract UpgradeTests is LoanManagerBaseTest {
         vm.stopPrank();
     }
 
+    function test_upgrade_failWhenPaused() external {
+        globals.__setIsValidScheduledCall(true);
+        globals.__setProtocolPaused(true);
+
+        vm.prank(poolManager.poolDelegate());
+        vm.expectRevert("LM:U:PROTOCOL_PAUSED");
+        loanManager.upgrade(2, "");
+    }
+
     function test_upgrade_notPoolDelegate() external {
         vm.expectRevert("LM:U:NOT_AUTHORIZED");
         loanManager.upgrade(2, "");
