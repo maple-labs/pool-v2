@@ -85,6 +85,11 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         }
 
         uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
+
+        if (block.timestamp < startDate_) {
+            startDate_ = block.timestamp;
+        }
+
         uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
 
         emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanLike(loan_).principal()));
