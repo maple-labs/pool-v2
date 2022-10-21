@@ -15,7 +15,7 @@ import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitialize
 import {
     MockFactory,
     MockGlobals,
-    MockLoan,
+    MockLoanV3,
     MockPool,
     MockPoolManager
 } from "./mocks/Mocks.sol";
@@ -35,8 +35,8 @@ contract TransitionLoanManagerTestBase is TestUtils {
     MockERC20       collateralAsset;
     MockERC20       fundsAsset;
     MockGlobals     globals;
-    MockLoan        loan1;
-    MockLoan        loan2;
+    MockLoanV3      loan1;
+    MockLoanV3      loan2;
     MockPool        pool;
     MockPoolManager poolManager;
 
@@ -46,8 +46,8 @@ contract TransitionLoanManagerTestBase is TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
         globals         = new MockGlobals(governor);
-        loan1           = new MockLoan(address(collateralAsset), address(fundsAsset));
-        loan2           = new MockLoan(address(collateralAsset), address(fundsAsset));
+        loan1           = new MockLoanV3(address(collateralAsset), address(fundsAsset));
+        loan2           = new MockLoanV3(address(collateralAsset), address(fundsAsset));
         poolManager     = new MockPoolManager();
         pool            = new MockPool();
 

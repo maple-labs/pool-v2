@@ -415,6 +415,84 @@ contract MockLoan {
 
 }
 
+contract MockLoanV3 {
+
+    address public borrower;
+    address public collateralAsset;
+    address public fundsAsset;
+    address public factory;
+
+    uint256 public collateral;
+    uint256 public collateralRequired;
+    uint256 public nextPaymentInterest;
+    uint256 public nextPaymentDueDate;
+    uint256 public nextPaymentLateInterest;
+    uint256 public nextPaymentPrincipal;
+    uint256 public paymentInterval;
+    uint256 public principal;
+    uint256 public principalRequested;
+    uint256 public refinanceInterest;
+
+    constructor(address collateralAsset_, address fundsAsset_) {
+        collateralAsset = collateralAsset_;
+        fundsAsset      = fundsAsset_;
+    }
+
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256, uint256) {
+        principal_ = nextPaymentPrincipal;
+        interest_  = nextPaymentInterest + refinanceInterest;
+    }
+
+    function __setBorrower(address borrower_) external {
+        borrower = borrower_;
+    }
+
+    function __setCollateral(uint256 collateral_) external {
+        collateral = collateral_;
+    }
+
+      function __setCollateralAsset(address collateralAsset_) external {
+        collateralAsset = collateralAsset_;
+    }
+
+    function __setCollateralRequired(uint256 collateralRequired_) external {
+        collateralRequired = collateralRequired_;
+    }
+
+    function __setFactory(address factory_) external {
+        factory = factory_;
+    }
+
+    function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
+        nextPaymentDueDate = nextPaymentDueDate_;
+    }
+
+    function __setNextPaymentInterest(uint256 nextPaymentInterest_) external {
+        nextPaymentInterest = nextPaymentInterest_;
+    }
+
+    function __setNextPaymentPrincipal(uint256 nextPaymentPrincipal_) external {
+        nextPaymentPrincipal = nextPaymentPrincipal_;
+    }
+
+    function __setPaymentInterval(uint256 paymentInterval_) external {
+        paymentInterval = paymentInterval_;
+    }
+
+    function __setPrincipal(uint256 principal_) external {
+        principal = principal_;
+    }
+
+    function __setPrincipalRequested(uint256 principalRequested_) external {
+        principalRequested = principalRequested_;
+    }
+
+    function __setRefinanceInterest(uint256 refinanceInterest_) external {
+        refinanceInterest = refinanceInterest_;
+    }
+
+}
+
 contract MockLoanManager is LoanManagerStorage {
 
     address poolDelegate;

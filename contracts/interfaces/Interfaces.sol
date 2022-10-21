@@ -183,6 +183,24 @@ interface IMapleLoanLike {
 
 }
 
+interface IMapleLoanV3Like {
+
+    function acceptLender() external;
+
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256, uint256);
+
+    function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
+
+    function paymentInterval() external view returns (uint256 paymentInterval_);
+
+    function principal() external view returns (uint256 principal_);
+
+    function refinanceInterest() external view returns (uint256 refinanceInterest_);
+
+    function setPendingLender(address pendingLender_) external;
+
+}
+
 interface IMapleProxyFactoryLike {
 
     function mapleGlobals() external view returns (address mapleGlobals_);

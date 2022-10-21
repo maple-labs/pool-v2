@@ -6,7 +6,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import { ITransitionLoanManager } from "./interfaces/ITransitionLoanManager.sol";
 
-import { IMapleGlobalsLike, IMapleLoanLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
+import { IMapleGlobalsLike, IMapleLoanV3Like, IPoolManagerLike } from "./interfaces/Interfaces.sol";
 
 import { LoanManagerStorage } from "./proxy/LoanManagerStorage.sol";
 
@@ -74,7 +74,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     function add(address loan_) external override nonReentrant {
         require(msg.sender == migrationAdmin(), "TLM:A:NOT_MA");
 
-        uint256 dueDate_ = IMapleLoanLike(loan_).nextPaymentDueDate();
+        uint256 dueDate_ = IMapleLoanV3Like(loan_).nextPaymentDueDate();
 
         require(dueDate_ != 0 && block.timestamp < dueDate_, "TLM:A:INVALID_LOAN");
 
@@ -84,15 +84,15 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
             domainStart = _uint48(block.timestamp);
         }
 
-        uint256 startDate_ = dueDate_ - IMapleLoanLike(loan_).paymentInterval();
+        uint256 startDate_ = dueDate_ - IMapleLoanV3Like(loan_).paymentInterval();
 
         if (block.timestamp < startDate_) {
             startDate_ = block.timestamp;
         }
 
-        uint256 newRate_   = _queueNextPayment(loan_, startDate_, dueDate_);
+        uint256 newRate_ = _queueNextPayment(loan_, startDate_, dueDate_);
 
-        emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanLike(loan_).principal()));
+        emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanV3Like(loan_).principal()));
 
         _updateIssuanceParams(issuanceRate += newRate_, accountedInterest);
     }
@@ -101,7 +101,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         require(msg.sender == migrationAdmin(), "TLM:SOT:NOT_MA");
 
         for (uint256 i_ = 0; i_ < loans_.length; i_++) {
-            IMapleLoanLike(loans_[i_]).setPendingLender(newLender_);
+            IMapleLoanV3Like(loans_[i_]).setPendingLender(newLender_);
         }
     }
 
@@ -109,7 +109,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         require(msg.sender == migrationAdmin(), "TLM:TO:NOT_MA");
 
         for (uint256 i_ = 0; i_ < loans_.length; i_++) {
-            IMapleLoanLike(loans_[i_]).acceptLender();
+            IMapleLoanV3Like(loans_[i_]).acceptLender();
         }
     }
 
@@ -181,8 +181,8 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         uint256 netRefinanceInterest_;
 
         {
-            ( , uint256 interest_, )  = IMapleLoanLike(loan_).getNextPaymentBreakdown();
-            uint256 refinanceInterest = IMapleLoanLike(loan_).refinanceInterest();
+            ( , uint256 interest_, , ) = IMapleLoanV3Like(loan_).getNextPaymentBreakdown();
+            uint256 refinanceInterest  = IMapleLoanV3Like(loan_).refinanceInterest();
 
             incomingNetInterest_  = _getNetInterest(interest_ - refinanceInterest, managementFeeRate_);
             netRefinanceInterest_ = _getNetInterest(refinanceInterest,             managementFeeRate_);
