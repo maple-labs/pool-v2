@@ -208,8 +208,6 @@ contract Pool is IPool, ERC20 {
     }
 
     function _requestRedeem(uint256 shares_, address owner_) internal returns (uint256 escrowShares_) {
-        require(shares_ != 0, "P:RR:ZERO_SHARES");
-
         if (msg.sender != owner_) _decreaseAllowance(owner_, msg.sender, shares_);
 
         address destination_;

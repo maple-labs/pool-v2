@@ -857,6 +857,20 @@ contract RequestRedeemTests is PoolBase {
         assertEq(pool.allowance(user, address(this)), 0);
     }
 
+    function test_requestRedeem_zeroShares() public {
+        vm.prank(user);
+        pool.approve(address(this), 500e6);
+
+        assertEq(pool.allowance(user, address(this)), 500e6);
+        assertEq(pool.balanceOf(user),                1_000e6);
+
+        vm.prank(user);
+        pool.requestRedeem(0, address(user));
+
+        assertEq(pool.allowance(user, address(this)), 500e6);
+        assertEq(pool.balanceOf(user),                1_000e6);
+    }
+
 }
 
 contract RequestWithdraw is PoolBase {
