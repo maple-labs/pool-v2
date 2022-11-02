@@ -310,6 +310,14 @@ contract MockLoan {
         isImpaired = false;
     }
 
+    function setPendingLender(address lender_) external {
+        // Do nothing
+    }
+
+    function acceptLender() external {
+        // Do nothing
+    }
+
     function skim(address asset_, address destination_) external returns (uint256 skimmed_) {
         skimmed_ = unaccountedAmounts[asset_];
         ERC20Helper.transfer(asset_, destination_, skimmed_);

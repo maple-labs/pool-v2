@@ -4290,3 +4290,130 @@ contract DistributeClaimedFunds is LoanManagerBaseTest {
     }
 
 }
+
+contract SetLoanTransferAdmin_SetterTests is LoanManagerBaseTest {
+
+    address SET_ADDRESS = address(new Address());
+
+    function test_setLoanTransferAdmin_notPoolDelegate() external {
+        vm.expectRevert("LM:SLTA:NOT_PD");
+        loanManager.setLoanTransferAdmin(SET_ADDRESS);
+    }
+
+    function test_setLoanTransferAdmin_success() external {
+        assertEq(loanManager.loanTransferAdmin(), address(0));
+
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(SET_ADDRESS);
+
+        assertEq(loanManager.loanTransferAdmin(), SET_ADDRESS);
+
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(address(0));
+
+        assertEq(loanManager.loanTransferAdmin(), address(0));
+    }
+
+}
+
+contract SetOwnershipToTests is LoanManagerBaseTest {
+
+    address loan1 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+    address loan2 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+    address loan3 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+
+    address loanTransferAdmin = address(new Address());
+    address destination       = address(new Address());
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(loanTransferAdmin);
+    }
+
+    function test_setOwnershipTo_notLoanTransferAdmin() external {
+        address[] memory loans = new address[](3);
+        loans[0] = loan1;
+        loans[1] = loan2;
+        loans[2] = loan3;
+
+        address[] memory destinations = new address[](3);
+        destinations[0] = destination;
+        destinations[1] = destination;
+        destinations[2] = destination;
+
+        vm.expectRevert("LM:SOT:NOT_LTA");
+        loanManager.setOwnershipTo(loans, destinations);
+
+        // Set admin to zero to revoke privilege
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(address(0));
+
+        vm.prank(loanTransferAdmin);
+        vm.expectRevert("LM:SOT:NOT_LTA");
+        loanManager.setOwnershipTo(loans, destinations);
+    }
+
+    function test_setOwnershipTo_success() external {
+        address[] memory loans = new address[](3);
+        loans[0] = loan1;
+        loans[1] = loan2;
+        loans[2] = loan3;
+
+        address[] memory destinations = new address[](3);
+        destinations[0] = destination;
+        destinations[1] = destination;
+        destinations[2] = destination;
+
+        vm.prank(loanTransferAdmin);
+        loanManager.setOwnershipTo(loans, destinations);
+    }
+
+}
+
+contract TakeOwnershipTests is LoanManagerBaseTest {
+
+    address loan1 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+    address loan2 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+    address loan3 = address(new MockLoan(address(collateralAsset), address(fundsAsset)));
+
+    address loanTransferAdmin = address(new Address());
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(loanTransferAdmin);
+    }
+
+    function test_takeOwnership_notLoanTransferAdmin() external {
+        address[] memory loans = new address[](3);
+        loans[0] = loan1;
+        loans[1] = loan2;
+        loans[2] = loan3;
+
+        vm.expectRevert("LM:TO:NOT_LTA");
+        loanManager.takeOwnership(loans);
+
+        // Set admin to zero to revoke privilege
+        vm.prank(poolDelegate);
+        loanManager.setLoanTransferAdmin(address(0));
+
+        vm.prank(loanTransferAdmin);
+        vm.expectRevert("LM:TO:NOT_LTA");
+        loanManager.takeOwnership(loans);
+    }
+
+    function test_takeOwnership_success() external {
+        address[] memory loans = new address[](3);
+        loans[0] = loan1;
+        loans[1] = loan2;
+        loans[2] = loan3;
+
+        vm.prank(loanTransferAdmin);
+        loanManager.takeOwnership(loans);
+    }
+
+}
+

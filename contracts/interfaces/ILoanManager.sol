@@ -35,6 +35,12 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
 
     /**
+     *  @dev   Emitted when the loanTransferAdmin is set by the PoolDelegate.
+     *  @param loanTransferAdmin_ The address of the admin that can transfer loans.
+     */
+    event LoanTransferAdminSet(address indexed loanTransferAdmin_);
+
+    /**
      *  @dev   A fee payment was made.
      *  @param loan_                  The address of the loan contract.
      *  @param delegateManagementFee_ The amount of delegate management fee paid.
@@ -121,6 +127,13 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function fund(address loan_) external;
 
     /**
+     *  @dev   Triggers the loan impairment for a loan.
+     *  @param loan_       Loan to trigger the loan impairment.
+     *  @param isGovernor_ True if called by the governor.
+     */
+    function impairLoan(address loan_, bool isGovernor_) external;
+
+    /**
      *  @dev   Removes the loan impairment for a loan.
      *  @param loan_               Loan to remove the loan impairment.
      *  @param isCalledByGovernor_ True if `impairLoan` was called by the governor.
@@ -135,6 +148,12 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external;
 
     /**
+     *  @dev   Sets the address of the account that is able to call `setOwnershipTo` and `takeOwnership` for multiple loans.
+     *  @param newLoanTransferAdmin_ Address of the new admin.
+     */
+    function setLoanTransferAdmin(address newLoanTransferAdmin_) external;
+
+    /**
      *  @dev   Sets the minimum ratio for a collateral asset liquidation.
      *         This ratio is expressed as a decimal representation of units of fundsAsset
      *         per unit collateralAsset in fundsAsset decimal precision.
@@ -144,11 +163,17 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
     function setMinRatio(address collateralAsset_, uint256 minRatio_) external;
 
     /**
-     *  @dev   Triggers the loan impairment for a loan.
-     *  @param loan_       Loan to trigger the loan impairment.
-     *  @param isGovernor_ True if called by the governor.
+     *  @dev   Sets the ownership of loans to an address.
+     *  @param loans_      An array of loan addresses.
+     *  @param newLenders_ An array of lenders to set pending ownership to.
      */
-    function impairLoan(address loan_, bool isGovernor_) external;
+    function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external;
+
+    /**
+     *  @dev   Takes the ownership of the loans.
+     *  @param loans_ An array with multiple loan addresses.
+     */
+    function takeOwnership(address[] calldata loans_) external;
 
     /**
      *  @dev    Triggers the default of a loan.

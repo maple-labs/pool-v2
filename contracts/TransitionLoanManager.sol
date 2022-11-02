@@ -97,11 +97,13 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         _updateIssuanceParams(issuanceRate += newRate_, accountedInterest);
     }
 
-    function setOwnershipTo(address[] calldata loans_, address newLender_) external override {
-        require(msg.sender == migrationAdmin(), "TLM:SOT:NOT_MA");
+    function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
+        require(msg.sender == loanTransferAdmin, "TLM:SOT:NOT_LTA");
+
+        require(loans_.length == newLenders_.length, "TLM:SOT:ARRAY_LENGTH_MISMATCH");
 
         for (uint256 i_ = 0; i_ < loans_.length; i_++) {
-            IMapleLoanV3Like(loans_[i_]).setPendingLender(newLender_);
+            IMapleLoanV3Like(loans_[i_]).setPendingLender(newLenders_[i_]);
         }
     }
 

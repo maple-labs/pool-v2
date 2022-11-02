@@ -66,16 +66,16 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
 
     /**
      *  @dev   Sets the ownership of loans to an address.
-     *  @param loan_ An array with multiple loan addresses.
-     *  @param newLender_   The address of the new lender.
+     *  @param loans_      An array of loan addresses.
+     *  @param newLenders_ An array of lenders to set pending ownership to.
      */
-    function setOwnershipTo(address[] calldata loan_, address newLender_) external;
+    function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external;
 
     /**
      *  @dev   Takes the ownership of the loans.
-     *  @param loan_ An array with multiple loan addresses.
+     *  @param loans_ An array with multiple loan addresses.
      */
-    function takeOwnership(address[] calldata loan_) external;
+    function takeOwnership(address[] calldata loans_) external;
 
     /******************************************************************************************************************************/
     /*** View Functions                                                                                                         ***/

@@ -79,6 +79,33 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     /******************************************************************************************************************************/
+    /*** Loan Ownership Functions                                                                                               ***/
+    /******************************************************************************************************************************/
+
+    function setLoanTransferAdmin(address newLoanTransferAdmin_) external override {
+        require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:SLTA:NOT_PD");
+        emit LoanTransferAdminSet(loanTransferAdmin = newLoanTransferAdmin_);
+    }
+
+    function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
+        require(msg.sender == loanTransferAdmin, "LM:SOT:NOT_LTA");
+
+        require(loans_.length == newLenders_.length, "LM:SOT:ARRAY_LENGTH_MISMATCH");
+
+        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+            IMapleLoanLike(loans_[i_]).setPendingLender(newLenders_[i_]);
+        }
+    }
+
+    function takeOwnership(address[] calldata loans_) external override {
+        require(msg.sender == loanTransferAdmin, "LM:TO:NOT_LTA");
+
+        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+            IMapleLoanLike(loans_[i_]).acceptLender();
+        }
+    }
+
+    /******************************************************************************************************************************/
     /*** Collateral Liquidation Administrative Functions                                                                        ***/
     /******************************************************************************************************************************/
 
