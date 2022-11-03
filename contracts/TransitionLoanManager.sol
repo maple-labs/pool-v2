@@ -98,7 +98,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
     }
 
     function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
-        require(msg.sender == loanTransferAdmin, "TLM:SOT:NOT_LTA");
+        require(msg.sender == migrationAdmin(), "TLM:SOT:NOT_MA");
 
         require(loans_.length == newLenders_.length, "TLM:SOT:ARRAY_LENGTH_MISMATCH");
 
