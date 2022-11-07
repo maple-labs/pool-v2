@@ -397,14 +397,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(msg.sender == poolDelegate, "PM:WC:NOT_PD");
 
-        require(
-            amount_ <= (IERC20Like(asset).balanceOf(poolDelegateCover) - IMapleGlobalsLike(globals()).minCoverAmount(address(this))),
-            "PM:WC:BELOW_MIN"
-        );
-
         recipient_ = recipient_ == address(0) ? msg.sender : recipient_;
 
         IPoolDelegateCoverLike(poolDelegateCover).moveFunds(amount_, recipient_);
+
+        require(
+            IERC20Like(asset).balanceOf(poolDelegateCover) >= IMapleGlobalsLike(globals()).minCoverAmount(address(this)),
+            "PM:WC:BELOW_MIN"
+        );
 
         emit CoverWithdrawn(amount_);
     }

@@ -2172,7 +2172,7 @@ contract WithdrawCoverTests is PoolManagerBase {
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:WC:BELOW_MIN");
+        vm.expectRevert("PDC:MF:TRANSFER_FAILED");
         poolManager.withdrawCover(1_000e18 + 1, POOL_DELEGATE);
     }
 
