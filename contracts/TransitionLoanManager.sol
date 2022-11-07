@@ -94,7 +94,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanV3Like(loan_).principal()));
 
-        _updateIssuanceParams(issuanceRate += newRate_, accountedInterest);
+        _updateIssuanceParams(issuanceRate + newRate_, accountedInterest);
     }
 
     function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
