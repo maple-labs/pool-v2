@@ -80,7 +80,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         uint256 domainStart_ = domainStart;
 
-        if (domainStart_ == 0 || domainStart_ != block.timestamp) {
+        if (domainStart_ != block.timestamp) {
             domainStart = _uint48(block.timestamp);
         }
 
