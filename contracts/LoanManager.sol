@@ -492,7 +492,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         newRate_ = (_getNetInterest(interest_[0], managementFeeRate_) * PRECISION) / (nextPaymentDueDate_ - startDate_);
 
-        uint256 incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / 1e30;  // NOTE: Use issuanceRate to capture rounding errors.
+        uint256 incomingNetInterest_ = newRate_ * (nextPaymentDueDate_ - startDate_) / PRECISION;  // NOTE: Use issuanceRate to capture rounding errors.
 
         uint256 paymentId_ = paymentIdOf[loan_] = _addPaymentToList(_uint48(nextPaymentDueDate_));  // Add the payment to the sorted list.
 
