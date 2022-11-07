@@ -866,7 +866,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function getExpectedAmount(address collateralAsset_, uint256 swapAmount_) public view override returns (uint256 returnAmount_) {
         address globals_ = globals();
 
-        uint8 collateralAssetDecimals_ = IERC20Like(collateralAsset_).decimals();
+        uint256 collateralAssetDecimals_ = uint256(10) ** uint256(IERC20Like(collateralAsset_).decimals());
 
         uint256 oracleAmount =
             swapAmount_
@@ -874,10 +874,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 * uint256(10) ** uint256(IERC20Like(fundsAsset).decimals())     // Convert to `toAsset` decimal precision.
                 * (HUNDRED_PERCENT - allowedSlippageFor[collateralAsset_])      // Multiply by allowed slippage basis points
                 / IMapleGlobalsLike(globals_).getLatestPrice(fundsAsset)        // Convert to `toAsset` value.
-                / uint256(10) ** uint256(collateralAssetDecimals_)              // Convert from `fromAsset` decimal precision.
+                / collateralAssetDecimals_                                      // Convert from `fromAsset` decimal precision.
                 / HUNDRED_PERCENT;                                              // Divide basis points for slippage.
 
-        uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / (uint256(10) ** collateralAssetDecimals_);
+        uint256 minRatioAmount = (swapAmount_ * minRatioFor[collateralAsset_]) / collateralAssetDecimals_;
 
         returnAmount_ = oracleAmount > minRatioAmount ? oracleAmount : minRatioAmount;
     }
