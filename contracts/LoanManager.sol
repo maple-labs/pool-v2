@@ -397,8 +397,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ( address liquidator_, uint256 principal_ ) = _handleLiquidatingRepossession(loan_, liquidatorFactory_, netInterest_);
 
-        liquidationComplete_ = false;
-
         if (isImpaired) {
             liquidationInfo[loan_].liquidator = liquidator_;
         } else {

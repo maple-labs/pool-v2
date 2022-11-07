@@ -194,7 +194,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         isLoanManager[loanManager_] = false;
 
         // Find loan manager index
-        uint256 i_ = 0;
+        uint256 i_;
         while (loanManagerList[i_] != loanManager_) i_++;
 
         // Move last element to index of removed loan manager and pop last element.
