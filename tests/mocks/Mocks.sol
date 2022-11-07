@@ -218,6 +218,7 @@ contract MockLoan {
     uint256 public nextPaymentDueDate;
     uint256 public nextPaymentLateInterest;
     uint256 public nextPaymentPrincipal;
+    uint256 public originalNextPaymentDueDate;
     uint256 public paymentInterval;
     uint256 public platformServiceFee;
     uint256 public unimpairedPaymentDueDate;
@@ -371,6 +372,10 @@ contract MockLoan {
 
     function __setNextPaymentPrincipal(uint256 nextPaymentPrincipal_) external {
         nextPaymentPrincipal = nextPaymentPrincipal_;
+    }
+
+    function __setOriginalNextPaymentDueDate(uint256 originalNextPaymentDueDate_) external {
+        originalNextPaymentDueDate = originalNextPaymentDueDate_;
     }
 
     function __setPaymentInterval(uint256 paymentInterval_) external {

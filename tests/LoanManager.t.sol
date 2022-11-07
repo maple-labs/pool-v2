@@ -725,6 +725,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
         loan_.__setPrincipalRequested(1_000_000);
         loan_.__setNextPaymentInterest(100);
         loan_.__setNextPaymentDueDate(START + 10_000);
+        loan_.__setOriginalNextPaymentDueDate(START + 10_000);
         loan_.__setPlatformServiceFee(20);
 
         vm.prank(address(poolManager));
@@ -754,6 +755,27 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
 
         vm.expectRevert("LM:RLI:NOT_PM");
         loanManager.removeLoanImpairment(address(loan), true);
+
+        vm.prank(address(poolManager));
+        loanManager.removeLoanImpairment(address(loan), true);
+    }
+
+    function test_removeLoanImpairment_pastDueDate() public {
+        // Warp 60% into the payment interval
+        vm.warp(START + 6_000);
+
+        vm.prank(address(poolManager));
+        loanManager.impairLoan(address(loan), true);
+
+        // Warp past originalPaymentDueDate
+        vm.warp(START + 10_000 + 1);
+
+        vm.expectRevert("LM:RLI:PAST_DATE");
+        vm.prank(address(poolManager));
+        loanManager.removeLoanImpairment(address(loan), true);
+
+        // Warp back before the originalPaymentDueDate
+        vm.warp(START + 10_000);
 
         vm.prank(address(poolManager));
         loanManager.removeLoanImpairment(address(loan), true);

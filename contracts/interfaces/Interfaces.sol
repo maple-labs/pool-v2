@@ -159,6 +159,8 @@ interface IMapleLoanLike {
 
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
 
+    function originalNextPaymentDueDate() external view returns (uint256 originalNextPaymentDueDate_);
+
     function paymentInterval() external view returns (uint256 paymentInterval_);
 
     function paymentsRemaining() external view returns (uint256 paymentsRemaining_);

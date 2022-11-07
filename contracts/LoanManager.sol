@@ -299,6 +299,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function removeLoanImpairment(address loan_, bool isCalledByGovernor_) external override nonReentrant {
         require(msg.sender == poolManager, "LM:RLI:NOT_PM");
 
+        require(block.timestamp <= IMapleLoanLike(loan_).originalNextPaymentDueDate(), "LM:RLI:PAST_DATE");
+
         _advanceGlobalPaymentAccounting();
 
         IMapleLoanLike(loan_).removeLoanImpairment();
