@@ -699,7 +699,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
                 // - Set the domain end to the next earliest payment.
                 //   - If this value is still in the past, this loop will continue.
                 domainStart_ = domainEnd_;
-                domainEnd_   = payments[paymentWithEarliestDueDate].paymentDueDate;
+                domainEnd_ = paymentWithEarliestDueDate == 0
+                    ? _uint48(block.timestamp)
+                    : payments[paymentWithEarliestDueDate].paymentDueDate;
 
                 // If the end of the list has been reached, exit the loop.
                 if ((paymentId_ = next_) == 0) break;
