@@ -192,7 +192,7 @@ contract Pool is IPool, ERC20 {
     }
 
     function _divRoundUp(uint256 numerator_, uint256 divisor_) internal pure returns (uint256 result_) {
-       result_ = (numerator_ / divisor_) + (numerator_ % divisor_ > 0 ? 1 : 0);
+        result_ = (numerator_ + divisor_ - 1) / divisor_;
     }
 
     function _mint(uint256 shares_, uint256 assets_, address receiver_, address caller_) internal {
