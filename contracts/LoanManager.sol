@@ -92,16 +92,22 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         require(loans_.length == newLenders_.length, "LM:SOT:ARRAY_LENGTH_MISMATCH");
 
-        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+        uint256 length_ = loans_.length;
+
+        for (uint256 i_ = 0; i_ < length_;) {
             IMapleLoanLike(loans_[i_]).setPendingLender(newLenders_[i_]);
+            unchecked{ i_++; }
         }
     }
 
     function takeOwnership(address[] calldata loans_) external override {
         require(msg.sender == loanTransferAdmin, "LM:TO:NOT_LTA");
 
-        for (uint256 i_ = 0; i_ < loans_.length; i_++) {
+        uint256 length_ = loans_.length;
+
+        for (uint256 i_ = 0; i_ < length_;) {
             IMapleLoanLike(loans_[i_]).acceptLender();
+            unchecked{ i_++; }
         }
     }
 
