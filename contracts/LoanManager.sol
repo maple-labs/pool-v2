@@ -232,7 +232,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         //     - Update the `accountedInterest` to represent the interest that has accrued from the `previousPaymentDueDate` to the current `block.timestamp`.
         //     Payment `issuanceRate` is used for this calculation as the issuance has occurred in isolation and entirely in the past.
         //     All interest from the aggregate issuance rate has already been accounted for in `_advanceGlobalPaymentAccounting`.
-        if (block.timestamp > previousPaymentDueDate_ && block.timestamp <= nextPaymentDueDate_) {
+        if (block.timestamp <= nextPaymentDueDate_) {
             return _updateIssuanceParams(
                 issuanceRate + newRate_,
                 accountedInterest + _uint112((block.timestamp - previousPaymentDueDate_) * newRate_ / PRECISION)
