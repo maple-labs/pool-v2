@@ -188,7 +188,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function removeLoanManager(address loanManager_) external override {
         _whenProtocolNotPaused();
 
-        require(msg.sender == poolDelegate, "PM:RLM:NOT_PD");
+        require(msg.sender == poolDelegate,  "PM:RLM:NOT_PD");
+        require(isLoanManager[loanManager_], "PM:RLM:INVALID_LM");
 
         isLoanManager[loanManager_] = false;
 

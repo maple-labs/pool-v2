@@ -1414,6 +1414,14 @@ contract RemoveLoanManager_SetterTests is PoolManagerBase {
         poolManager.removeLoanManager(LOAN_MANAGER_1);
     }
 
+    function test_removeLoanManager_notLM() external {
+        address notLoanManager = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:RLM:INVALID_LM");
+        poolManager.removeLoanManager(notLoanManager);
+    }
+
     function test_removeLoanManager_firstItem() external {
         assertTrue(poolManager.isLoanManager(LOAN_MANAGER_1));
         assertTrue(poolManager.isLoanManager(LOAN_MANAGER_2));
