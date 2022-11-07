@@ -253,7 +253,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             ( uint256 accountedInterestIncrease_, ) = _accountToEndOfPayment(paymentIdOf[msg.sender], newRate_, previousPaymentDueDate_, nextPaymentDueDate_);
 
             return _updateIssuanceParams(
-                issuanceRate - previousRate_,
+                issuanceRate,
                 accountedInterest + _uint112(accountedInterestIncrease_)
             );
         }
