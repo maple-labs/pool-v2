@@ -915,6 +915,18 @@ contract MockWithdrawalManager is MapleProxiedInternals {
     }
 }
 
+contract MockWithdrawalManagerInitializer {
+
+    function encodeArguments(address pool_, uint256 cycleDuration_, uint256 windowDuration_) external pure returns (bytes memory calldata_) {
+        calldata_ = abi.encode(pool_, cycleDuration_, windowDuration_);
+    }
+
+    function decodeArguments(bytes calldata calldata_) external pure returns (address pool_, uint256 cycleDuration_, uint256 windowDuration_) {
+        ( pool_, cycleDuration_, windowDuration_ ) = abi.decode(calldata_, (address, uint256, uint256));
+    }
+
+}
+
 contract MockLiquidator {
 
     uint256 public collateralRemaining;

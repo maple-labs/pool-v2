@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { ILoanManagerInitializerLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
+import { ILoanManagerInitializerLike, IMapleGlobalsLike, IWithdrawalManagerInitializerLike } from "./interfaces/Interfaces.sol";
 
 import { IPoolDeployer }           from "./interfaces/IPoolDeployer.sol";
 import { IPoolManager }            from "./interfaces/IPoolManager.sol";
@@ -65,7 +65,7 @@ contract PoolDeployer is IPoolDeployer {
         loanManager_ = IMapleProxyFactory(factories_[1]).createInstance(arguments, salt_);
 
         // Deploy Withdrawal Manager
-        arguments          = abi.encode(pool_, configParams_[3], configParams_[4]);
+        arguments          = IWithdrawalManagerInitializerLike(initializers_[2]).encodeArguments(pool_, configParams_[3], configParams_[4]);
         withdrawalManager_ = IMapleProxyFactory(factories_[2]).createInstance(arguments, salt_);
 
         // Configure Pool Manager

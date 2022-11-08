@@ -299,6 +299,14 @@ interface IPoolManagerLike {
 
 }
 
+interface IWithdrawalManagerInitializerLike {
+
+    function encodeArguments(address pool_, uint256 cycleDuration_, uint256 windowDuration_) external pure returns (bytes memory calldata_);
+
+    function decodeArguments(bytes calldata calldata_) external pure returns (address pool_, uint256 cycleDuration_, uint256 windowDuration_);
+
+}
+
 interface IWithdrawalManagerLike {
 
     function addShares(uint256 shares_, address owner_) external;
