@@ -323,7 +323,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Discretely update missing interest as if payment was always part of the list.
         _updateIssuanceParams(
             issuanceRate + paymentInfo_.issuanceRate,
-            accountedInterest + _uint112(_getPaymentAccruedInterest(paymentInfo_.startDate, domainStart, paymentInfo_.issuanceRate, paymentInfo_.refinanceInterest))
+            accountedInterest + _uint112(_getPaymentAccruedInterest(paymentInfo_.startDate, block.timestamp, paymentInfo_.issuanceRate, paymentInfo_.refinanceInterest))
         );
     }
 
