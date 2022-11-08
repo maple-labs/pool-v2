@@ -149,7 +149,11 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advanceGlobalPaymentAccounting();
 
-        PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
+        uint256 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:ANT:NOT_LOAN");
+
+        PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
         uint256 previousRate_     = _handlePreviousPaymentAccounting(loan_, block.timestamp <= paymentInfo_.paymentDueDate);
         uint256 previousPrincipal_ = IMapleLoanLike(loan_).principal();
@@ -268,7 +272,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         require(!IMapleLoanLike(loan_).isImpaired(), "LM:IL:ALREADY_IMPAIRED");
 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
-        uint256 paymentId_              = paymentIdOf[loan_];
+        uint256 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:IL:NOT_LOAN");
+
         PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
         _advanceGlobalPaymentAccounting();
@@ -305,7 +312,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         IMapleLoanLike(loan_).removeLoanImpairment();
 
-        uint24 paymentId_                       = paymentIdOf[loan_];
+        uint24 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:RLI:NOT_LOAN");
+
         PaymentInfo memory paymentInfo_         = payments[paymentId_];
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
 
@@ -377,8 +387,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     {
         require(msg.sender == poolManager, "LM:TD:NOT_PM");
 
+        uint256 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:TD:NOT_LOAN");
+
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
-        PaymentInfo memory paymentInfo_ = payments[paymentIdOf[loan_]];
+        PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
         // NOTE: This will cause this payment to be removed from the list, so no need to remove it explicitly afterwards.
         _advanceGlobalPaymentAccounting();
@@ -445,7 +459,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function _handlePreviousPaymentAccounting(address loan_, bool onTimePayment_) internal returns (uint256 previousRate_) {
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
 
-        uint256 paymentId_              = paymentIdOf[loan_];
+        uint256 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:IL:NOT_LOAN");
+
         PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
         // Remove the payment from the mapping once cached to memory.
@@ -646,7 +663,10 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function _distributeClaimedFunds(address loan_, uint256 principal_, uint256 interest_) internal {
-        uint256 paymentId_   = paymentIdOf[loan_];
+        uint256 paymentId_ = paymentIdOf[loan_];
+
+        require(paymentId_ != 0, "LM:DCF:NOT_LOAN");
+
         uint256 platformFee_ = interest_ * payments[paymentId_].platformManagementFeeRate / HUNDRED_PERCENT;
 
         uint256 delegateFee_ = IPoolManagerLike(poolManager).hasSufficientCover()

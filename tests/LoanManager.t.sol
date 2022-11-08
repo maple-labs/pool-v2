@@ -4307,6 +4307,9 @@ contract DistributeClaimedFunds is LoanManagerBaseTest {
 
         fundsAsset.mint(address(loanManager), 200);
 
+        // Queue next payment to add loan to 
+        loanManager.__queueNextPayment(address(loan), START, START + 100);
+
         vm.expectRevert("LM:DCF:ZERO_ADDRESS");
         loanManager.distributeClaimedFunds(address(loan), 100, 100);
     }
