@@ -177,5 +177,104 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         );
     }
 
+    function test_deployPool_invalidInitializers() external {
+        string memory name_   = "Pool";
+        string memory symbol_ = "P2";
+
+        address poolDeployer = address(new PoolDeployer(globals));
+        MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
+
+        address[3] memory factories_ = [
+            poolManagerFactory,
+            loanManagerFactory,
+            withdrawalManagerFactory
+        ];
+
+        address incorrectPoolManagerInitializer       = address(new Address());
+        address incorrectLoanManagerInitializer       = address(new Address());
+        address incorrectWithdrawalManagerInitializer = address(new Address());
+
+        address[3] memory initializers_ = [
+            incorrectPoolManagerInitializer,
+            loanManagerInitializer,
+            withdrawalManagerInitializer
+        ];
+
+        uint256 coverAmountRequired = 10e18;
+        uint256[6] memory configParams_ = [
+            1_000_000e18,
+            0.1e18,
+            coverAmountRequired,
+            3 days,
+            1 days,
+            0
+        ];
+
+        vm.prank(poolDelegate);
+        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
+
+        vm.expectRevert("PD:DP:INVALID_PM_INITIALIZER");
+        vm.prank(poolDelegate);
+        PoolDeployer(poolDeployer).deployPool(
+            factories_,
+            initializers_,
+            address(asset),
+            name_,
+            symbol_,
+            configParams_
+        );
+
+        initializers_ = [
+            poolManagerInitializer,
+            incorrectLoanManagerInitializer,
+            withdrawalManagerInitializer
+        ];
+
+        vm.expectRevert("PD:DP:INVALID_LM_INITIALIZER");
+        vm.prank(poolDelegate);
+        PoolDeployer(poolDeployer).deployPool(
+            factories_,
+            initializers_,
+            address(asset),
+            name_,
+            symbol_,
+            configParams_
+        );
+
+        initializers_ = [
+            poolManagerInitializer,
+            loanManagerInitializer,
+            incorrectWithdrawalManagerInitializer
+        ];
+
+        vm.expectRevert("PD:DP:INVALID_WM_INITIALIZER");
+        vm.prank(poolDelegate);
+        PoolDeployer(poolDeployer).deployPool(
+            factories_,
+            initializers_,
+            address(asset),
+            name_,
+            symbol_,
+            configParams_
+        );
+
+        initializers_ = [
+            poolManagerInitializer,
+            loanManagerInitializer,
+            withdrawalManagerInitializer
+        ];
+
+        vm.prank(poolDelegate);
+        PoolDeployer(poolDeployer).deployPool(
+            factories_,
+            initializers_,
+            address(asset),
+            name_,
+            symbol_,
+            configParams_
+        );
+    }
+
 }
 

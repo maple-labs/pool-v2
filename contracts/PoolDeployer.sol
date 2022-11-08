@@ -53,6 +53,19 @@ contract PoolDeployer is IPoolDeployer {
         require(globals_.isFactory("LOAN_MANAGER",       factories_[1]), "PD:DP:INVALID_LM_FACTORY");
         require(globals_.isFactory("WITHDRAWAL_MANAGER", factories_[2]), "PD:DP:INVALID_WM_FACTORY");
 
+        // Avoid stack too deep error
+        {
+
+        IMapleProxyFactory PMFactory_ = IMapleProxyFactory(factories_[0]);
+        IMapleProxyFactory LMFactory_ = IMapleProxyFactory(factories_[1]);
+        IMapleProxyFactory WMFactory_ = IMapleProxyFactory(factories_[2]);
+
+        require(initializers_[0] == PMFactory_.migratorForPath(PMFactory_.defaultVersion(), PMFactory_.defaultVersion()), "PD:DP:INVALID_PM_INITIALIZER");
+        require(initializers_[1] == LMFactory_.migratorForPath(LMFactory_.defaultVersion(), LMFactory_.defaultVersion()), "PD:DP:INVALID_LM_INITIALIZER");
+        require(initializers_[2] == WMFactory_.migratorForPath(WMFactory_.defaultVersion(), WMFactory_.defaultVersion()), "PD:DP:INVALID_WM_INITIALIZER");
+
+        }
+
         bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
 
         // Deploy Pool Manager
