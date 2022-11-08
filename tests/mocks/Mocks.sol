@@ -849,6 +849,14 @@ contract MockPoolManagerMigrator is PoolManagerStorage {
 
 }
 
+contract MockPoolManagerMigratorInvalidPoolDelegateCover is PoolManagerStorage {
+
+    fallback() external {
+        poolDelegateCover = address(0);
+    }
+
+}
+
 contract MockMigrator {
 
     fallback() external {

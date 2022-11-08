@@ -18,6 +18,7 @@ import {
     MockLoan,
     MockLoanManager,
     MockPoolManagerMigrator,
+    MockPoolManagerMigratorInvalidPoolDelegateCover,
     MockPool,
     MockWithdrawalManager
 } from "./mocks/Mocks.sol";
@@ -143,7 +144,8 @@ contract ConfigureTests is PoolManagerBase {
 
 contract MigrateTests is PoolManagerBase {
 
-    address migrator = address(new MockPoolManagerMigrator());
+    address migrator        = address(new MockPoolManagerMigrator());
+    address invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
 
     function test_migrate_notFactory() external {
         vm.expectRevert("PM:M:NOT_FACTORY");
@@ -154,6 +156,12 @@ contract MigrateTests is PoolManagerBase {
         vm.prank(poolManager.factory());
         vm.expectRevert("PM:M:FAILED");
         poolManager.migrate(migrator, "");
+    }
+
+    function test_migrate_invalidPoolDelegateCover() external {
+        vm.prank(poolManager.factory());
+        vm.expectRevert("PM:M:DELEGATE_NOT_SET");
+        poolManager.migrate(invalidMigrator, "");
     }
 
     function test_migrate_success() external {

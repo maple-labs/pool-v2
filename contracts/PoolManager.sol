@@ -59,6 +59,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
+        require(poolDelegateCover != address(0), "PM:M:DELEGATE_NOT_SET");
     }
 
     function setImplementation(address implementation_) external override {
