@@ -440,6 +440,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:VAFL:INVALID_BORROWER");
         require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:VAFL:ZERO_SUPPLY");
         require(_hasSufficientCover(globals_, asset_),                                    "PM:VAFL:INSUFFICIENT_COVER");
+        require(IMapleLoanLike(loan_).paymentsRemaining() != 0,                           "PM:VAFL:LOAN_NOT_ACTIVE");
 
         address loanFactory_ = IMapleProxied(loan_).factory();
 

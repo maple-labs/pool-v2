@@ -650,6 +650,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
         loan.__setFactory(address(loanFactory));
+        loan.__setPaymentsRemaining(3);
 
         loanFactory.__setIsLoan(address(loan), true);
 
@@ -737,6 +738,7 @@ contract FundTests is PoolManagerBase {
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
         loan.__setFactory(address(loanFactory));
+        loan.__setPaymentsRemaining(3);
 
         loanFactory.__setIsLoan(address(loan), true);
 
@@ -773,6 +775,14 @@ contract FundTests is PoolManagerBase {
         vm.expectRevert("PM:VAFL:ZERO_SUPPLY");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
+    }
+
+    function test_fund_inactiveLoan() external {
+        loan.__setPaymentsRemaining(0);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:VAFL:LOAN_NOT_ACTIVE");
+        poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
     function test_fund_transferFail() external {
@@ -931,6 +941,7 @@ contract TriggerDefault is PoolManagerBase {
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
         MockLoan(loan).__setFactory(address(loanFactory));
+        MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         loanFactory.__setIsLoan(loan, true);
@@ -1114,6 +1125,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
         MockLoan(loan).__setFactory(address(loanFactory));
+        MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 
         loanFactory.__setIsLoan(loan, true);

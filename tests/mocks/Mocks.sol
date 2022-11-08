@@ -220,6 +220,7 @@ contract MockLoan {
     uint256 public nextPaymentPrincipal;
     uint256 public originalNextPaymentDueDate;
     uint256 public paymentInterval;
+    uint256 public paymentsRemaining;
     uint256 public platformServiceFee;
     uint256 public unimpairedPaymentDueDate;
     uint256 public principal;
@@ -380,6 +381,10 @@ contract MockLoan {
 
     function __setPaymentInterval(uint256 paymentInterval_) external {
         paymentInterval = paymentInterval_;
+    }
+
+    function __setPaymentsRemaining(uint256 paymentsRemaining_) external {
+        paymentsRemaining = paymentsRemaining_;
     }
 
     function __setPlatformServiceFee(uint256 platformServiceFee_) external {
