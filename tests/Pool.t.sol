@@ -1283,6 +1283,60 @@ contract PreviewMintTests is PoolBase {
 
 }
 
+contract ConvertToExitAssetsTests is PoolBase {
+
+    function test_convertToExitAssets_zeroSupply() external {
+        assertEq(pool.convertToExitAssets(0),   0);
+        assertEq(pool.convertToExitAssets(1),   1);
+        assertEq(pool.convertToExitAssets(100), 100);
+
+        assertEq(pool.convertToExitAssets(type(uint256).max), type(uint256).max);
+    }
+
+    function testFuzz_convertToExitAssets_zeroSupply(uint256 shares) external {
+        assertEq(pool.convertToExitAssets(shares), shares);
+    }
+
+    function test_convertToExitAssets() external {
+        _deposit(address(pool), address(poolManager), address(this), 100);  // Set totalSupply to 100
+
+        MockPoolManager(poolManager).__setTotalAssets(100);
+
+        assertEq(pool.convertToExitAssets(100), 100);
+        assertEq(pool.convertToExitAssets(101), 101);
+
+        MockPoolManager(poolManager).__setTotalAssets(101);
+
+        assertEq(pool.convertToExitAssets(100), 101);  // 100 * 101 / 100
+        assertEq(pool.convertToExitAssets(150), 151);  // 150 * 101 / 100 Round down
+
+        MockPoolManager(poolManager).__setTotalAssets(100);
+        MockPoolManager(poolManager).__setUnrealizedLosses(100);
+
+        assertEq(pool.convertToExitAssets(100),               0);  // Zero numerator
+        assertEq(pool.convertToExitAssets(type(uint256).max), 0);  // Zero numerator
+
+        MockPoolManager(poolManager).__setUnrealizedLosses(50);
+
+        assertEq(pool.convertToExitAssets(100), 50);  // Half
+    }
+
+    function testFuzz_convertToExitAssets(uint256 totalSupply, uint256 totalAssets, uint256 unrealizedLosses, uint256 shares) external {
+        totalSupply      = constrictToRange(totalSupply,      1, 1e29);
+        totalAssets      = constrictToRange(totalAssets,      0, 1e29);
+        unrealizedLosses = constrictToRange(unrealizedLosses, 0, totalAssets);
+        shares           = constrictToRange(shares,           1, 1e29);
+
+        _deposit(address(pool), address(poolManager), address(this), totalSupply);  // Set totalSupply
+
+        MockPoolManager(poolManager).__setTotalAssets(totalAssets);
+        MockPoolManager(poolManager).__setUnrealizedLosses(unrealizedLosses);
+
+        assertEq(pool.convertToExitAssets(shares), shares * (totalAssets - unrealizedLosses) / totalSupply);
+    }
+
+}
+
 // contract PreviewRedeemTests is PoolBase {
 
 //     function test_previewRedeem_initialState() public {

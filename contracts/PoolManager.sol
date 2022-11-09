@@ -567,10 +567,9 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     function maxMint(address receiver_) external view virtual override returns (uint256 maxShares_) {
         uint256 totalAssets_ = totalAssets();
-        uint256 totalSupply_ = IPoolLike(pool).totalSupply();
         uint256 maxAssets_   = _getMaxAssets(receiver_, totalAssets_);
 
-        maxShares_ = totalSupply_ == 0 ? maxAssets_ : maxAssets_ * totalSupply_ / totalAssets_;
+        maxShares_ = IPoolLike(pool).previewDeposit(maxAssets_);
     }
 
     function maxRedeem(address owner_) external view virtual override returns (uint256 maxShares_) {
@@ -581,7 +580,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
         uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
         uint256 maxShares_    = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
-        maxAssets_            = maxShares_ * (totalAssets() - unrealizedLosses()) / IPoolLike(pool).totalSupply();
+        maxAssets_            = IPoolLike(pool).convertToExitAssets(maxShares_);
     }
 
     function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {

@@ -127,11 +127,18 @@ interface IPool is IERC20, IERC4626 {
     function balanceOfAssets(address account_) external view returns (uint256 assets_);
 
     /**
+     *  @dev    Returns the amount of exit assets for the input amount.
+     *  @param  shares_ The amount of shares to convert to assets.
+     *  @return assets_ Amount of assets able to be exited.
+     */
+    function convertToExitAssets(uint256 shares_) external view returns (uint256 assets_);
+
+    /**
      *  @dev    Returns the amount of exit shares for the input amount.
-     *  @param  amount_ Address of the account.
+     *  @param  assets_ The amount of assets to convert to shares.
      *  @return shares_ Amount of shares able to be exited.
      */
-    function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
+    function convertToExitShares(uint256 assets_) external view returns (uint256 shares_);
 
     /**
      *  @dev    Returns the amount unrealized losses.

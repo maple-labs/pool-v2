@@ -265,6 +265,12 @@ contract Pool is IPool, ERC20 {
         assets_ = totalSupply_ == 0 ? shares_ : (shares_ * totalAssets()) / totalSupply_;
     }
 
+    function convertToExitAssets(uint256 shares_) public view override returns (uint256 assets_) {
+        uint256 totalSupply_ = totalSupply;
+
+        assets_ = totalSupply_ == 0 ? shares_ : shares_ * (totalAssets() - unrealizedLosses()) / totalSupply_;
+    }
+
     function convertToShares(uint256 assets_) public view override returns (uint256 shares_) {
         uint256 totalSupply_ = totalSupply;
 

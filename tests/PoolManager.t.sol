@@ -2235,3 +2235,239 @@ contract WithdrawCoverTests is PoolManagerBase {
     }
 
 }
+
+contract MaxDepositTests is PoolManagerBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        asset.burn(address(pool), 1_000_000e18);
+    }
+
+    function test_maxDeposit_privatePool() external {
+        address lp = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(1);
+
+        assertEq(poolManager.maxDeposit(lp), 0);
+
+        poolManager.setAllowedLender(lp, true);
+
+        assertEq(poolManager.maxDeposit(lp), 1);
+
+        poolManager.setAllowedLender(lp, false);
+
+        assertEq(poolManager.maxDeposit(lp), 0);
+    }
+
+    function test_maxDeposit_publicPool() external {
+        address lp = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(1);
+
+        assertEq(poolManager.maxDeposit(lp), 0);
+
+        poolManager.setOpenToPublic();
+
+        assertEq(poolManager.maxDeposit(lp), 1);
+    }
+
+    function test_maxDeposit_liquidityCap() external {
+        address lp1 = address(new Address());
+        address lp2 = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(1);
+        poolManager.setOpenToPublic();
+
+        asset.mint(address(pool), 1);  // Set totalAssets to 1
+
+        assertEq(poolManager.maxDeposit(lp1), 0);
+        assertEq(poolManager.maxDeposit(lp2), 0);
+
+        poolManager.setLiquidityCap(2);
+
+        assertEq(poolManager.maxDeposit(lp1), 1);
+        assertEq(poolManager.maxDeposit(lp2), 1);
+
+        poolManager.setLiquidityCap(100);
+
+        assertEq(poolManager.maxDeposit(lp1), 99);
+        assertEq(poolManager.maxDeposit(lp2), 99);
+
+        asset.mint(address(pool), 100);  // Set totalAssets to 101, higher than liquidity cap
+
+        assertEq(poolManager.maxDeposit(lp1), 0);
+        assertEq(poolManager.maxDeposit(lp2), 0);
+    }
+
+    function test_maxDeposit_liquidityCap(address lp1, address lp2, uint256 liquidityCap, uint256 totalAssets) external {
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(liquidityCap);
+        poolManager.setOpenToPublic();
+
+        asset.mint(address(pool), totalAssets);
+
+        uint256 expectedMaxDeposit = totalAssets > liquidityCap ? 0 : liquidityCap - totalAssets;
+
+        assertEq(poolManager.maxDeposit(lp1), expectedMaxDeposit);
+        assertEq(poolManager.maxDeposit(lp2), expectedMaxDeposit);
+    }
+
+}
+
+contract MaxMintTests is PoolManagerBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        asset.burn(address(pool), 1_000_000e18);
+        pool.burn(address(1), 1);  // Revert setup mint
+    }
+
+    function _doInitialDeposit() internal {
+        address lp = address(this);
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(100);
+        poolManager.setAllowedLender(lp, true);
+
+        vm.stopPrank();
+
+        // Set a non-zero totalAssets and totalSupply at 1:1
+        asset.mint(address(this), 100);
+        asset.approve(address(pool), 100);
+        pool.deposit(100, address(this));
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setAllowedLender(lp, false);
+    }
+
+    function test_maxMint_privatePool() external {
+        _doInitialDeposit();
+
+        address lp = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(101);
+
+        assertEq(poolManager.maxMint(lp), 0);
+
+        poolManager.setAllowedLender(lp, true);
+
+        assertEq(poolManager.maxMint(lp), 1);
+
+        poolManager.setAllowedLender(lp, false);
+
+        assertEq(poolManager.maxMint(lp), 0);
+    }
+
+    function test_maxMint_publicPool() external {
+        _doInitialDeposit();
+
+        address lp = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(101);
+
+        assertEq(poolManager.maxMint(lp), 0);
+
+        poolManager.setOpenToPublic();
+
+        assertEq(poolManager.maxMint(lp), 1);
+    }
+
+    function test_maxMint_liquidityCap_exchangeRateOneToOne() external {
+        _doInitialDeposit();
+
+        address lp1 = address(new Address());
+        address lp2 = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(100);
+        poolManager.setOpenToPublic();
+
+        assertEq(poolManager.maxMint(lp1), 0);
+        assertEq(poolManager.maxMint(lp2), 0);
+
+        poolManager.setLiquidityCap(101);
+
+        assertEq(poolManager.maxMint(lp1), 1);
+        assertEq(poolManager.maxMint(lp2), 1);
+
+        poolManager.setLiquidityCap(200);
+
+        assertEq(poolManager.maxMint(lp1), 100);
+        assertEq(poolManager.maxMint(lp2), 100);
+
+        poolManager.setLiquidityCap(99);  // Set totalAssets to 99, lower than totalAssets
+
+        assertEq(poolManager.maxMint(lp1), 0);
+        assertEq(poolManager.maxMint(lp2), 0);
+    }
+
+    function test_maxMint_liquidityCap_exchangeRateGtOne() external {
+        _doInitialDeposit();
+
+        address lp1 = address(new Address());
+        address lp2 = address(new Address());
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(200);
+        poolManager.setOpenToPublic();
+
+        assertEq(poolManager.maxMint(lp1), 100);
+        assertEq(poolManager.maxMint(lp2), 100);
+
+        asset.mint(address(pool), 100);  // Set totalAssets to 200 so 2:1
+
+        assertEq(poolManager.maxMint(lp1), 0);
+        assertEq(poolManager.maxMint(lp2), 0);
+
+        poolManager.setLiquidityCap(300);
+
+        assertEq(poolManager.maxMint(lp1), 50);
+        assertEq(poolManager.maxMint(lp2), 50);
+    }
+
+    function testFuzz_maxMint_liquidityCap(address lp1, address lp2, uint256 liquidityCap, uint256 initialDeposit, uint256 totalAssets) external {
+        liquidityCap  = constrictToRange(liquidityCap,  1,             1e29);
+        initialDeposit = constrictToRange(initialDeposit, 1,             liquidityCap);
+        totalAssets   = constrictToRange(totalAssets,   initialDeposit, 1e29);
+
+        vm.startPrank(POOL_DELEGATE);
+
+        poolManager.setLiquidityCap(liquidityCap);
+        poolManager.setOpenToPublic();
+
+        vm.stopPrank();
+
+        // Set a non-zero totalAssets and totalSupply at 1:1
+
+        asset.mint(address(this), initialDeposit);
+        asset.approve(address(pool), initialDeposit);
+        pool.deposit(initialDeposit, address(this));
+
+        asset.mint(address(pool), totalAssets - initialDeposit);  // Account for initial deposit
+
+        uint256 expectedMaxDeposit = totalAssets > liquidityCap ? 0 : liquidityCap - totalAssets;
+
+        uint256 maxMint = expectedMaxDeposit * initialDeposit / totalAssets;
+
+        assertEq(poolManager.maxMint(lp1), maxMint);
+        assertEq(poolManager.maxMint(lp2), maxMint);
+    }
+
+}
+
