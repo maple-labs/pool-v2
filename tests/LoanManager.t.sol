@@ -101,6 +101,13 @@ contract MigrateTests is LoanManagerBaseTest {
 
     address migrator = address(new MockLoanManagerMigrator());
 
+    function test_migrate_protocolPaused() external {
+        globals.__setProtocolPaused(true);
+
+        vm.expectRevert("LM:M:PROTOCOL_PAUSED");
+        loanManager.migrate(migrator, "");
+    }
+
     function test_migrate_notFactory() external {
         vm.expectRevert("LM:M:NOT_FACTORY");
         loanManager.migrate(migrator, "");
@@ -154,15 +161,6 @@ contract UpgradeTests is LoanManagerBaseTest {
         factory.registerImplementation(2, newImplementation, address(0));
         factory.enableUpgradePath(1, 2, address(0));
         vm.stopPrank();
-    }
-
-    function test_upgrade_failWhenPaused() external {
-        globals.__setIsValidScheduledCall(true);
-        globals.__setProtocolPaused(true);
-
-        vm.prank(poolManager.poolDelegate());
-        vm.expectRevert("LM:U:PROTOCOL_PAUSED");
-        loanManager.upgrade(2, "");
     }
 
     function test_upgrade_notPoolDelegate() external {

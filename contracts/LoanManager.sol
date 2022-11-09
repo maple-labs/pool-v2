@@ -38,7 +38,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     modifier nonReentrant() {
-        require(_locked == 1, "P:LOCKED");
+        require(_locked == 1, "LM:LOCKED");
 
         _locked = 2;
 
@@ -52,8 +52,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) external override {
-        require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
-        require(_migrate(migrator_, arguments_), "LM:M:FAILED");
+        require(!IMapleGlobalsLike(globals()).protocolPaused(), "LM:M:PROTOCOL_PAUSED");
+        require(msg.sender == _factory(),                       "LM:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_),                "LM:M:FAILED");
     }
 
     function setImplementation(address implementation_) external override {
@@ -64,7 +65,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
         address poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
 
-        require(!IMapleGlobalsLike(globals()).protocolPaused(),          "LM:U:PROTOCOL_PAUSED");
         require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NOT_AUTHORIZED");
 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());
@@ -927,7 +927,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function globals() public view override returns (address globals_) {
-        globals_ = IPoolManagerLike(poolManager).globals();
+        globals_ = IMapleProxyFactory(_factory()).mapleGlobals();
     }
 
     function governor() public view override returns (address governor_) {
