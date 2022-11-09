@@ -57,6 +57,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     // NOTE: Can't add whenProtocolNotPaused modifier here, as globals won't be set until
     //       initializer.initialize() is called, and this function is what triggers that initialization.
     function migrate(address migrator_, bytes calldata arguments_) external override {
+        _whenProtocolNotPaused();
+
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
         require(poolDelegateCover != address(0), "PM:M:DELEGATE_NOT_SET");
@@ -70,8 +72,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
-        _whenProtocolNotPaused();
-
         address poolDelegate_ = poolDelegate;
 
         require(msg.sender == poolDelegate_ || msg.sender == governor(), "PM:U:NOT_AUTHORIZED");

@@ -147,6 +147,14 @@ contract MigrateTests is PoolManagerBase {
     address migrator        = address(new MockPoolManagerMigrator());
     address invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
 
+    function test_migrate_protocolPaused() external {
+        MockGlobals(globals).setProtocolPause(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PROTOCOL_PAUSED");
+        poolManager.migrate(migrator, "");
+    }
+
     function test_migrate_notFactory() external {
         vm.expectRevert("PM:M:NOT_FACTORY");
         poolManager.migrate(migrator, "");
@@ -213,14 +221,6 @@ contract UpgradeTests is PoolManagerBase {
         factory.registerImplementation(2, newImplementation, address(0));
         factory.enableUpgradePath(1, 2, address(0));
         vm.stopPrank();
-    }
-
-    function test_upgrade_protocolPaused() external {
-        MockGlobals(globals).setProtocolPause(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.upgrade(2, "");
     }
 
     function test_upgrade_notPoolDelegate() external {
