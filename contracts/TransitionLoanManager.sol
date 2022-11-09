@@ -80,8 +80,11 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         uint256 domainStart_ = domainStart;
 
+        uint256 accruedInterest;
+
         if (domainStart_ != block.timestamp) {
-            domainStart = _uint48(block.timestamp);
+            domainStart     = _uint48(block.timestamp);
+            accruedInterest = getAccruedInterest();
         }
 
         uint256 startDate_ = dueDate_ - IMapleLoanV3Like(loan_).paymentInterval();
@@ -94,7 +97,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanV3Like(loan_).principal()));
 
-        _updateIssuanceParams(issuanceRate + newRate_, accountedInterest);
+        _updateIssuanceParams(issuanceRate + newRate_, _uint112(accountedInterest + accruedInterest));
     }
 
     function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
