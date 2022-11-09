@@ -406,7 +406,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             ? _getInterestAndFeesFromLiquidationInfo(loan_)
             : _getDefaultInterestAndFees(loan_, paymentInfo_);
 
-        if (IMapleLoanLike(loan_).collateral() == 0 || IMapleLoanLike(loan_).collateralAsset() == fundsAsset) {
+        address collateralAsset_ = IMapleLoanLike(loan_).collateralAsset();
+
+        if (IERC20Like(collateralAsset_ ).balanceOf(loan_) == 0 || collateralAsset_ == fundsAsset) {
             ( remainingLosses_, platformFees_ ) = _handleNonLiquidatingRepossession(loan_, platformFees_, netInterest_, netLateInterest_);
             return (true, remainingLosses_, platformFees_);
         }
@@ -564,11 +566,11 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     {
         principal_ = IMapleLoanLike(loan_).principal();
 
-        uint256 collateral_ = IMapleLoanLike(loan_).collateral();
+        address collateralAsset_ = IMapleLoanLike(loan_).collateralAsset();
+        uint256 collateral_      = IERC20Like(collateralAsset_).balanceOf(loan_);
 
         liquidator_ = IMapleProxyFactory(liquidatorFactory_).createInstance(
-            abi.encode(address(this), IMapleLoanLike(loan_).collateralAsset(), fundsAsset),
-            bytes32(bytes20(address(loan_)))
+            abi.encode(address(this), collateralAsset_, fundsAsset), bytes32(bytes20(address(loan_)))
         );
 
         _updateIssuanceParams(issuanceRate, accountedInterest);
