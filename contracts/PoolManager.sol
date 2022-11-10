@@ -353,7 +353,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _whenProtocolNotPaused();
 
         require(msg.sender == pool, "PM:PR:NOT_POOL");
-        ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(owner_, shares_);
+        ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(shares_, owner_);
         emit RedeemProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 

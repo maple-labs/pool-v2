@@ -919,7 +919,7 @@ contract MockWithdrawalManager is MapleProxiedInternals {
         factory_ = _factory();
     }
 
-    function processExit(address owner, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
+    function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
 
     function removeShares(uint256 shares_, address owner_) external { }
 

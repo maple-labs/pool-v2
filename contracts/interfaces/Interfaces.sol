@@ -327,7 +327,7 @@ interface IWithdrawalManagerLike {
 
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 redeemableAssets_, uint256 resultingShares_);
 
-    function processExit(address account_, uint256 shares_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processExit(uint256 shares_, address account_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
