@@ -60,6 +60,8 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
 
         address migrationAdmin_ = IMapleGlobalsLike(globals_).migrationAdmin();
 
+        require(initialSupply_ == 0 || migrationAdmin_ != address(0), "PMI:I:INVALID_POOL_PARAMS");
+
         pool              = address(new Pool(address(this), asset_, migrationAdmin_, initialSupply_, name_, symbol_));
         poolDelegateCover = address(new PoolDelegateCover(address(this), asset));
 
