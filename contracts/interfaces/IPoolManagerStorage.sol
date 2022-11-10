@@ -43,13 +43,6 @@ interface IPoolManagerStorage {
     function loanManagerList(uint256 index_) external view returns (address loanManager_);
 
     /**
-     *  @dev    Gets the address of the loan manager for a given loan.
-     *  @param  loan_        The address of the loan.
-     *  @return loanManager_ The address of the loan manager.
-     */
-    function loanManagers(address loan_) external view returns (address loanManager_);
-
-    /**
      *  @dev    Gets the liquidity cap for the pool.
      *  @return liquidityCap_ The liquidity cap for the pool.
      */

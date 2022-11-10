@@ -658,6 +658,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
         loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
         loan.__setFactory(address(loanFactory));
+        loan.__setLender(address(loanManager));
         loan.__setPaymentsRemaining(3);
 
         loanFactory.__setIsLoan(address(loan), true);
@@ -689,7 +690,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
        address refinancer = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_LOAN_FACTORY");
+        vm.expectRevert("PM:GVLL:INVALID_LOAN_FACTORY");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
     }
 
@@ -699,7 +700,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
        address refinancer = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_LOAN_INSTANCE");
+        vm.expectRevert("PM:GVLL:INVALID_LOAN_INSTANCE");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
     }
 
@@ -860,54 +861,34 @@ contract FundTests is PoolManagerBase {
 
         asset.mint(poolManager.poolDelegateCover(), 1_000e18);
 
-        assertEq(poolManager.loanManagers(address(loan)), address(0));
-
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
     function test_fund_success() external {
-        assertEq(poolManager.loanManagers(address(loan)), address(0));
-
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
     function test_fund_success_withLessUnaccountedThanRequired() external {
-        assertEq(poolManager.loanManagers(address(loan)), address(0));
-
         asset.mint(address(loan), 1);
 
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
     function test_fund_success_withMoreUnaccountedThanRequired() external {
-        assertEq(poolManager.loanManagers(address(loan)), address(0));
-
         asset.mint(address(loan), principalRequested + 1);
 
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
     function test_fund_success_withExactUnaccountedAsRequired() external {
-        assertEq(poolManager.loanManagers(address(loan)), address(0));
-
         asset.mint(address(loan), principalRequested);
 
         vm.prank(POOL_DELEGATE);
         poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(poolManager.loanManagers(address(loan)), address(loanManager));
     }
 
     function test_fund_success_skimUnaccountedFunds() external {
@@ -949,8 +930,11 @@ contract TriggerDefault is PoolManagerBase {
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
         MockLoan(loan).__setFactory(address(loanFactory));
+        MockLoan(loan).__setLender(address(loanManager));
         MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
+        MockGlobals(globals).setValidFactory(bytes32("LOAN"),       address(loanFactory),       true);
+        MockGlobals(globals).setValidFactory(bytes32("LIQUIDATOR"), address(liquidatorFactory), true);
 
         loanFactory.__setIsLoan(loan, true);
 
@@ -1002,18 +986,26 @@ contract TriggerDefault is PoolManagerBase {
 contract ImpairLoanTests is PoolManagerBase {
 
     address LP   = address(new Address());
-    address LOAN = address(new Address());
+    address LOAN = address(new MockLoan(address(asset), address(asset)));
 
     MockLoanManager loanManager;
 
     function setUp() public override {
         super.setUp();
 
+        MockLoanFactory loanFactory = new MockLoanFactory();
+
         loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
+
+        MockLoan(LOAN).__setFactory(address(loanFactory));
+        MockLoan(LOAN).__setLender(address(loanManager));
+
+        MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), true);
+
+        loanFactory.__setIsLoan(LOAN, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
-        poolManager.__setLoanManagerForLoan(LOAN, address(loanManager));
         vm.stopPrank();
     }
 
@@ -1061,18 +1053,26 @@ contract ImpairLoanTests is PoolManagerBase {
 contract RemoveLoanImpairmentTests is PoolManagerBase {
 
     address LP   = address(new Address());
-    address LOAN = address(new Address());
+    address LOAN = address(new MockLoan(address(asset), address(asset)));
 
     MockLoanManager loanManager;
 
     function setUp() public override {
         super.setUp();
 
+        MockLoanFactory loanFactory = new MockLoanFactory();
+
         loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
+
+        MockLoan(LOAN).__setFactory(address(loanFactory));
+        MockLoan(LOAN).__setLender(address(loanManager));
+
+        MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), true);
+
+        loanFactory.__setIsLoan(LOAN, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.addLoanManager(address(loanManager));
-        poolManager.__setLoanManagerForLoan(LOAN, address(loanManager));
         vm.stopPrank();
     }
 
@@ -1133,6 +1133,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
         MockLoan(loan).__setFactory(address(loanFactory));
+        MockLoan(loan).__setLender(address(loanManager));
         MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
 

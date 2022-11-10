@@ -157,6 +157,8 @@ interface IMapleLoanLike {
 
     function lateFeeRate() external view returns (uint256 lateFeeRate_);
 
+    function lender() external view returns (address lender_);
+
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
 
     function originalNextPaymentDueDate() external view returns (uint256 originalNextPaymentDueDate_);

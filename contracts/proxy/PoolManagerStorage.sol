@@ -23,8 +23,6 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
     uint256 public override liquidityCap;
     uint256 public override delegateManagementFeeRate;
 
-    mapping(address => address) public override loanManagers;
-
     mapping(address => bool) public override isLoanManager;
     mapping(address => bool) public override isValidLender;
 

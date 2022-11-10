@@ -258,7 +258,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     {
         _whenProtocolNotPaused();
 
-        address loanManager_ = loanManagers[loan_];
+        address loanManager_ = _getLoanManager(loan_);
 
         _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
 
@@ -271,8 +271,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _whenProtocolNotPaused();
 
         _validateAndFundLoan(loan_, loanManager_, principal_);
-
-        loanManagers[loan_] = loanManager_;
 
         emit LoanFunded(loan_, loanManager_, principal_);
 
@@ -290,7 +288,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:IL:NOT_AUTHORIZED");
 
-        ILoanManagerLike(loanManagers[loan_]).impairLoan(loan_, isGovernor_);
+        ILoanManagerLike(_getLoanManager(loan_)).impairLoan(loan_, isGovernor_);
 
         emit LoanImpaired(loan_, block.timestamp);
     }
@@ -302,7 +300,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(msg.sender == poolDelegate || isGovernor_, "PM:RLI:NOT_AUTHORIZED");
 
-        ILoanManagerLike(loanManagers[loan_]).removeLoanImpairment(loan_, isGovernor_);
+        ILoanManagerLike(_getLoanManager(loan_)).removeLoanImpairment(loan_, isGovernor_);
 
         emit LoanImpairmentRemoved(loan_);
     }
@@ -316,7 +314,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:FCL:NOT_AUTHORIZED");
 
-        ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(loanManagers[loan_]).finishCollateralLiquidation(loan_);
+        ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(_getLoanManager(loan_)).finishCollateralLiquidation(loan_);
 
         _handleCover(losses_, platformFees_);
 
@@ -335,7 +333,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             bool    liquidationComplete_,
             uint256 losses_,
             uint256 platformFees_
-        ) = ILoanManagerLike(loanManagers[loan_]).triggerDefault(loan_, liquidatorFactory_);
+        ) = ILoanManagerLike(_getLoanManager(loan_)).triggerDefault(loan_, liquidatorFactory_);
 
         if (!liquidationComplete_) {
             emit CollateralLiquidationTriggered(loan_);
@@ -461,6 +459,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
         require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:VAFL:LOCKED_LIQUIDITY");
+    }
+
+    function _getLoanManager(address loan_) internal view returns (address loanManager_) {
+        address loanFactory_ = IMapleProxied(loan_).factory();
+
+        require(IMapleGlobalsLike(globals()).isFactory("LOAN", loanFactory_), "PM:GVLL:INVALID_LOAN_FACTORY");
+        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                 "PM:GVLL:INVALID_LOAN_INSTANCE");
+
+        loanManager_ = IMapleLoanLike(loan_).lender();
+
+        require(isLoanManager[loanManager_], "PM:GVLL:INVALID_LOAN_MANAGER");
     }
 
     /******************************************************************************************************************************/

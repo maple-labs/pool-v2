@@ -208,6 +208,7 @@ contract MockLoan {
     address public feeManager;
     address public fundsAsset;
     address public factory;
+    address public lender;
 
     bool public isImpaired;
 
@@ -357,6 +358,10 @@ contract MockLoan {
 
     function __setFeeManager(address feeManager_) external {
         feeManager = feeManager_;
+    }
+
+    function __setLender(address lender_) external {
+        lender = lender_;
     }
 
     function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
