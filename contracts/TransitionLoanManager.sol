@@ -83,8 +83,8 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
         uint256 accruedInterest;
 
         if (domainStart_ != block.timestamp) {
+            accruedInterest = getAccruedInterest();  // NOTE: When IR is zero on first call, this will return zero
             domainStart     = _uint48(block.timestamp);
-            accruedInterest = getAccruedInterest();
         }
 
         uint256 startDate_ = dueDate_ - IMapleLoanV3Like(loan_).paymentInterval();
