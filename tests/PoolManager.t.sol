@@ -147,14 +147,6 @@ contract MigrateTests is PoolManagerBase {
     address migrator        = address(new MockPoolManagerMigrator());
     address invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
 
-    function test_migrate_protocolPaused() external {
-        MockGlobals(globals).setProtocolPause(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.migrate(migrator, "");
-    }
-
     function test_migrate_notFactory() external {
         vm.expectRevert("PM:M:NOT_FACTORY");
         poolManager.migrate(migrator, "");
@@ -186,13 +178,6 @@ contract MigrateTests is PoolManagerBase {
 contract SetImplementationTests is PoolManagerBase {
 
     address newImplementation = address(new PoolManager());
-
-    function test_setImplementation_protocolPaused() external {
-        MockGlobals(globals).setProtocolPause(true);
-
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.setImplementation(newImplementation);
-    }
 
     function test_setImplementation_notFactory() external {
         vm.expectRevert("PM:SI:NOT_FACTORY");

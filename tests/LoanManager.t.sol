@@ -101,13 +101,6 @@ contract MigrateTests is LoanManagerBaseTest {
 
     address migrator = address(new MockLoanManagerMigrator());
 
-    function test_migrate_protocolPaused() external {
-        globals.__setProtocolPaused(true);
-
-        vm.expectRevert("LM:M:PROTOCOL_PAUSED");
-        loanManager.migrate(migrator, "");
-    }
-
     function test_migrate_notFactory() external {
         vm.expectRevert("LM:M:NOT_FACTORY");
         loanManager.migrate(migrator, "");
@@ -4305,7 +4298,7 @@ contract DistributeClaimedFunds is LoanManagerBaseTest {
 
         fundsAsset.mint(address(loanManager), 200);
 
-        // Queue next payment to add loan to 
+        // Queue next payment to add loan to
         loanManager.__queueNextPayment(address(loan), START, START + 100);
 
         vm.expectRevert("LM:DCF:ZERO_ADDRESS");
