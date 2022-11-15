@@ -286,7 +286,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         ILoanManagerLike(_getLoanManager(loan_)).impairLoan(loan_, isGovernor_);
 
-        emit LoanImpaired(loan_, block.timestamp);
+        emit LoanImpaired(loan_, IMapleLoanLike(loan_).nextPaymentDueDate());  // The change of due date already happened in the loan contract, so we just need to fetch. 
     }
 
     function removeLoanImpairment(address loan_) external override nonReentrant {
