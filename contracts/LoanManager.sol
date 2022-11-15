@@ -327,8 +327,6 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         payments[paymentIdOf[loan_] = _addPaymentToList(paymentInfo_.paymentDueDate)] = paymentInfo_;
 
-        emit UnrealizedLossesUpdated(unrealizedLosses);
-
         // Discretely update missing interest as if payment was always part of the list.
         _updateIssuanceParams(
             issuanceRate + paymentInfo_.issuanceRate,
@@ -550,6 +548,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function _revertLoanImpairment(LiquidationInfo memory liquidationInfo_) internal {
         _compareAndSubtractAccountedInterest(liquidationInfo_.interest);
         unrealizedLosses -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
+        
+        emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
     /******************************************************************************************************************************/
