@@ -12,6 +12,16 @@ interface IPool is IERC20, IERC4626 {
     /******************************************************************************************************************************/
 
     /**
+     *  @dev   Initial shares amount was minted to the zero address to prevent the first depositor frontrunning exploit.
+     *  @param caller_              The caller of the function that emitted the `BootstrapMintPerformed` event.
+     *  @param receiver_            The user that was minted the shares.
+     *  @param assets_              The amount of assets deposited.
+     *  @param shares_              The amount of shares that would have been minted to the user if it was not the first deposit.
+     *  @param bootStrapMintAmount_ The amount of shares that was minted to the zero address to protect the first depositor.
+     */
+    event BootstrapMintPerformed(address indexed caller_, address indexed receiver_, uint256 assets_, uint256 shares_, uint256 bootStrapMintAmount_);
+
+    /**
      *  @dev   `newOwner_` has accepted the transferral of RDT ownership from `previousOwner_`.
      *  @param previousOwner_ The previous RDT owner.
      *  @param newOwner_      The new RDT owner.
@@ -51,6 +61,12 @@ interface IPool is IERC20, IERC4626 {
     /******************************************************************************************************************************/
     /*** State Variables                                                                                                        ***/
     /******************************************************************************************************************************/
+
+    /**
+     *  @dev    The amount of shares that will be burned during the first deposit/mint.
+     *  @return bootstrapMint_ The amount of shares to be burned.
+     */
+    function BOOTSTRAP_MINT() external view returns (uint256 bootstrapMint_);
 
     /**
      *  @dev    The address of the account that is allowed to update the vesting schedule.

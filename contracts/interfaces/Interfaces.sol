@@ -64,6 +64,8 @@ interface ILiquidatorLike {
 
 interface IMapleGlobalsLike {
 
+    function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_);
+
     function getLatestPrice(address asset_) external view returns (uint256 price_);
 
     function governor() external view returns (address governor_);

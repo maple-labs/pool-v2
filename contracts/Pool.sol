@@ -20,6 +20,8 @@ import { IERC20, IPool }    from "./interfaces/IPool.sol";
 
 contract Pool is IPool, ERC20 {
 
+    uint256 public immutable override BOOTSTRAP_MINT;
+
     address public override asset;    // Underlying ERC-20 asset handled by the ERC-4626 contract.
     address public override manager;  // Address of the contract that manages administrative functionality.
 
@@ -29,6 +31,7 @@ contract Pool is IPool, ERC20 {
         address manager_,
         address asset_,
         address destination_,
+        uint256 bootstrapMint_,
         uint256 initialSupply_,
         string memory name_,
         string memory symbol_
@@ -38,7 +41,11 @@ contract Pool is IPool, ERC20 {
         require((manager = manager_) != address(0), "P:C:ZERO_MANAGER");
         require((asset   = asset_)   != address(0), "P:C:ZERO_ASSET");
 
-        _mint(destination_, initialSupply_);
+        if (initialSupply_ != 0) {
+            _mint(destination_, initialSupply_);
+        }
+
+        BOOTSTRAP_MINT = bootstrapMint_;
 
         require(ERC20Helper.approve(asset_, manager_, type(uint256).max), "P:C:FAILED_APPROVE");
     }
@@ -120,7 +127,7 @@ contract Pool is IPool, ERC20 {
     }
 
     /******************************************************************************************************************************/
-    /*** ERC-20 Overriden Functions                                                                                             ***/
+    /*** ERC-20 Overridden Functions                                                                                            ***/
     /******************************************************************************************************************************/
 
     function transfer(
@@ -199,6 +206,14 @@ contract Pool is IPool, ERC20 {
         require(receiver_ != address(0), "P:M:ZERO_RECEIVER");
         require(shares_   != uint256(0), "P:M:ZERO_SHARES");
         require(assets_   != uint256(0), "P:M:ZERO_ASSETS");
+
+        if (totalSupply == 0 && BOOTSTRAP_MINT != 0) {
+            _mint(address(0), BOOTSTRAP_MINT);
+
+            emit BootstrapMintPerformed(caller_, receiver_, assets_, shares_, BOOTSTRAP_MINT);
+
+            shares_ -= BOOTSTRAP_MINT;
+        }
 
         _mint(receiver_, shares_);
 

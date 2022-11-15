@@ -38,9 +38,9 @@ contract MockProxied is MapleProxiedInternals {
 contract MockERC20Pool is Pool {
 
     constructor(address manager_, address asset_, string memory name_, string memory symbol_)
-        Pool(manager_, asset_, address(0), 0, name_, symbol_) {
+        Pool(manager_, asset_, address(0), 0, 0, name_, symbol_) {
             MockERC20(asset_).approve(manager_, type(uint256).max);
-        }
+    }
 
     function mint(address recipient_, uint256 amount_) external {
         _mint(recipient_, amount_);
@@ -80,6 +80,8 @@ contract MockGlobals {
 
     mapping(address => address) public ownedPoolManager;
 
+    uint256 internal _bootstrapMint;
+
     constructor(address governor_) {
         governor = governor_;
     }
@@ -106,6 +108,14 @@ contract MockGlobals {
 
     function __setProtocolPaused(bool paused_) external {
         protocolPaused = paused_;
+    }
+
+    function __setBootstrapMint(uint256 bootstrapMint_) external {
+        _bootstrapMint = bootstrapMint_;
+    }
+
+    function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
+        bootstrapMint_ = _bootstrapMint;
     }
 
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_) {

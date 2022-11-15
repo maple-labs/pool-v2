@@ -48,7 +48,10 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
     function test_createInstance() external {
         address migrationAdmin = address(new Address());
 
+        uint256 bootstrapMint = 200;
+
         MockGlobals(globals).setMigrationAdmin(migrationAdmin);
+        MockGlobals(globals).__setBootstrapMint(bootstrapMint);
 
         string memory name_   = "Pool";
         string memory symbol_ = "P2";
@@ -70,6 +73,7 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
         // Assert Pool was correctly initialized
         Pool pool = Pool(poolManager.pool());
 
+        assertEq(pool.BOOTSTRAP_MINT(),          bootstrapMint);
         assertEq(pool.manager(),                 poolManagerAddress);
         assertEq(pool.asset(),                   address(asset));
         assertEq(pool.name(),                    name_);
@@ -131,7 +135,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
-    function test_createInstance_failWithUnallowedAsset() external {
+    function test_createInstance_failWithDisallowedAsset() external {
         bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), 0, "Pool", "P2");
 
         MockGlobals(globals).setValidPoolAsset(address(asset), false);
