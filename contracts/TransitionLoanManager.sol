@@ -107,7 +107,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         uint256 length_ = loans_.length;
 
-        for (uint256 i_ = 0; i_ < length_;) {
+        for (uint256 i_; i_ < length_;) {
             IMapleLoanV3Like(loans_[i_]).setPendingLender(newLenders_[i_]);
             unchecked{ i_++; }
         }
@@ -118,7 +118,7 @@ contract TransitionLoanManager is ITransitionLoanManager, MapleProxiedInternals,
 
         uint256 length_ = loans_.length;
 
-        for (uint256 i_ = 0; i_ < length_;) {
+        for (uint256 i_; i_ < length_;) {
             IMapleLoanV3Like(loans_[i_]).acceptLender();
             unchecked{ i_++; }
         }
