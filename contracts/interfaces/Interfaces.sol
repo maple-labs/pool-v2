@@ -100,12 +100,6 @@ interface IMapleGlobalsLike {
 
 }
 
-interface IMapleLoanFeeManagerLike  {
-
-    function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee_);
-
-}
-
 interface IMapleLoanLike {
 
     function acceptLender() external;
