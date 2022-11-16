@@ -2457,3 +2457,19 @@ contract MaxMintTests is PoolManagerBase {
 
 }
 
+contract MaxWithdrawTests is PoolManagerBase {
+
+    function test_maxWithdraw() external {
+        uint256 assets_ = pool.maxWithdraw(address(this));
+
+        assertEq(assets_, 0);
+    }
+
+    function testFuzz_maxWithdraw(address user_) external {
+        uint256 assets_ = pool.maxWithdraw(user_);
+
+        assertEq(assets_, 0);
+    }
+
+}
+

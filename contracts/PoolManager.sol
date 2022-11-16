@@ -286,7 +286,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         ILoanManagerLike(_getLoanManager(loan_)).impairLoan(loan_, isGovernor_);
 
-        emit LoanImpaired(loan_, IMapleLoanLike(loan_).nextPaymentDueDate());  // The change of due date already happened in the loan contract, so we just need to fetch. 
+        emit LoanImpaired(loan_, IMapleLoanLike(loan_).nextPaymentDueDate());  // The change of due date already happened in the loan contract, so we just need to fetch.
     }
 
     function removeLoanImpairment(address loan_) external override nonReentrant {
@@ -597,9 +597,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
-        uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
-        uint256 maxShares_    = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
-        maxAssets_            = IPoolLike(pool).convertToExitAssets(maxShares_);
+        owner_; maxAssets_;  // Silence compiler warning
+        return 0;  // NOTE: always returns 0 as withdraw is not implemented
     }
 
     function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {
