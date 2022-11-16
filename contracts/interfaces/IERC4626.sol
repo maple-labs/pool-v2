@@ -155,7 +155,6 @@ interface IERC4626 is IERC20 {
      *  @dev    Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given current on-chain conditions.
      *          MUST return as close to and no more than the exact amount of shares that would be minted in a `deposit` call in the same transaction.
      *          MUST NOT account for deposit limits like those returned from `maxDeposit` and should always act as though the deposit would be accepted.
-     *          MUST NOT revert.
      *  @param  assets_ The amount of assets to deposit.
      *  @return shares_ The amount of shares that would be minted.
      */
@@ -165,7 +164,6 @@ interface IERC4626 is IERC20 {
      *  @dev    Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
      *          MUST return as close to and no fewer than the exact amount of assets that would be deposited in a `mint` call in the same transaction.
      *          MUST NOT account for mint limits like those returned from `maxMint` and should always act as though the minting would be accepted.
-     *          MUST NOT revert.
      *  @param  shares_ The amount of shares to mint.
      *  @return assets_ The amount of assets that would be deposited.
      */
@@ -175,7 +173,6 @@ interface IERC4626 is IERC20 {
      *  @dev    Allows an on-chain or off-chain user to simulate the effects of their redemption at the current block, given current on-chain conditions.
      *          MUST return as close to and no more than the exact amount of assets that would be withdrawn in a `redeem` call in the same transaction.
      *          MUST NOT account for redemption limits like those returned from `maxRedeem` and should always act as though the redemption would be accepted.
-     *          MUST NOT revert.
      *  @param  shares_ The amount of shares to redeem.
      *  @return assets_ The amount of assets that would be withdrawn.
      */
@@ -185,7 +182,6 @@ interface IERC4626 is IERC20 {
      *  @dev    Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
      *          MUST return as close to and no fewer than the exact amount of shares that would be burned in a `withdraw` call in the same transaction.
      *          MUST NOT account for withdrawal limits like those returned from `maxWithdraw` and should always act as though the withdrawal would be accepted.
-     *          MUST NOT revert.
      *  @param  assets_ The amount of assets to withdraw.
      *  @return shares_ The amount of shares that would be redeemed.
      */
