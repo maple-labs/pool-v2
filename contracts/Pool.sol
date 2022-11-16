@@ -122,7 +122,7 @@ contract Pool is IPool, ERC20 {
     }
 
     function withdraw(uint256 assets_, address receiver_, address owner_) external override nonReentrant checkCall("P:withdraw") returns (uint256 shares_) {
-        ( shares_, assets_ ) = IPoolManagerLike(manager).processRedeem(convertToExitShares(assets_), owner_);
+        ( shares_, assets_ ) = IPoolManagerLike(manager).processWithdraw(assets_, owner_);
         _burn(shares_, assets_, receiver_, owner_, msg.sender);
     }
 
@@ -174,7 +174,7 @@ contract Pool is IPool, ERC20 {
         emit WithdrawRequested(
             owner_,
             assets_,
-            escrowedShares_ = _requestRedeem(convertToExitShares(assets_), owner_)
+            escrowedShares_ = _requestWithdraw(assets_, owner_)
         );
     }
 
@@ -236,6 +236,22 @@ contract Pool is IPool, ERC20 {
         }
 
         IPoolManagerLike(manager).requestRedeem(escrowShares_, owner_);
+    }
+
+    function _requestWithdraw(uint256 assets_, address owner_) internal returns (uint256 escrowShares_) {
+        address destination_;
+
+        ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(owner_, assets_);
+
+        if (msg.sender != owner_) {
+            _decreaseAllowance(owner_, msg.sender, escrowShares_);
+        }
+
+        if (escrowShares_ != 0 && destination_ != address(0)) {
+            _transfer(owner_, destination_, escrowShares_);
+        }
+
+        IPoolManagerLike(manager).requestWithdraw(escrowShares_, assets_, owner_);
     }
 
     /******************************************************************************************************************************/

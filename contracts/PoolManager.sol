@@ -353,6 +353,13 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit RedeemProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 
+    function processWithdraw(uint256 assets_, address owner_) external override nonReentrant returns (uint256 redeemableShares_, uint256 resultingAssets_) {
+        _whenProtocolNotPaused();
+
+        assets_; owner_; redeemableShares_; resultingAssets_;  // Silence compiler warnings
+        require(false, "PM:PW:NOT_ENABLED");
+    }
+
     function removeShares(uint256 shares_, address owner_) external override nonReentrant returns (uint256 sharesReturned_) {
         _whenProtocolNotPaused();
 
@@ -375,6 +382,13 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
 
         emit RedeemRequested(owner_, shares_);
+    }
+
+    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external override nonReentrant {
+        _whenProtocolNotPaused();
+
+        shares_; assets_; owner_;  // Silence compiler warnings
+        require(false, "PM:RW:NOT_ENABLED");
     }
 
     /******************************************************************************************************************************/

@@ -315,7 +315,23 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /*** Exit Functions                                                                                                         ***/
     /******************************************************************************************************************************/
 
+    /**
+     *  @dev    Processes a redemptions of shares for assets from the pool.
+     *  @param  shares_           The amount of shares to redeem.
+     *  @param  owner_            The address of the owner of the shares.
+     *  @return redeemableShares_ The amount of shares redeemed.
+     *  @return resultingAssets_  The amount of assets withdrawn.
+     */
     function processRedeem(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+
+    /**
+     *  @dev    Processes a redemptions of shares for assets from the pool.
+     *  @param  assets_           The amount of assets to withdraw.
+     *  @param  owner_            The address of the owner of the shares.
+     *  @return redeemableShares_ The amount of shares redeemed.
+     *  @return resultingAssets_  The amount of assets withdrawn.
+     */
+    function processWithdraw(uint256 assets_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
      *  @dev    Requests a redemption of shares from the pool.
@@ -328,9 +344,17 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev   Requests a redemption of shares from the pool.
      *  @param shares_ The amount of shares to redeem.
-     *  @param owner_  The amount of shares sent to escrow.
+     *  @param owner_  The address of the owner of the shares.
      */
     function requestRedeem(uint256 shares_, address owner_) external;
+
+    /**
+     *  @dev   Requests a withdrawal of assets from the pool.
+     *  @param shares_ The amount of shares to redeem.
+     *  @param assets_ The amount of assets to withdraw.
+     *  @param owner_  The address of the owner of the shares.
+     */
+     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external;
 
     /******************************************************************************************************************************/
     /*** Cover Functions                                                                                                        ***/

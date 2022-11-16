@@ -291,6 +291,8 @@ interface IPoolManagerLike {
 
     function requestRedeem(uint256 shares_, address owner_) external;
 
+    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external;
+
     function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);

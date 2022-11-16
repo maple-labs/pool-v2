@@ -915,20 +915,29 @@ contract RequestWithdraw is PoolBase {
         vm.prank(user);
         pool.approve(address(this), 500e6);
 
+        vm.expectRevert("PM:RW:NOT_ENABLED");
         pool.requestWithdraw(500e6, address(user));
-
-        assertEq(pool.allowance(user, address(this)), 0);
     }
 
-    function test_requestWithdraw_withApproval() public {
+    function test_requestWithdraw_withApproval_failNotEnabled() public {
         vm.prank(user);
         pool.approve(address(this), 500e6);
 
         assertEq(pool.allowance(user, address(this)), 500e6);
 
+        vm.expectRevert("PM:RW:NOT_ENABLED");
         pool.requestWithdraw(500e6, address(user));
+    }
 
-        assertEq(pool.allowance(user, address(this)), 0);
+    function testFuzz_requestWithdraw_failNotEnabled(uint256 assets_) public {
+        assets_ = constrictToRange(assets_, 0, depositAmount);
+        vm.prank(user);
+        pool.approve(address(this), assets_);
+
+        assertEq(pool.allowance(user, address(this)), assets_);
+
+        vm.expectRevert("PM:RW:NOT_ENABLED");
+        pool.requestWithdraw(assets_, address(user));
     }
 
 }
@@ -1006,130 +1015,16 @@ contract WithdrawTests is PoolBase {
         pool.withdraw(500e6, user, user);
     }
 
-    function test_withdraw_reentrancy() external {
-        asset.setReentrancy(address(pool));
-
-        vm.startPrank(user);
-        vm.expectRevert("P:B:TRANSFER");
-        pool.withdraw(depositAmount, user, user);
-
-        asset.setReentrancy(address(0));
-        pool.withdraw(depositAmount, user, user);
-    }
-
-    function test_withdraw_zeroReceiver() external {
+    function test_withdraw_failNotEnabled() external {
         vm.prank(user);
-        vm.expectRevert("P:B:ZERO_RECEIVER");
-        pool.withdraw(0, address(0), user);
-    }
-
-    function test_withdraw_zeroShares() external {
-        MockPoolManager(poolManager).__setRedeemableShares(0);
-        MockPoolManager(poolManager).__setRedeemableAssets(0);
-
-        assertEq(pool.balanceOf(user),  1000e6);
-        assertEq(asset.balanceOf(user), 0);
-
-        vm.prank(user);
+        vm.expectRevert("PM:PW:NOT_ENABLED");
         pool.withdraw(1, user, user);
-
-        assertEq(pool.balanceOf(user),  1000e6);
-        assertEq(asset.balanceOf(user), 0);
     }
 
-    function test_withdraw_zeroAssets() external {
-        MockPoolManager(poolManager).__setRedeemableShares(1);
-        MockPoolManager(poolManager).__setRedeemableAssets(0);
-
-        assertEq(pool.balanceOf(user),  1000e6);
-        assertEq(asset.balanceOf(user), 0);
-
+    function testFuzz_withdraw_failNotEnabled(uint256 assets_) external {
         vm.prank(user);
-        pool.withdraw(1, user, user);
-
-        assertEq(pool.balanceOf(user),  1000e6 - 1);
-        assertEq(asset.balanceOf(user), 0);
-    }
-
-    function test_withdraw_insufficientApprove() external {
-        address user2 = address(new Address());
-
-        vm.prank(user);
-        pool.approve(user2, depositAmount - 1);
-
-        vm.prank(user2);
-        vm.expectRevert(ARITHMETIC_ERROR);
-        pool.withdraw(depositAmount, user2, user);
-
-        vm.prank(user);
-        pool.approve(user2, depositAmount);
-
-        vm.prank(user2);
-        pool.withdraw(depositAmount, user2, user);
-    }
-
-    function test_withdraw_insufficientAmount() external {
-        MockPoolManager(poolManager).__setRedeemableShares(depositAmount + 1);
-        vm.prank(user);
-        vm.expectRevert(ARITHMETIC_ERROR);
-        pool.withdraw(depositAmount + 1, user, user);
-    }
-
-    function test_withdraw_success() external {
-        // Add extra assets to the pool.
-        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
-        MockPoolManager(address(poolManager)).__setRedeemableShares(500e6);
-        MockPoolManager(address(poolManager)).__setRedeemableAssets(1000e6);
-        asset.mint(address(pool), 1000e6);
-
-        assertEq(pool.totalSupply(),    1_000e6);
-        assertEq(pool.totalAssets(),    2_000e6);
-        assertEq(pool.balanceOf(user),  1_000e6);
-        assertEq(asset.balanceOf(user), 0);
-
-        vm.prank(user);
-        uint256 redeemAmount = pool.withdraw(1_000e6, user, user);
-
-        assertEq(redeemAmount, 500e6);
-
-        MockPoolManager(address(poolManager)).__setTotalAssets(1_000e6);
-
-        assertEq(pool.totalSupply(),    500e6);
-        assertEq(pool.totalAssets(),    1_000e6);
-        assertEq(pool.balanceOf(user),  500e6);
-        assertEq(asset.balanceOf(user), 1_000e6);
-    }
-
-    function test_withdraw_success_differentUser() external {
-        // Add extra assets to the pool.
-        MockPoolManager(address(poolManager)).__setTotalAssets(2_000e6);
-        MockPoolManager(address(poolManager)).__setRedeemableShares(500e6);
-        MockPoolManager(address(poolManager)).__setRedeemableAssets(1000e6);
-        asset.mint(address(pool), 1000e6);
-
-        address user2 = address(new Address());
-
-        vm.prank(user);
-        pool.approve(user2, 1000e6);
-
-        assertEq(pool.totalSupply(),          1_000e6);
-        assertEq(pool.totalAssets(),          2_000e6);
-        assertEq(pool.balanceOf(user),        1_000e6);
-        assertEq(pool.allowance(user, user2), 1_000e6);
-        assertEq(asset.balanceOf(user2),      0);
-
-        vm.prank(user2);
-        uint256 redeemAmount = pool.withdraw(1_000e6, user2, user);
-
-        assertEq(redeemAmount, 500e6);
-
-        MockPoolManager(address(poolManager)).__setTotalAssets(1_000e6);
-
-        assertEq(pool.totalSupply(),          500e6);
-        assertEq(pool.totalAssets(),          1_000e6);
-        assertEq(pool.balanceOf(user),        500e6);
-        assertEq(pool.allowance(user, user2), 500e6);
-        assertEq(asset.balanceOf(user2),      1_000e6);
+        vm.expectRevert("PM:PW:NOT_ENABLED");
+        pool.withdraw(assets_, user, user);
     }
 
 }
