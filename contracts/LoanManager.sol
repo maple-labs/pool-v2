@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
@@ -548,7 +548,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function _revertLoanImpairment(LiquidationInfo memory liquidationInfo_) internal {
         _compareAndSubtractAccountedInterest(liquidationInfo_.interest);
         unrealizedLosses -= _uint128(liquidationInfo_.principal + liquidationInfo_.interest);
-        
+
         emit UnrealizedLossesUpdated(unrealizedLosses);
     }
 
