@@ -52,8 +52,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) external override {
-        require(msg.sender == _factory(),                       "LM:M:NOT_FACTORY");
-        require(_migrate(migrator_, arguments_),                "LM:M:FAILED");
+        require(msg.sender == _factory(),        "LM:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_), "LM:M:FAILED");
     }
 
     function setImplementation(address implementation_) external override {
