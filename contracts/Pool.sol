@@ -241,7 +241,7 @@ contract Pool is IPool, ERC20 {
     function _requestWithdraw(uint256 assets_, address owner_) internal returns (uint256 escrowShares_) {
         address destination_;
 
-        ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(owner_, assets_);
+        ( escrowShares_, destination_ ) = IPoolManagerLike(manager).getEscrowParams(owner_, convertToExitShares(assets_));
 
         if (msg.sender != owner_) {
             _decreaseAllowance(owner_, msg.sender, escrowShares_);
