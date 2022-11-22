@@ -157,7 +157,7 @@ contract UpgradeTests is LoanManagerBaseTest {
     }
 
     function test_upgrade_notPoolDelegate() external {
-        vm.expectRevert("LM:U:NOT_AUTHORIZED");
+        vm.expectRevert("LM:U:NO_AUTH");
         loanManager.upgrade(2, "");
     }
 
@@ -195,7 +195,7 @@ contract UpgradeTests is LoanManagerBaseTest {
 contract SetAllowedSlippage_SetterTests is LoanManagerBaseTest {
 
     function test_setAllowedSlippage_notPoolManager() external {
-        vm.expectRevert("LM:SAS:NOT_POOL_MANAGER");
+        vm.expectRevert("LM:SAS:NOT_PM");
         loanManager.setAllowedSlippage(address(collateralAsset), 1e6);
     }
 
@@ -224,7 +224,7 @@ contract SetAllowedSlippage_SetterTests is LoanManagerBaseTest {
 contract SetMinRatio_SetterTests is LoanManagerBaseTest {
 
     function test_setMinRatio_notPoolManager() external {
-        vm.expectRevert("LM:SMR:NOT_POOL_MANAGER");
+        vm.expectRevert("LM:SMR:NOT_PM");
         loanManager.setMinRatio(address(collateralAsset), 1e6);
     }
 
@@ -405,7 +405,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.triggerDefault(address(loan), address(liquidatorFactory));
 
-        vm.expectRevert("LM:FCL:NOT_POOL_MANAGER");
+        vm.expectRevert("LM:FCL:NOT_PM");
         loanManager.finishCollateralLiquidation(address(loan));
 
         vm.prank(address(poolManager));
@@ -440,7 +440,7 @@ contract FinishCollateralLiquidationTests is LoanManagerBaseTest {
 
         ILoanManagerStructs.LiquidationInfo memory liquidationInfo = ILoanManagerStructs(address(loanManager)).liquidationInfo(loan);
 
-        address liquidator = address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D);
+        address liquidator = address(0x61a0009C8E5f6e87CAf2D3B57081c27882a0187e);
 
         _assertLiquidationInfo({
             liquidationInfo: liquidationInfo,
@@ -525,7 +525,7 @@ contract ImpairLoanTests is LoanManagerBaseTest {
         loanManager.impairLoan(address(loan), false);
 
         vm.prank(address(poolManager));
-        vm.expectRevert("LM:IL:ALREADY_IMPAIRED");
+        vm.expectRevert("LM:IL:IMPAIRED");
         loanManager.impairLoan(address(loan), false);
     }
 
@@ -779,7 +779,7 @@ contract RemoveLoanImpairmentTests is LoanManagerBaseTest {
         vm.prank(address(poolManager));
         loanManager.impairLoan(address(loan), true); // Trigger was called by governor.
 
-        vm.expectRevert("LM:RLI:NOT_AUTHORIZED");
+        vm.expectRevert("LM:RLI:NO_AUTH");
         vm.prank(address(poolManager));
         loanManager.removeLoanImpairment(address(loan), false); // PD can't remove it.
 
@@ -3234,7 +3234,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        48,
             lateInterest:    0,
             platformFees:    20 + 3,
-            liquidator:      address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D)
+            liquidator:      address(0x61a0009C8E5f6e87CAf2D3B57081c27882a0187e)
         });
     }
 
@@ -3316,7 +3316,7 @@ contract TriggerDefaultTests is LoanManagerBaseTest {
             interest:        80,
             lateInterest:    8,
             platformFees:    25,
-            liquidator:      address(0x760C3B9cb28eBf12F5fd66AfED48c45a18D0b98D)
+            liquidator:      address(0x61a0009C8E5f6e87CAf2D3B57081c27882a0187e)
         });
     }
 
@@ -3446,7 +3446,7 @@ contract FundLoanTests is LoanManagerBaseTest {
         fundsAsset.mint(address(loan), principalRequested);
 
         vm.prank(notPoolManager);
-        vm.expectRevert("LM:F:NOT_POOL_MANAGER");
+        vm.expectRevert("LM:F:NOT_PM");
         loanManager.fund(address(loan));
     }
 
@@ -4000,7 +4000,7 @@ contract QueueNextPaymentTests is LoanManagerBaseTest {
 contract UintCastingTests is LoanManagerBaseTest {
 
     function test_castUint24() external {
-        vm.expectRevert("LM:UINT24_CAST_OOB");
+        vm.expectRevert("LM:UINT24_CAST");
         loanManager.castUint24(2 ** 24);
 
         uint256 castedValue = loanManager.castUint24(2 ** 24 - 1);
@@ -4009,7 +4009,7 @@ contract UintCastingTests is LoanManagerBaseTest {
     }
 
     function test_castUint48() external {
-        vm.expectRevert("LM:UINT48_CAST_OOB");
+        vm.expectRevert("LM:UINT48_CAST");
         loanManager.castUint48(2 ** 48);
 
         uint256 castedValue = loanManager.castUint48(2 ** 48 - 1);
@@ -4018,7 +4018,7 @@ contract UintCastingTests is LoanManagerBaseTest {
     }
 
     function test_castUint96() external {
-        vm.expectRevert("LM:UINT96_CAST_OOB");
+        vm.expectRevert("LM:UINT96_CAST");
         loanManager.castUint96(2 ** 96);
 
         uint256 castedValue = loanManager.castUint96(2 ** 96 - 1);
@@ -4027,7 +4027,7 @@ contract UintCastingTests is LoanManagerBaseTest {
     }
 
     function test_castUint112() external {
-        vm.expectRevert("LM:UINT112_CAST_OOB");
+        vm.expectRevert("LM:UINT112_CAST");
         loanManager.castUint112(2 ** 112);
 
         uint256 castedValue = loanManager.castUint112(2 ** 112 - 1);
@@ -4036,7 +4036,7 @@ contract UintCastingTests is LoanManagerBaseTest {
     }
 
     function test_castUint120() external {
-        vm.expectRevert("LM:UINT120_CAST_OOB");
+        vm.expectRevert("LM:UINT120_CAST");
         loanManager.castUint120(2 ** 120);
 
         uint256 castedValue = loanManager.castUint120(2 ** 120 - 1);
@@ -4045,7 +4045,7 @@ contract UintCastingTests is LoanManagerBaseTest {
     }
 
     function test_castUint128() external {
-        vm.expectRevert("LM:UINT128_CAST_OOB");
+        vm.expectRevert("LM:UINT128_CAST");
         loanManager.castUint128(2 ** 128);
 
         uint256 castedValue = loanManager.castUint128(2 ** 128 - 1);
@@ -4057,7 +4057,7 @@ contract UintCastingTests is LoanManagerBaseTest {
 contract UpdateAccountingFailureTests is LoanManagerBaseTest {
 
     function test_updateAccounting_notPoolDelegate() external {
-        vm.expectRevert("LM:UA:NOT_AUTHORIZED");
+        vm.expectRevert("LM:UA:NO_AUTH");
         loanManager.updateAccounting();
 
         vm.prank(poolDelegate);
@@ -4065,7 +4065,7 @@ contract UpdateAccountingFailureTests is LoanManagerBaseTest {
     }
 
     function test_updateAccounting_notGovernor() external {
-        vm.expectRevert("LM:UA:NOT_AUTHORIZED");
+        vm.expectRevert("LM:UA:NO_AUTH");
         loanManager.updateAccounting();
 
         vm.prank(governor);
@@ -4115,7 +4115,7 @@ contract UpdateAccountingTests is LoanManagerClaimBaseTest {
         globals.__setProtocolPaused(true);
 
         vm.prank(poolDelegate);
-        vm.expectRevert("LM:UA:PROTOCOL_PAUSED");
+        vm.expectRevert("LM:UA:PAUSED");
         loanManager.updateAccounting();
     }
 
@@ -4311,8 +4311,7 @@ contract SetLoanTransferAdmin_SetterTests is LoanManagerBaseTest {
 
     address SET_ADDRESS = address(new Address());
 
-    function test_setLoanTransferAdmin_notPoolDelegate() external {
-        vm.expectRevert("LM:SLTA:NOT_PD");
+    function testFail_setLoanTransferAdmin_notPoolDelegate() external {
         loanManager.setLoanTransferAdmin(SET_ADDRESS);
     }
 
@@ -4348,7 +4347,7 @@ contract SetOwnershipToTests is LoanManagerBaseTest {
         loanManager.setLoanTransferAdmin(loanTransferAdmin);
     }
 
-    function test_setOwnershipTo_notLoanTransferAdmin() external {
+    function testFail_setOwnershipTo_notLoanTransferAdmin() external {
         address[] memory loans = new address[](3);
         loans[0] = loan1;
         loans[1] = loan2;
@@ -4359,15 +4358,6 @@ contract SetOwnershipToTests is LoanManagerBaseTest {
         destinations[1] = destination;
         destinations[2] = destination;
 
-        vm.expectRevert("LM:SOT:NOT_LTA");
-        loanManager.setOwnershipTo(loans, destinations);
-
-        // Set admin to zero to revoke privilege
-        vm.prank(poolDelegate);
-        loanManager.setLoanTransferAdmin(address(0));
-
-        vm.prank(loanTransferAdmin);
-        vm.expectRevert("LM:SOT:NOT_LTA");
         loanManager.setOwnershipTo(loans, destinations);
     }
 
@@ -4403,21 +4393,12 @@ contract TakeOwnershipTests is LoanManagerBaseTest {
         loanManager.setLoanTransferAdmin(loanTransferAdmin);
     }
 
-    function test_takeOwnership_notLoanTransferAdmin() external {
+    function testFail_takeOwnership_notLoanTransferAdmin() external {
         address[] memory loans = new address[](3);
         loans[0] = loan1;
         loans[1] = loan2;
         loans[2] = loan3;
 
-        vm.expectRevert("LM:TO:NOT_LTA");
-        loanManager.takeOwnership(loans);
-
-        // Set admin to zero to revoke privilege
-        vm.prank(poolDelegate);
-        loanManager.setLoanTransferAdmin(address(0));
-
-        vm.prank(loanTransferAdmin);
-        vm.expectRevert("LM:TO:NOT_LTA");
         loanManager.takeOwnership(loans);
     }
 

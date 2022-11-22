@@ -57,7 +57,7 @@ contract Pool_ERC20PermitTest is ERC20PermitTest, Pool_ERC20TestBase {
     }
 
     function test_domainSeparator() public override {
-        assertEq(_token.DOMAIN_SEPARATOR(), 0x233732c5451884c63767dff7d8430a974eef0cdba2cb822cd72da4c03deab397);
+        assertEq(_token.DOMAIN_SEPARATOR(), 0x77be2a8bcd6bae00dc8f49840e361983e5311b64e303aee7a8288bbcf9056838);
     }
 
 }

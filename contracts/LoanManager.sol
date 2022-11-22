@@ -64,7 +64,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     function upgrade(uint256 version_, bytes calldata arguments_) external override {
         address poolDelegate_ = IPoolManagerLike(poolManager).poolDelegate();
 
-        require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NOT_AUTHORIZED");
+        require(msg.sender == poolDelegate_ || msg.sender == governor(), "LM:U:NO_AUTH");
 
         IMapleGlobalsLike mapleGlobals = IMapleGlobalsLike(globals());
 
@@ -82,14 +82,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function setLoanTransferAdmin(address newLoanTransferAdmin_) external override {
-        require(msg.sender == IPoolManagerLike(poolManager).poolDelegate(), "LM:SLTA:NOT_PD");
+        require(msg.sender == IPoolManagerLike(poolManager).poolDelegate());
         emit LoanTransferAdminSet(loanTransferAdmin = newLoanTransferAdmin_);
     }
 
     function setOwnershipTo(address[] calldata loans_, address[] calldata newLenders_) external override {
-        require(msg.sender == loanTransferAdmin, "LM:SOT:NOT_LTA");
+        require(msg.sender == loanTransferAdmin);
 
-        require(loans_.length == newLenders_.length, "LM:SOT:ARRAY_LENGTH_MISMATCH");
+        require(loans_.length == newLenders_.length);
 
         uint256 length_ = loans_.length;
 
@@ -100,7 +100,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function takeOwnership(address[] calldata loans_) external override {
-        require(msg.sender == loanTransferAdmin, "LM:TO:NOT_LTA");
+        require(msg.sender == loanTransferAdmin);
 
         uint256 length_ = loans_.length;
 
@@ -115,14 +115,14 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external override {
-        require(msg.sender == poolManager,           "LM:SAS:NOT_POOL_MANAGER");
+        require(msg.sender == poolManager,           "LM:SAS:NOT_PM");
         require(allowedSlippage_ <= HUNDRED_PERCENT, "LM:SAS:INVALID_SLIPPAGE");
 
         emit AllowedSlippageSet(collateralAsset_, allowedSlippageFor[collateralAsset_] = allowedSlippage_);
     }
 
     function setMinRatio(address collateralAsset_, uint256 minRatio_) external override {
-        require(msg.sender == poolManager, "LM:SMR:NOT_POOL_MANAGER");
+        require(msg.sender == poolManager, "LM:SMR:NOT_PM");
         emit MinRatioSet(collateralAsset_, minRatioFor[collateralAsset_] = minRatio_);
     }
 
@@ -131,8 +131,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function updateAccounting() external override {
-        require(!IMapleGlobalsLike(globals()).protocolPaused(),           "LM:UA:PROTOCOL_PAUSED");
-        require(msg.sender == poolDelegate() || msg.sender == governor(), "LM:UA:NOT_AUTHORIZED");
+        require(!IMapleGlobalsLike(globals()).protocolPaused(),           "LM:UA:PAUSED");
+        require(msg.sender == poolDelegate() || msg.sender == governor(), "LM:UA:NO_AUTH");
 
         _advanceGlobalPaymentAccounting();
 
@@ -171,7 +171,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     }
 
     function fund(address loan_) external override nonReentrant {
-        require(msg.sender == poolManager, "LM:F:NOT_POOL_MANAGER");
+        require(msg.sender == poolManager, "LM:F:NOT_PM");
 
         _advanceGlobalPaymentAccounting();
 
@@ -268,7 +268,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
     function impairLoan(address loan_, bool isGovernor_) external override {
         require(msg.sender == poolManager,           "LM:IL:NOT_PM");
-        require(!IMapleLoanLike(loan_).isImpaired(), "LM:IL:ALREADY_IMPAIRED");
+        require(!IMapleLoanLike(loan_).isImpaired(), "LM:IL:IMPAIRED");
 
         // NOTE: Must get payment info prior to advancing payment accounting, because that will set issuance rate to 0.
         uint256 paymentId_ = paymentIdOf[loan_];
@@ -318,7 +318,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         PaymentInfo memory paymentInfo_         = payments[paymentId_];
         LiquidationInfo memory liquidationInfo_ = liquidationInfo[loan_];
 
-        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RLI:NOT_AUTHORIZED");
+        require(!liquidationInfo_.triggeredByGovernor || isCalledByGovernor_, "LM:RLI:NO_AUTH");
 
         _revertLoanImpairment(liquidationInfo_);
 
@@ -339,8 +339,8 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /******************************************************************************************************************************/
 
     function finishCollateralLiquidation(address loan_) external override nonReentrant returns (uint256 remainingLosses_, uint256 platformFees_) {
-        require(msg.sender == poolManager,   "LM:FCL:NOT_POOL_MANAGER");
-        require(!isLiquidationActive(loan_), "LM:FCL:LIQ_STILL_ACTIVE");
+        require(msg.sender == poolManager,   "LM:FCL:NOT_PM");
+        require(!isLiquidationActive(loan_), "LM:FCL:LIQ_ACTIVE");
 
         _advanceGlobalPaymentAccounting();
 
@@ -658,9 +658,9 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         require(mapleTreasury_ != address(0), "LM:DLF:ZERO_ADDRESS");
 
-        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury_,                   toTreasury_),     "LM:DLF:TRANSFER_MT_FAILED");
-        require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                             toPool_),         "LM:DLF:TRANSFER_POOL_FAILED");
-        require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, IMapleLoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B_FAILED");
+        require(toTreasury_     == 0 || ERC20Helper.transfer(fundsAsset_, mapleTreasury_,                   toTreasury_),     "LM:DLF:TRANSFER_MT");
+        require(toPool_         == 0 || ERC20Helper.transfer(fundsAsset_, pool,                             toPool_),         "LM:DLF:TRANSFER_POOL");
+        require(recoveredFunds_ == 0 || ERC20Helper.transfer(fundsAsset_, IMapleLoanLike(loan_).borrower(), recoveredFunds_), "LM:DLF:TRANSFER_B");
     }
 
     function _distributeClaimedFunds(address loan_, uint256 principal_, uint256 interest_) internal {
@@ -949,41 +949,37 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
     /*** Internal Pure Utility Functions                                                                                        ***/
     /******************************************************************************************************************************/
 
-    function _max(uint256 a_, uint256 b_) internal pure returns (uint256 maximum_) {
-        maximum_ = a_ > b_ ? a_ : b_;
-    }
-
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         minimum_ = a_ < b_ ? a_ : b_;
     }
 
     function _uint24(uint256 input_) internal pure returns (uint24 output_) {
-        require(input_ <= type(uint24).max, "LM:UINT24_CAST_OOB");
+        require(input_ <= type(uint24).max, "LM:UINT24_CAST");
         output_ = uint24(input_);
     }
 
     function _uint48(uint256 input_) internal pure returns (uint48 output_) {
-        require(input_ <= type(uint48).max, "LM:UINT48_CAST_OOB");
+        require(input_ <= type(uint48).max, "LM:UINT48_CAST");
         output_ = uint48(input_);
     }
 
     function _uint96(uint256 input_) internal pure returns (uint96 output_) {
-        require(input_ <= type(uint96).max, "LM:UINT96_CAST_OOB");
+        require(input_ <= type(uint96).max, "LM:UINT96_CAST");
         output_ = uint96(input_);
     }
 
     function _uint112(uint256 input_) internal pure returns (uint112 output_) {
-        require(input_ <= type(uint112).max, "LM:UINT112_CAST_OOB");
+        require(input_ <= type(uint112).max, "LM:UINT112_CAST");
         output_ = uint112(input_);
     }
 
     function _uint120(uint256 input_) internal pure returns (uint120 output_) {
-        require(input_ <= type(uint120).max, "LM:UINT120_CAST_OOB");
+        require(input_ <= type(uint120).max, "LM:UINT120_CAST");
         output_ = uint120(input_);
     }
 
     function _uint128(uint256 input_) internal pure returns (uint128 output_) {
-        require(input_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        require(input_ <= type(uint128).max, "LM:UINT128_CAST");
         output_ = uint128(input_);
     }
 

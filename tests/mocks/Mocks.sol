@@ -630,7 +630,7 @@ contract MockLoanManager is LoanManagerStorage {
     }
 
     function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
-        require(value_ <= type(uint128).max, "LM:UINT128_CAST_OOB");
+        require(value_ <= type(uint128).max, "LM:UINT128_CAST");
         castedValue_ = uint128(value_);
     }
 
