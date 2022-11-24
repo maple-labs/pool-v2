@@ -221,6 +221,8 @@ interface IPoolDelegateCoverLike {
 
 interface IPoolLike is IERC20Like {
 
+    function allowance(address owner_, address spender_) external view returns (uint256 allowance_);
+
     function asset() external view returns (address asset_);
 
     function convertToAssets(uint256 shares_) external view returns (uint256 assets_);
@@ -289,9 +291,9 @@ interface IPoolManagerLike {
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
-    function requestRedeem(uint256 shares_, address owner_) external;
+    function requestRedeem(uint256 shares_, address owner_, address sender_) external;
 
-    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external;
+    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 

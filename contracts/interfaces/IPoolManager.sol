@@ -345,16 +345,18 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @dev   Requests a redemption of shares from the pool.
      *  @param shares_ The amount of shares to redeem.
      *  @param owner_  The address of the owner of the shares.
+     *  @param sender_ The address of the sender of the shares.
      */
-    function requestRedeem(uint256 shares_, address owner_) external;
+    function requestRedeem(uint256 shares_, address owner_, address sender_) external;
 
     /**
      *  @dev   Requests a withdrawal of assets from the pool.
      *  @param shares_ The amount of shares to redeem.
      *  @param assets_ The amount of assets to withdraw.
      *  @param owner_  The address of the owner of the shares.
+     *  @param sender_ The address of the sender of the shares.
      */
-     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external;
+     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
 
     /******************************************************************************************************************************/
     /*** Cover Functions                                                                                                        ***/

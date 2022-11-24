@@ -235,7 +235,7 @@ contract Pool is IPool, ERC20 {
             _transfer(owner_, destination_, escrowShares_);
         }
 
-        IPoolManagerLike(manager).requestRedeem(escrowShares_, owner_);
+        IPoolManagerLike(manager).requestRedeem(escrowShares_, owner_, msg.sender);
     }
 
     function _requestWithdraw(uint256 assets_, address owner_) internal returns (uint256 escrowShares_) {
@@ -251,7 +251,7 @@ contract Pool is IPool, ERC20 {
             _transfer(owner_, destination_, escrowShares_);
         }
 
-        IPoolManagerLike(manager).requestWithdraw(escrowShares_, assets_, owner_);
+        IPoolManagerLike(manager).requestWithdraw(escrowShares_, assets_, owner_, msg.sender);
     }
 
     /******************************************************************************************************************************/

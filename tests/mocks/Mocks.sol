@@ -722,9 +722,13 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         require(false, "PM:PW:NOT_ENABLED");
     }
 
-    function requestRedeem(uint256 shares_, address owner_) external { }
+    function requestRedeem(uint256 shares_, address owner_, address sender_) external {
+        if (sender_ != owner_ && shares_ == 0) {
+            require(IPoolLike(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
+        }
+    }
 
-    function requestWithdraw(uint256, uint256, address) external {
+    function requestWithdraw(uint256, uint256, address, address) external {
         require(false, "PM:RW:NOT_ENABLED");
     }
 
@@ -765,6 +769,10 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
 
     function __setMaxWithdraw(address account_, uint256 maxWithdraw_) external {
         maxWithdraw[account_] = maxWithdraw_;
+    }
+
+    function __setPool(address pool_) external {
+        pool = pool_;
     }
 
     function __setPoolDelegate(address poolDelegate_) external {

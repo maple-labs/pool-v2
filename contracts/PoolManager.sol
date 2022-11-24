@@ -371,7 +371,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         );
     }
 
-    function requestRedeem(uint256 shares_, address owner_) external override nonReentrant {
+    function requestRedeem(uint256 shares_, address owner_, address sender_) external override nonReentrant {
         _whenProtocolNotPaused();
 
         address pool_ = pool;
@@ -379,15 +379,19 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == pool_,                                    "PM:RR:NOT_POOL");
         require(ERC20Helper.approve(pool_, withdrawalManager, shares_), "PM:RR:APPROVE_FAIL");
 
+        if (sender_ != owner_ && shares_ == 0) {
+            require(IPoolLike(pool_).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
+        }
+
         IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
 
         emit RedeemRequested(owner_, shares_);
     }
 
-    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_) external override nonReentrant {
+    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external override nonReentrant {
         _whenProtocolNotPaused();
 
-        shares_; assets_; owner_;  // Silence compiler warnings
+        shares_; assets_; owner_; sender_;  // Silence compiler warnings
         require(false, "PM:RW:NOT_ENABLED");
     }
 

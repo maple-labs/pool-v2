@@ -808,6 +808,7 @@ contract RequestRedeemTests is PoolBase {
 
         _deposit(address(pool), address(poolManager), user, depositAmount);
 
+        MockPoolManager(poolManager).__setPool(address(pool));
         MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
     }
 
@@ -871,6 +872,13 @@ contract RequestRedeemTests is PoolBase {
         assertEq(pool.balanceOf(user),                1_000e6);
     }
 
+    function test_requestRedeem_zeroSharesAndNotOwnerAndNoAllowance() public {
+        assertEq(pool.allowance(user, address(this)), 0);
+
+        vm.expectRevert("PM:RR:NO_ALLOWANCE");
+        pool.requestRedeem(0, address(user));
+    }
+
 }
 
 contract RequestWithdraw is PoolBase {
@@ -883,6 +891,7 @@ contract RequestWithdraw is PoolBase {
         _deposit(address(pool), address(poolManager), user, depositAmount);
 
         MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
+
     }
 
     function test_requestWithdraw_checkCall() public {
