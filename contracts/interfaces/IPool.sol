@@ -108,7 +108,7 @@ interface IPool is IERC20, IERC4626 {
     /******************************************************************************************************************************/
 
     /**
-     *  @dev    Requests a redemption of shares from the pool.
+     *  @dev    Removes shares from the withdrawal mechanism, can only be called after the beginning of the withdrawal window has passed.
      *  @param  shares_         The amount of shares to redeem.
      *  @param  owner_          The owner of the shares.
      *  @return sharesReturned_ The amount of shares withdrawn.
