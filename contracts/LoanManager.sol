@@ -788,13 +788,12 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         ( , uint256[3] memory grossInterest_, uint256[2] memory serviceFees_ ) = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
-        uint256 grossPaymentInterest_ = grossInterest_[0];
-        uint256 grossLateInterest_    = grossInterest_[1];
+        uint256 grossLateInterest_ = grossInterest_[1];
 
         netLateInterest_ = _getNetInterest(grossLateInterest_, paymentInfo_.platformManagementFeeRate + paymentInfo_.delegateManagementFeeRate);
 
         // Calculate the platform management and service fees.
-        uint256 platformManagementFees_ = ((grossPaymentInterest_ + grossLateInterest_) * paymentInfo_.platformManagementFeeRate) / HUNDRED_PERCENT;
+        uint256 platformManagementFees_ = ((grossInterest_[0] + grossLateInterest_ + grossInterest_[2]) * paymentInfo_.platformManagementFeeRate) / HUNDRED_PERCENT;
 
         // If the payment is early, scale back the management fees pro-rata based on the current timestamp.
         if (grossLateInterest_ == 0) {
