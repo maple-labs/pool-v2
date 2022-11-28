@@ -778,7 +778,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
         // Accrue the interest only up to the current time if the payment due date has not been reached yet.
         netInterest_ =
             paymentInfo_.issuanceRate == 0
-                ? paymentInfo_.incomingNetInterest
+                ? paymentInfo_.incomingNetInterest + paymentInfo_.refinanceInterest
                 : _getPaymentAccruedInterest({
                     startTime_:           paymentInfo_.startDate,
                     endTime_:             _min(paymentInfo_.paymentDueDate, block.timestamp),
