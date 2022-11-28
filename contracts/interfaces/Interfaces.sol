@@ -279,9 +279,9 @@ interface IPoolManagerLike {
 
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
 
-    function processRedeem(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processRedeem(uint256 shares_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
-    function processWithdraw(uint256 assets_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processWithdraw(uint256 assets_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     function poolDelegate() external view returns (address poolDelegate_);
 

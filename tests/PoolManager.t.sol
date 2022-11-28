@@ -1329,17 +1329,37 @@ contract ProcessRedeemTests is PoolManagerBase {
     function test_processRedeem_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.processRedeem(1, address(1));
+        poolManager.processRedeem(1, address(1), address(1));
     }
 
     function test_processRedeem_notWithdrawalManager() external {
         vm.expectRevert("PM:PR:NOT_POOL");
-        poolManager.processRedeem(1, address(1));
+        poolManager.processRedeem(1, address(1), address(1));
+    }
+
+    function test_processRedeem_noApproval() external {
+        address user1 = address(new Address());
+        address user2 = address(new Address());
+
+        vm.prank(poolManager.pool());
+        vm.expectRevert("PM:PR:NO_ALLOWANCE");
+        poolManager.processRedeem(1, user1, user2);
     }
 
     function test_processRedeem_success() external {
         vm.prank(poolManager.pool());
-        poolManager.processRedeem(1, address(1));
+        poolManager.processRedeem(1, address(1), address(1));
+    }
+
+    function test_processRedeem_success_notSender() external {
+        address user1 = address(new Address());
+        address user2 = address(new Address());
+
+        vm.prank(user1);
+        pool.approve(user2, 1);
+
+        vm.prank(poolManager.pool());
+        poolManager.processRedeem(1, user1, user2);
     }
 
 }

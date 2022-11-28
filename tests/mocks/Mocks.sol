@@ -712,12 +712,12 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         assets_ = _previewWithdrawAmount;
     }
 
-    function processRedeem(uint256, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
+    function processRedeem(uint256, address, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_ = _redeemableShares;
         assets_           = _redeemableAssets;
     }
 
-    function processWithdraw(uint256, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
+    function processWithdraw(uint256, address, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_; assets_;  // Silence compiler warnings.
         require(false, "PM:PW:NOT_ENABLED");
     }
