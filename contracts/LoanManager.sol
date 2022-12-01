@@ -154,7 +154,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         PaymentInfo memory paymentInfo_ = payments[paymentId_];
 
-        uint256 previousRate_     = _handlePreviousPaymentAccounting(loan_, block.timestamp <= paymentInfo_.paymentDueDate);
+        uint256 previousRate_      = _handlePreviousPaymentAccounting(loan_, block.timestamp <= paymentInfo_.paymentDueDate);
         uint256 previousPrincipal_ = IMapleLoanLike(loan_).principal();
 
         // Perform the refinancing, updating the loan state.
@@ -510,7 +510,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
             managementFeeRate_         = HUNDRED_PERCENT;
         }
 
-        ( , uint256[3] memory interest_, )  = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
+        ( , uint256[3] memory interest_, ) = IMapleLoanLike(loan_).getNextPaymentDetailedBreakdown();
 
         newRate_ = (_getNetInterest(interest_[0], managementFeeRate_) * PRECISION) / (nextPaymentDueDate_ - startDate_);
 

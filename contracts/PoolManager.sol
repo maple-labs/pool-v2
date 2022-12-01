@@ -166,7 +166,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     /******************************************************************************************************************************/
-    /*** Pool Delegate Admin Functions                                                                                                ***/
+    /*** Pool Delegate Admin Functions                                                                                          ***/
     /******************************************************************************************************************************/
 
     function addLoanManager(address loanManager_) external override {
