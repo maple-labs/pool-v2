@@ -218,10 +218,6 @@ contract DepositTests is PoolBase {
         pool.deposit(1, address(this));
     }
 
-    function testFuzz_deposit() public {
-        // TODO: Generic fuzz test.
-    }
-
 }
 
 contract DepositWithPermitTests is PoolBase {
@@ -360,10 +356,6 @@ contract DepositWithPermitTests is PoolBase {
         pool.depositWithPermit(1, STAKER, DEADLINE, v, r, s);
     }
 
-    function testFuzz_depositWithPermit() public {
-        // TODO: Generic fuzz test.
-    }
-
 }
 
 contract MintTests is PoolBase {
@@ -425,10 +417,6 @@ contract MintTests is PoolBase {
 
         vm.expectRevert("P:M:TRANSFER_FROM");
         pool.mint(1, address(this));
-    }
-
-    function testFuzz_mint() public {
-        // TODO: Generic fuzz test.
     }
 
 }
@@ -576,10 +564,6 @@ contract MintWithPermitTests is PoolBase {
         vm.prank(STAKER);
         vm.expectRevert("P:M:TRANSFER_FROM");
         pool.mintWithPermit(1, STAKER, 1, DEADLINE, v, r, s);
-    }
-
-    function testFuzz_mintWithPermit() public {
-        // TODO: Generic fuzz test.
     }
 
 }
@@ -966,10 +950,6 @@ contract TransferTests is PoolBase {
         pool.deposit(TRANSFER_AMOUNT, address(this));
     }
 
-    function testFuzz_transfer_success() public {
-        // TODO: Generic fuzz test.
-    }
-
 }
 
 contract TransferFromTests is PoolBase {
@@ -991,10 +971,6 @@ contract TransferFromTests is PoolBase {
         pool.approve(address(this), type(uint256).max);
 
         vm.stopPrank();
-    }
-
-    function testFuzz_transferFrom_success() public {
-        // TODO: Generic fuzz test.
     }
 
 }
@@ -1551,5 +1527,3 @@ contract ConvertToSharesTests is PoolBase {
     }
 
 }
-
-// TODO: Add tests comparing results of preview functions with results of the actual operation.

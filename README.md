@@ -8,7 +8,7 @@
 
 ## Overview
 
-This repository contains the core contracts of the Maple V2 protocol that are responsible for the deployment and management of lending pools:
+This repository contains the core contracts of the Maple V2 protocol that are responsible for the deployment and management of Maple Pools:
 
 | Contract | Description |
 | -------- | ------- |

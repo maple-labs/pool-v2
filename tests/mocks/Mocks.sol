@@ -115,6 +115,7 @@ contract MockGlobals {
     }
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
+        asset_;
         bootstrapMint_ = _bootstrapMint;
     }
 
@@ -471,7 +472,9 @@ contract MockLoanV3 {
         fundsAsset      = fundsAsset_;
     }
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256, uint256) {
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fee1, uint256 fee2) {
+        fee1; fee2; // Silence warnings
+
         principal_ = nextPaymentPrincipal;
         interest_  = nextPaymentInterest + refinanceInterest;
     }
@@ -717,18 +720,18 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         assets_           = _redeemableAssets;
     }
 
-    function processWithdraw(uint256, address, address) external view returns (uint256 redeemableShares_, uint256 assets_) {
+    function processWithdraw(uint256, address, address) external pure returns (uint256 redeemableShares_, uint256 assets_) {
         redeemableShares_; assets_;  // Silence compiler warnings.
         require(false, "PM:PW:NOT_ENABLED");
     }
 
-    function requestRedeem(uint256 shares_, address owner_, address sender_) external {
+    function requestRedeem(uint256 shares_, address owner_, address sender_) external view {
         if (sender_ != owner_ && shares_ == 0) {
             require(IPoolLike(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
         }
     }
 
-    function requestWithdraw(uint256, uint256, address, address) external {
+    function requestWithdraw(uint256, uint256, address, address) external pure {
         require(false, "PM:RW:NOT_ENABLED");
     }
 

@@ -156,7 +156,6 @@ contract TransitionLoanManagerAddTests is TransitionLoanManagerTestBase {
         /*** Add the first loan                                                                                                     ***/
         /******************************************************************************************************************************/
 
-        // TODO: Can refinance interest be a non-zero value when we upgrade?
         loan1.__setNextPaymentDueDate(start + 20 days);
         loan1.__setPaymentInterval(30 days);
         loan1.__setPrincipal(1_000_000e18);

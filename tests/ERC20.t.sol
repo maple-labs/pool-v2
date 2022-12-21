@@ -29,7 +29,7 @@ contract Pool_ERC20TestBase {
 
         poolManager.__setCanCall(true, "");
 
-        pool = address(new MockERC20Pool(address(poolManager), address(asset), "Pool", "POOL"));
+        pool = address(new MockERC20Pool(address(poolManager), address(asset), "Token", "TKN"));
     }
 
 }
@@ -57,7 +57,7 @@ contract Pool_ERC20PermitTest is ERC20PermitTest, Pool_ERC20TestBase {
     }
 
     function test_domainSeparator() public override {
-        assertEq(_token.DOMAIN_SEPARATOR(), 0x77be2a8bcd6bae00dc8f49840e361983e5311b64e303aee7a8288bbcf9056838);
+        assertEq(_token.DOMAIN_SEPARATOR(), 0x26450e8015bd7b9fa21048f5ff3a98f55954aa7364a274646e99f55efbfe5c69);
     }
 
 }
