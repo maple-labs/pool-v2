@@ -59,17 +59,31 @@ contract PoolDeployer is IPoolDeployer {
             IMapleProxyFactory LMFactory_ = IMapleProxyFactory(factories_[1]);
             IMapleProxyFactory WMFactory_ = IMapleProxyFactory(factories_[2]);
 
-            require(initializers_[0] == PMFactory_.migratorForPath(PMFactory_.defaultVersion(), PMFactory_.defaultVersion()), "PD:DP:INVALID_PM_INITIALIZER");
-            require(initializers_[1] == LMFactory_.migratorForPath(LMFactory_.defaultVersion(), LMFactory_.defaultVersion()), "PD:DP:INVALID_LM_INITIALIZER");
-            require(initializers_[2] == WMFactory_.migratorForPath(WMFactory_.defaultVersion(), WMFactory_.defaultVersion()), "PD:DP:INVALID_WM_INITIALIZER");
+            require(
+                initializers_[0] == PMFactory_.migratorForPath(PMFactory_.defaultVersion(), PMFactory_.defaultVersion()),
+                "PD:DP:INVALID_PM_INITIALIZER"
+            );
+
+            require(
+                initializers_[1] == LMFactory_.migratorForPath(LMFactory_.defaultVersion(), LMFactory_.defaultVersion()),
+                "PD:DP:INVALID_LM_INITIALIZER"
+            );
+
+            require(
+                initializers_[2] == WMFactory_.migratorForPath(WMFactory_.defaultVersion(), WMFactory_.defaultVersion()),
+                "PD:DP:INVALID_WM_INITIALIZER"
+            );
         }
 
         bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
 
         // Deploy Pool Manager
-        bytes memory arguments = IPoolManagerInitializer(initializers_[0]).encodeArguments(poolDelegate_, asset_, configParams_[5], name_, symbol_);
-        poolManager_           = IMapleProxyFactory(factories_[0]).createInstance(arguments, salt_);
-        address pool_          = IPoolManager(poolManager_).pool();
+        bytes memory arguments = IPoolManagerInitializer(
+            initializers_[0]).encodeArguments(poolDelegate_, asset_, configParams_[5], name_, symbol_
+        );
+
+        poolManager_  = IMapleProxyFactory(factories_[0]).createInstance(arguments, salt_);
+        address pool_ = IPoolManager(poolManager_).pool();
 
         // Deploy Loan Manager
         arguments    = ILoanManagerInitializerLike(initializers_[1]).encodeArguments(pool_);
@@ -82,7 +96,10 @@ contract PoolDeployer is IPoolDeployer {
         // Configure Pool Manager
         IPoolManager(poolManager_).configure(loanManager_, withdrawalManager_, configParams_[0], configParams_[1]);
 
-        require(ERC20Helper.transferFrom(asset_, poolDelegate_, IPoolManager(poolManager_).poolDelegateCover(), configParams_[2]), "PD:DP:TRANSFER_FAILED");
+        require(
+            ERC20Helper.transferFrom(asset_, poolDelegate_, IPoolManager(poolManager_).poolDelegateCover(), configParams_[2]),
+            "PD:DP:TRANSFER_FAILED"
+        );
     }
 
 }

@@ -56,7 +56,13 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(
+            POOL_DELEGATE,
+            address(asset),
+            0,
+            poolName_,
+            poolSymbol_
+        );
 
         poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
@@ -73,7 +79,9 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
     }
 
     // Returns an ERC-2612 `permit` digest for the `owner` to sign
-    function _getDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_) internal view returns (bytes32 digest_) {
+    function _getDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_)
+        internal view returns (bytes32 digest_)
+    {
         return keccak256(
             abi.encodePacked(
                 '\x19\x01',
@@ -84,7 +92,9 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
     }
 
     // Returns a valid `permit` signature signed by this contract's `owner` address
-    function _getValidPermitSignature(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_, uint256 ownerSk_) internal returns (uint8 v_, bytes32 r_, bytes32 s_) {
+    function _getValidPermitSignature(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_, uint256 ownerSk_)
+        internal returns (uint8 v_, bytes32 r_, bytes32 s_)
+    {
         return vm.sign(ownerSk_, _getDigest(owner_, spender_, value_, nonce_, deadline_));
     }
 
@@ -269,7 +279,11 @@ contract DepositWithPermitTests is PoolBase {
     function test_depositWithPermit_notStakerSignature() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(NOT_STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, NOT_STAKER_SK);
+        (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        ) = _getValidPermitSignature(NOT_STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, NOT_STAKER_SK);
 
         vm.startPrank(STAKER);
 

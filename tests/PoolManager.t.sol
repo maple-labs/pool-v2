@@ -4,8 +4,6 @@ pragma solidity 0.8.7;
 import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IPoolManager } from "../contracts/interfaces/IPoolManager.sol";
-
 import { PoolManager }            from "../contracts/PoolManager.sol";
 import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
 import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
@@ -19,7 +17,6 @@ import {
     MockLoanManager,
     MockPoolManagerMigrator,
     MockPoolManagerMigratorInvalidPoolDelegateCover,
-    MockPool,
     MockWithdrawalManager
 } from "./mocks/Mocks.sol";
 
@@ -29,18 +26,18 @@ import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
 contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
-    address POOL_DELEGATE = address(new Address());
+    address internal POOL_DELEGATE = address(new Address());
 
-    MockERC20     asset;
-    MockERC20Pool pool;
-    MockFactory   liquidatorFactory;
+    MockERC20     internal asset;
+    MockERC20Pool internal pool;
+    MockFactory   internal liquidatorFactory;
 
-    PoolManagerHarness poolManager;
-    PoolManagerFactory factory;
+    PoolManagerHarness internal poolManager;
+    PoolManagerFactory internal factory;
 
-    address implementation;
-    address initializer;
-    address withdrawalManager;
+    address internal implementation;
+    address internal initializer;
+    address internal withdrawalManager;
 
     function setUp() public virtual {
         asset = new MockERC20("Asset", "AT", 18);
@@ -62,7 +59,13 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
+        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(
+            POOL_DELEGATE,
+            address(asset),
+            0,
+            poolName_,
+            poolSymbol_
+        );
 
         poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
 
@@ -92,10 +95,10 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
 contract ConfigureTests is PoolManagerBase {
 
-    address loanManager = address(new Address());
+    address internal loanManager = address(new Address());
 
-    uint256 liquidityCap      = 1_000_000e18;
-    uint256 managementFeeRate = 0.1e6;
+    uint256 internal liquidityCap      = 1_000_000e18;
+    uint256 internal managementFeeRate = 0.1e6;
 
     function test_configure_notDeployer() public {
         vm.prank(POOL_DELEGATE);
@@ -144,8 +147,8 @@ contract ConfigureTests is PoolManagerBase {
 
 contract MigrateTests is PoolManagerBase {
 
-    address migrator        = address(new MockPoolManagerMigrator());
-    address invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
+    address internal invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
+    address internal migrator        = address(new MockPoolManagerMigrator());
 
     function test_migrate_notFactory() external {
         vm.expectRevert("PM:M:NOT_FACTORY");
@@ -177,7 +180,7 @@ contract MigrateTests is PoolManagerBase {
 
 contract SetImplementationTests is PoolManagerBase {
 
-    address newImplementation = address(new PoolManager());
+    address internal newImplementation = address(new PoolManager());
 
     function test_setImplementation_notFactory() external {
         vm.expectRevert("PM:SI:NOT_FACTORY");
@@ -197,7 +200,7 @@ contract SetImplementationTests is PoolManagerBase {
 
 contract UpgradeTests is PoolManagerBase {
 
-    address newImplementation = address(new PoolManager());
+    address internal newImplementation = address(new PoolManager());
 
     function setUp() public override {
         super.setUp();
@@ -250,8 +253,8 @@ contract UpgradeTests is PoolManagerBase {
 
 contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
-    address SET_ADDRESS       = address(new Address());
+    address internal NOT_POOL_DELEGATE = address(new Address());
+    address internal SET_ADDRESS       = address(new Address());
 
     function setUp() public override {
         super.setUp();
@@ -297,8 +300,8 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
 contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
-    address SET_ADDRESS       = address(new Address());
+    address internal NOT_POOL_DELEGATE = address(new Address());
+    address internal SET_ADDRESS       = address(new Address());
 
     function test_setPendingPoolDelegate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -395,9 +398,9 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
 
 contract SetAllowedSlippage_SetterTests is PoolManagerBase {
 
-    MockLoanManager loanManager;
+    MockLoanManager internal loanManager;
 
-    address collateralAsset = address(new Address());
+    address internal collateralAsset = address(new Address());
 
     function setUp() public override {
         super.setUp();
@@ -461,7 +464,7 @@ contract SetAllowedSlippage_SetterTests is PoolManagerBase {
 
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
+    address internal NOT_POOL_DELEGATE = address(new Address());
 
     function test_setLiquidityCap_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -490,9 +493,9 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
 contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
+    address internal NOT_POOL_DELEGATE = address(new Address());
 
-    uint256 newManagementFeeRate = 10_0000;
+    uint256 internal newManagementFeeRate = 10_0000;
 
     function test_setDelegateManagementFeeRate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -529,9 +532,9 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
 
 contract SetMinRatio_SetterTests is PoolManagerBase {
 
-    MockLoanManager loanManager;
+    MockLoanManager internal loanManager;
 
-    address collateralAsset = address(new Address());
+    address internal collateralAsset = address(new Address());
 
     function setUp() public override {
         super.setUp();
@@ -620,15 +623,15 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
 
 contract AcceptNewTermsTests is PoolManagerBase {
 
-    address BORROWER = address(new Address());
-    address LP       = address(new Address());
+    address internal BORROWER = address(new Address());
+    address internal LP       = address(new Address());
 
-    MockLoanFactory loanFactory;
-    MockLoan        loan;
-    MockLoanManager loanManager;
+    MockLoan        internal loan;
+    MockLoanFactory internal loanFactory;
+    MockLoanManager internal loanManager;
 
-    uint256 principalRequested = 500_000e18;
-    uint256 collateralRequired = 0;
+    uint256 internal collateralRequired = 0;
+    uint256 internal principalRequested = 500_000e18;
 
     function setUp() public override {
         super.setUp();
@@ -709,15 +712,15 @@ contract AcceptNewTermsTests is PoolManagerBase {
 
 contract FundTests is PoolManagerBase {
 
-    address BORROWER = address(new Address());
-    address LP       = address(new Address());
+    address internal BORROWER = address(new Address());
+    address internal LP       = address(new Address());
 
-    MockLoan        loan;
-    MockLoanManager loanManager;
-    MockLoanFactory loanFactory;
+    MockLoan        internal loan;
+    MockLoanFactory internal loanFactory;
+    MockLoanManager internal loanManager;
 
-    uint256 principalRequested = 1_000_000e18;
-    uint256 collateralRequired = 0;
+    uint256 internal collateralRequired = 0;
+    uint256 internal principalRequested = 1_000_000e18;
 
     function setUp() public override {
         super.setUp();
@@ -894,14 +897,14 @@ contract FundTests is PoolManagerBase {
 
 contract TriggerDefault is PoolManagerBase {
 
-    address BORROWER   = address(new Address());
-    address LP         = address(new Address());
-    address AUCTIONEER = address(new Address());
+    address internal AUCTIONEER = address(new Address());
+    address internal BORROWER   = address(new Address());
+    address internal LP         = address(new Address());
 
-    address loan;
-    address poolDelegateCover;
+    address internal loan;
+    address internal poolDelegateCover;
 
-    MockLoanManager loanManager;
+    MockLoanManager internal loanManager;
 
     function setUp() public override {
         super.setUp();
@@ -970,10 +973,10 @@ contract TriggerDefault is PoolManagerBase {
 
 contract ImpairLoanTests is PoolManagerBase {
 
-    address LP   = address(new Address());
-    address LOAN = address(new MockLoan(address(asset), address(asset)));
+    address internal LOAN = address(new MockLoan(address(asset), address(asset)));
+    address internal LP   = address(new Address());
 
-    MockLoanManager loanManager;
+    MockLoanManager internal loanManager;
 
     function setUp() public override {
         super.setUp();
@@ -1037,8 +1040,8 @@ contract ImpairLoanTests is PoolManagerBase {
 
 contract RemoveLoanImpairmentTests is PoolManagerBase {
 
-    address LP   = address(new Address());
-    address LOAN = address(new MockLoan(address(asset), address(asset)));
+    address internal LOAN = address(new MockLoan(address(asset), address(asset)));
+    address internal LP   = address(new Address());
 
     MockLoanManager loanManager;
 
@@ -1095,12 +1098,12 @@ contract RemoveLoanImpairmentTests is PoolManagerBase {
 
 contract FinishCollateralLiquidation is PoolManagerBase {
 
-    address BORROWER = address(new Address());
-    address LP       = address(new Address());
-    address LOAN     = address(new Address());
+    address internal BORROWER = address(new Address());
+    address internal LOAN     = address(new Address());
+    address internal LP       = address(new Address());
 
-    address loan;
-    address poolDelegateCover;
+    address internal loan;
+    address internal poolDelegateCover;
 
     MockLoanManager loanManager;
 

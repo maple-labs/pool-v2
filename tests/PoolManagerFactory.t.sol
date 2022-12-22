@@ -16,13 +16,13 @@ import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
 contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
 
-    address PD = address(new Address());
+    address internal PD = address(new Address());
 
-    MockERC20          asset;
-    PoolManagerFactory factory;
+    MockERC20          internal asset;
+    PoolManagerFactory internal factory;
 
-    address implementation;
-    address initializer;
+    address internal implementation;
+    address internal initializer;
 
     function setUp() public virtual {
         asset = new MockERC20("Asset", "AT", 18);

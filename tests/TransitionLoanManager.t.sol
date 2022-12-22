@@ -13,7 +13,6 @@ import { LoanManagerFactory     } from "../contracts/proxy/LoanManagerFactory.so
 import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitializer.sol";
 
 import {
-    MockFactory,
     MockGlobals,
     MockLoanV3,
     MockPool,

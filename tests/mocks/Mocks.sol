@@ -579,7 +579,10 @@ contract MockLoanManager is LoanManagerStorage {
         wasRemoveLoanImpairmentCalledByGovernor = isCalledByGovernor_;
     }
 
-    function triggerDefault(address, address) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_) {
+    function triggerDefault(address, address)
+        external
+        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_)
+    {
         liquidationComplete_ = true;
         remainingLosses_     = 0;
         platformFees_        = 0;
@@ -665,8 +668,10 @@ contract MockPool {
 }
 
 /**
- *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout, since this contract is used to etch over the real PoolManager implementation in tests,
- *       and is therefore used as the implementation contract for the PoolManager proxy. By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
+ *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout,
+ *       since this contract is used to etch over the real PoolManager implementation in tests,
+ *       and is therefore used as the implementation contract for the PoolManager proxy.
+ *       By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
  */
 contract MockPoolManager is PoolManagerStorage, MockProxied {
 
@@ -735,7 +740,7 @@ contract MockPoolManager is PoolManagerStorage, MockProxied {
         require(false, "PM:RW:NOT_ENABLED");
     }
 
-    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) { }
+    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) {}
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {
         delegateManagementFeeRate = delegateManagementFeeRate_;
@@ -812,7 +817,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     address pool;
 
-    constructor() MockERC20("Asset", "AST", 18) { }
+    constructor() MockERC20("Asset", "AST", 18) {}
 
     function transfer(address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
@@ -944,9 +949,9 @@ contract MockWithdrawalManager is MapleProxiedInternals {
         factory_ = _factory();
     }
 
-    function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
+    function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) {}
 
-    function removeShares(uint256 shares_, address owner_) external { }
+    function removeShares(uint256 shares_, address owner_) external {}
 
     function __setLockedLiquidity(uint256 lockedLiquidity_) external {
         lockedLiquidity = lockedLiquidity_;

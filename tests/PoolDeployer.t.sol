@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console }           from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils }                    from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                             from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
@@ -9,10 +9,8 @@ import { PoolDeployer } from "../contracts/PoolDeployer.sol";
 
 import {
     MockGlobals,
-    MockLoanManager,
     MockLoanManagerInitializer,
     MockProxied,
-    MockMigrator,
     MockPoolManager,
     MockPoolManagerInitializer,
     MockWithdrawalManagerInitializer
@@ -22,21 +20,21 @@ import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
 contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
-    address poolDelegate = address(new Address());
+    address internal poolDelegate = address(new Address());
 
-    address asset;
+    address internal asset;
 
-    address poolManagerFactory;
-    address poolManagerImplementation;
-    address poolManagerInitializer;
+    address internal poolManagerFactory;
+    address internal poolManagerImplementation;
+    address internal poolManagerInitializer;
 
-    address loanManagerFactory;
-    address loanManagerImplementation;
-    address loanManagerInitializer;
+    address internal loanManagerFactory;
+    address internal loanManagerImplementation;
+    address internal loanManagerInitializer;
 
-    address withdrawalManagerFactory;
-    address withdrawalManagerImplementation;
-    address withdrawalManagerInitializer;
+    address internal withdrawalManagerFactory;
+    address internal withdrawalManagerImplementation;
+    address internal withdrawalManagerInitializer;
 
     function setUp() public virtual {
         asset = address(new MockERC20("Asset", "AT", 18));
@@ -61,7 +59,12 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         IMapleProxyFactory(loanManagerFactory).registerImplementation(1, loanManagerImplementation, loanManagerInitializer);
         IMapleProxyFactory(loanManagerFactory).setDefaultVersion(1);
 
-        IMapleProxyFactory(withdrawalManagerFactory).registerImplementation(1, withdrawalManagerImplementation, withdrawalManagerInitializer);
+        IMapleProxyFactory(withdrawalManagerFactory).registerImplementation(
+            1,
+            withdrawalManagerImplementation,
+            withdrawalManagerInitializer
+        );
+
         IMapleProxyFactory(withdrawalManagerFactory).setDefaultVersion(1);
         vm.stopPrank();
     }
@@ -190,8 +193,8 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             withdrawalManagerFactory
         ];
 
-        address incorrectPoolManagerInitializer       = address(new Address());
         address incorrectLoanManagerInitializer       = address(new Address());
+        address incorrectPoolManagerInitializer       = address(new Address());
         address incorrectWithdrawalManagerInitializer = address(new Address());
 
         address[3] memory initializers_ = [

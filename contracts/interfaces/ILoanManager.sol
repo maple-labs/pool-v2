@@ -7,9 +7,9 @@ import { ILoanManagerStorage } from "./ILoanManagerStorage.sol";
 
 interface ILoanManager is IMapleProxied, ILoanManagerStorage {
 
-    /******************************************************************************************************************************/
-    /*** Events                                                                                                                 ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Events                                                                                                                         ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Emitted when `setAllowedSlippage` is called.
@@ -90,9 +90,9 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      */
     event UnrealizedLossesUpdated(uint256 unrealizedLosses_);
 
-    /******************************************************************************************************************************/
-    /*** External Functions                                                                                                     ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** External Functions                                                                                                             ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Accepts new loan terms triggering a loan refinance.
@@ -183,7 +183,8 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      *  @return remainingLosses_     The amount of remaining losses.
      *  @return platformFees_        The amount of platform fees.
      */
-    function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
+    function triggerDefault(address loan_, address liquidatorFactory_)
+        external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     /**
      *  @dev Updates the issuance parameters of the LoanManager, callable by the Governor and the PoolDelegate.
@@ -191,9 +192,9 @@ interface ILoanManager is IMapleProxied, ILoanManagerStorage {
      */
     function updateAccounting() external;
 
-    /******************************************************************************************************************************/
-    /*** View Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev    Returns the precision used for the contract.

@@ -36,7 +36,8 @@ interface ILoanManagerLike {
 
     function impairLoan(address loan_, bool isGovernor_) external;
 
-    function triggerDefault(address loan_, address liquidatorFactory_) external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
+    function triggerDefault(address loan_, address liquidatorFactory_)
+        external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
@@ -80,7 +81,8 @@ interface IMapleGlobalsLike {
 
     function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
 
-    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_) external view returns (bool isValid_);
+    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_)
+        external view returns (bool isValid_);
 
     function platformManagementFeeRate(address poolManager_) external view returns (uint256 platformManagementFeeRate_);
 
@@ -106,7 +108,8 @@ interface IMapleLoanLike {
 
     function acceptLender() external;
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
 
     function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
 
@@ -249,7 +252,8 @@ interface IPoolManagerLike {
 
     function addLoanManager(address loanManager_) external;
 
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_)
+        external view returns (bool canCall_, string memory errorMessage_);
 
     function convertToExitShares(uint256 assets_) external view returns (uint256 shares_);
 
@@ -279,9 +283,11 @@ interface IPoolManagerLike {
 
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
 
-    function processRedeem(uint256 shares_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processRedeem(uint256 shares_, address owner_, address sender_)
+        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
-    function processWithdraw(uint256 assets_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processWithdraw(uint256 assets_, address owner_, address sender_)
+        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     function poolDelegate() external view returns (address poolDelegate_);
 
@@ -309,7 +315,8 @@ interface IWithdrawalManagerInitializerLike {
 
     function encodeArguments(address pool_, uint256 cycleDuration_, uint256 windowDuration_) external pure returns (bytes memory calldata_);
 
-    function decodeArguments(bytes calldata calldata_) external pure returns (address pool_, uint256 cycleDuration_, uint256 windowDuration_);
+    function decodeArguments(bytes calldata calldata_)
+        external pure returns (address pool_, uint256 cycleDuration_, uint256 windowDuration_);
 
 }
 

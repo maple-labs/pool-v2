@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Address, console } from "../../modules/contract-test-utils/contracts/test.sol";
-
 import { LoanManager } from "../../contracts/LoanManager.sol";
 
 contract LoanManagerHarness is LoanManager {
@@ -11,16 +9,16 @@ contract LoanManagerHarness is LoanManager {
         paymentId_ = _addPaymentToList(paymentDueDate_);
     }
 
-    function removePaymentFromList(uint256 paymentId_) external {
-        _removePaymentFromList(paymentId_);
-    }
-
     function disburseLiquidationFunds(address loan_, uint256 recoveredFunds_, uint256 platformFees_, uint256 remainingLosses_) external {
         _disburseLiquidationFunds(loan_, recoveredFunds_, platformFees_, remainingLosses_);
     }
 
     function distributeClaimedFunds(address loan_, uint256 principal_, uint256 interest_) external {
         _distributeClaimedFunds(loan_, principal_, interest_);
+    }
+
+    function removePaymentFromList(uint256 paymentId_) external {
+        _removePaymentFromList(paymentId_);
     }
 
     function __setAccountedInterest(uint112 accountedInterest_) external {

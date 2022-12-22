@@ -10,10 +10,10 @@ import { MockGlobals } from "../mocks/Mocks.sol";
  */
 contract GlobalsBootstrapper is TestUtils {
 
-    address globals;
+    address internal GOVERNOR = address(new Address());
+    address internal TREASURY = address(new Address());
 
-    address GOVERNOR = address(new Address());
-    address TREASURY = address(new Address());
+    address internal globals;
 
     function _bootstrapGlobals(address liquidityAsset_, address poolDelegate_) internal {
         vm.startPrank(GOVERNOR);

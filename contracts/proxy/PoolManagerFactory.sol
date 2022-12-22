@@ -11,7 +11,9 @@ contract PoolManagerFactory is IPoolManagerFactory, MapleProxyFactory {
 
     constructor(address globals_) MapleProxyFactory(globals_) { }
 
-    function createInstance(bytes calldata arguments_, bytes32 salt_) public override(IMapleProxyFactory, MapleProxyFactory) returns (address instance_) {
+    function createInstance(bytes calldata arguments_, bytes32 salt_)
+        public override(IMapleProxyFactory, MapleProxyFactory) returns (address instance_)
+    {
         require(IMapleGlobalsLike(mapleGlobals).isPoolDeployer(msg.sender), "PMF:CI:NOT_DEPLOYER");
 
         instance_ = super.createInstance(arguments_, salt_);

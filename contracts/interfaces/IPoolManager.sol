@@ -7,9 +7,9 @@ import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
 
 interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
-    /******************************************************************************************************************************/
-    /*** Events                                                                                                                 ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Events                                                                                                                         ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Emitted when a new allowed lender is called.
@@ -168,9 +168,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     event WithdrawalProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
 
-    /******************************************************************************************************************************/
-    /*** Ownership Transfer Functions                                                                                           ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Ownership Transfer Functions                                                                                                   ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev Accepts the role of pool delegate.
@@ -183,9 +183,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     function setPendingPoolDelegate(address pendingPoolDelegate_) external;
 
-    /******************************************************************************************************************************/
-    /*** Administrative Functions                                                                                               ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Administrative Functions                                                                                                       ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Configures the pool.
@@ -260,9 +260,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     function setWithdrawalManager(address withdrawalManager_) external;
 
-    /******************************************************************************************************************************/
-    /*** Loan Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Loan Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Accepts new loan terms triggering a loan refinance.
@@ -282,9 +282,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     function fund(uint256 principal_, address loan_, address loanManager_) external;
 
-    /******************************************************************************************************************************/
-    /*** Liquidation Functions                                                                                                  ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Liquidation Functions                                                                                                          ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Finishes the collateral liquidation
@@ -311,9 +311,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     function impairLoan(address loan_) external;
 
-    /******************************************************************************************************************************/
-    /*** Exit Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Exit Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev    Processes a redemptions of shares for assets from the pool.
@@ -323,7 +323,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return redeemableShares_ The amount of shares redeemed.
      *  @return resultingAssets_  The amount of assets withdrawn.
      */
-    function processRedeem(uint256 shares_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processRedeem(uint256 shares_, address owner_, address sender_)
+        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
      *  @dev    Processes a redemptions of shares for assets from the pool.
@@ -333,7 +334,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return redeemableShares_ The amount of shares redeemed.
      *  @return resultingAssets_  The amount of assets withdrawn.
      */
-    function processWithdraw(uint256 assets_, address owner_, address sender_) external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+    function processWithdraw(uint256 assets_, address owner_, address sender_)
+        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
      *  @dev    Requests a redemption of shares from the pool.
@@ -360,9 +362,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
      function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
 
-    /******************************************************************************************************************************/
-    /*** Cover Functions                                                                                                        ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Cover Functions                                                                                                                ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev   Deposits cover into the pool.
@@ -371,24 +373,24 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function depositCover(uint256 amount_) external;
 
     /**
-     *  @dev  Withdraws cover from the pool.
+     *  @dev   Withdraws cover from the pool.
      *  @param amount_    The amount of cover to withdraw.
      *  @param recipient_ The address of the recipient.
      */
     function withdrawCover(uint256 amount_, address recipient_) external;
 
-    /******************************************************************************************************************************/
-    /*** LP Token View Functions                                                                                                ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** LP Token View Functions                                                                                                        ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev    Gets the information of escrowed shares.
      *  @param  owner_        The address of the owner of the shares.
      *  @param  shares_       The amount of shares to get the information of.
-     *  @return escorwShares_ The amount of escrowed shares.
+     *  @return escrowShares_ The amount of escrowed shares.
      *  @return destination_  The address of the destination.
      */
-    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escorwShares_, address destination_);
+    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address destination_);
 
     /**
      *  @dev    Returns the amount of exit shares for the input amount.
@@ -441,9 +443,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
 
-    /******************************************************************************************************************************/
-    /*** View Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev    Checks if a scheduled call can be executed.
@@ -453,7 +455,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return canCall_      True if the call can be executed, false otherwise.
      *  @return errorMessage_ The error message if the call cannot be executed.
      */
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_) external view returns (bool canCall_, string memory errorMessage_);
+    function canCall(bytes32 functionId_, address caller_, bytes memory data_)
+        external view returns (bool canCall_, string memory errorMessage_);
 
     /**
      *  @dev    Gets the address of the globals.

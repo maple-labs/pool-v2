@@ -19,7 +19,13 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
             string memory symbol_
         )
     {
-        ( poolDelegate_, asset_, initialSupply_, name_, symbol_ ) = abi.decode(encodedArguments_, (address, address, uint256, string, string));
+        (
+            poolDelegate_,
+            asset_,
+            initialSupply_,
+            name_,
+            symbol_
+        ) = abi.decode(encodedArguments_, (address, address, uint256, string, string));
     }
 
     function encodeArguments(
@@ -68,7 +74,18 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
 
         require(initialSupply_ == 0 || migrationAdmin_ != address(0), "PMI:I:INVALID_POOL_PARAMS");
 
-        pool              = address(new Pool(address(this), asset_, migrationAdmin_, IMapleGlobalsLike(globals_).bootstrapMint(asset_), initialSupply_, name_, symbol_));
+        pool = address(
+            new Pool(
+                address(this),
+                asset_,
+                migrationAdmin_,
+                IMapleGlobalsLike(globals_).bootstrapMint(asset_),
+                initialSupply_,
+                name_,
+                symbol_
+            )
+        );
+
         poolDelegateCover = address(new PoolDelegateCover(address(this), asset));
 
         emit Initialized(poolDelegate_, asset_, address(pool));

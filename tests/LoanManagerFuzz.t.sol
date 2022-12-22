@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, console, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { LoanManagerFactory }     from "../contracts/proxy/LoanManagerFactory.sol";
@@ -10,15 +10,12 @@ import { LoanManagerInitializer } from "../contracts/proxy/LoanManagerInitialize
 import {
     MockFactory,
     MockGlobals,
-    MockLiquidationStrategy,
     MockLoan,
-    MockLoanManagerMigrator,
     MockPool,
     MockPoolManager
 } from "./mocks/Mocks.sol";
 
 import { LoanManager } from "../contracts/LoanManager.sol";
-import { Pool }        from "../contracts/Pool.sol";
 import { PoolManager } from "../contracts/PoolManager.sol";
 
 import { ILoanManagerStructs } from "./interfaces/ILoanManagerStructs.sol";
@@ -27,27 +24,27 @@ import { LoanManagerHarness } from "./harnesses/LoanManagerHarness.sol";
 
 contract LoanManagerBaseTest is TestUtils {
 
-    uint256 constant START = 5_000_000;
+    uint256 internal constant START = 5_000_000;
 
-    address governor     = address(new Address());
-    address poolDelegate = address(new Address());
-    address treasury     = address(new Address());
+    address internal governor     = address(new Address());
+    address internal poolDelegate = address(new Address());
+    address internal treasury     = address(new Address());
 
-    address implementation = address(new LoanManagerHarness());
-    address initializer    = address(new LoanManagerInitializer());
+    address internal implementation = address(new LoanManagerHarness());
+    address internal initializer    = address(new LoanManagerInitializer());
 
-    uint256 platformManagementFeeRate = 5_0000;
-    uint256 delegateManagementFeeRate = 15_0000;
+    uint256 internal platformManagementFeeRate = 5_0000;
+    uint256 internal delegateManagementFeeRate = 15_0000;
 
-    MockERC20       collateralAsset;
-    MockERC20       fundsAsset;
-    MockFactory     liquidatorFactory;
-    MockGlobals     globals;
-    MockPool        pool;
-    MockPoolManager poolManager;
+    MockERC20       internal collateralAsset;
+    MockERC20       internal fundsAsset;
+    MockFactory     internal liquidatorFactory;
+    MockGlobals     internal globals;
+    MockPool        internal pool;
+    MockPoolManager internal poolManager;
 
-    LoanManagerFactory factory;
-    LoanManagerHarness loanManager;
+    LoanManagerFactory internal factory;
+    LoanManagerHarness internal loanManager;
 
     function setUp() public virtual {
         collateralAsset   = new MockERC20("CollateralAsset", "COL", 18);
@@ -114,7 +111,14 @@ contract LoanManagerClaimBaseTest is LoanManagerBaseTest {
     )
         internal
     {
-        ( , , uint256 startDate_, uint256 paymentDueDate_, uint256 incomingNetInterest_, uint256 refinanceInterest_, ) = loanManager.payments(loanManager.paymentIdOf(loan));
+        (
+            ,
+            ,
+            uint256 startDate_,
+            uint256 paymentDueDate_,
+            uint256 incomingNetInterest_,
+            uint256 refinanceInterest_,
+        ) = loanManager.payments(loanManager.paymentIdOf(loan));
 
         assertEq(incomingNetInterest_, incomingNetInterest);
         assertEq(refinanceInterest_,   refinanceInterest);
@@ -256,7 +260,7 @@ contract SingleLoanClaimTests is LoanManagerClaimBaseTest {
 
         _makeLatePayment({
             loan:                address(loan),
-            interestAmount:      interest,             // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
+            interestAmount:      interest,       // 4000 seconds late at the premium interest rate (10_000 * 0.01 + 4000 * 0.015 = 160)
             lateInterestAmount:  lateInterest,
             principalAmount:     0,
             nextInterestPayment: interest,
