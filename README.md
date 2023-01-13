@@ -68,7 +68,9 @@ For all information related to the ongoing bug bounty for these contracts run by
 
 [Maple Finance](https://maple.finance/) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
 
----
+
+For all technical documentation related to the Maple V2 protocol, please refer to the Maple [Gitbook](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview).
+
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/44272939/196706799-fe96d294-f700-41e7-a65f-2d754d0a6eac.gif" height="100" />
