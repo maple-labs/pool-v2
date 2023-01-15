@@ -1,7 +1,9 @@
 # Pool V2
 
+![Foundry CI](https://github.com/maple-labs/pool-v2/actions/workflows/forge.yaml/badge.svg)
+[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview)
 [![Foundry][foundry-badge]][foundry]
-![Foundry CI](https://github.com/maple-labs/poolV2/actions/workflows/forge.yaml/badge.svg)
+[![License: BUSL 1.1](https://img.shields.io/badge/License-BUSL%201.1-blue.svg)](https://github.com/maple-labs/pool-v2/blob/main/LICENSE)
 
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
@@ -65,8 +67,6 @@ For all information related to the ongoing bug bounty for these contracts run by
 ## About Maple
 
 [Maple Finance](https://maple.finance/) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
-
-For all technical documentation related to the Maple V2 protocol, please refer to the GitHub [wiki](https://github.com/maple-labs/maple-core-v2/wiki).
 
 ---
 
