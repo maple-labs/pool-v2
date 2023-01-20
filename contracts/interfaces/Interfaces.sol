@@ -125,7 +125,7 @@ interface IMapleLoanLike {
 
     function fundsAsset() external view returns (address asset_);
 
-    function fundLoan(address lender_) external returns (uint256 fundsLent_);
+    function fundLoan() external returns (uint256 fundsLent_);
 
     function getClosingPaymentBreakdown() external view returns (
         uint256 principal_,
