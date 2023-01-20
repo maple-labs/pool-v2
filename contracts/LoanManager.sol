@@ -175,7 +175,7 @@ contract LoanManager is ILoanManager, MapleProxiedInternals, LoanManagerStorage 
 
         _advanceGlobalPaymentAccounting();
 
-        IMapleLoanLike(loan_).fundLoan(address(this));
+        IMapleLoanLike(loan_).fundLoan();
 
         emit PrincipalOutUpdated(principalOut += _uint128(IMapleLoanLike(loan_).principal()));
 
