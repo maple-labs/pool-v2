@@ -642,8 +642,6 @@ contract AcceptNewTermsTests is PoolManagerBase {
         loan        = new MockLoan(address(asset), address(asset));
         loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
-        loan.__setPrincipal(principalRequested);
-        loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
         loan.__setFactory(address(loanFactory));
         loan.__setLender(address(loanManager));
@@ -731,8 +729,6 @@ contract FundTests is PoolManagerBase {
         loan        = new MockLoan(address(asset), address(asset));
         loanManager = new MockLoanManager(poolManager.pool(), TREASURY, POOL_DELEGATE);
 
-        loan.__setPrincipal(principalRequested);
-        loan.__setCollateral(collateralRequired);
         loan.__setBorrower(BORROWER);
         loan.__setFactory(address(loanFactory));
         loan.__setPaymentsRemaining(3);
