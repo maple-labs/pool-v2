@@ -44,19 +44,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event CoverWithdrawn(uint256 amount_);
 
     /**
-     *  @dev   Emitted when a loan impairment is removed.
-     *  @param loan_ The address of the loan.
-     */
-    event LoanImpairmentRemoved(address indexed loan_);
-
-    /**
-     *  @dev   Emitted when a loan impairment is triggered.
-     *  @param loan_              The address of the loan.
-     *  @param newPaymentDueDate_ The new payment due date.
-     */
-    event LoanImpaired(address indexed loan_, uint256 newPaymentDueDate_);
-
-    /**
      *  @dev   Emitted when a new management fee rate is set.
      *  @param managementFeeRate_ The amount of management fee rate.
      */
@@ -75,28 +62,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event LiquidityCapSet(uint256 liquidityCap_);
 
     /**
-     *  @dev   Emitted when a new loan is funded.
-     *  @param loan_        The address of the loan.
-     *  @param loanManager_ The address of the loan manager.
-     *  @param amount_      The amount funded to the loan.
-     */
-    event LoanFunded(address indexed loan_, address indexed loanManager_, uint256 amount_);
-
-    /**
      *  @dev   Emitted when a new loan manager is removed.
      *  @param loanManager_ The address of the new loan manager.
      */
     event LoanManagerRemoved(address indexed loanManager_);
-
-    /**
-     *  @dev   Emitted when a loan is refinanced.
-     *  @param loan_              Loan to be refinanced.
-     *  @param refinancer_        The address of the refinancer.
-     *  @param deadline_          The new deadline to execute the refinance.
-     *  @param calls_             The encoded calls to set new loan terms.
-     *  @param principalIncrease_ The amount of principal increase.
-     */
-    event LoanRefinanced(address indexed loan_, address refinancer_, uint256 deadline_, bytes[] calls_, uint256 principalIncrease_);
 
     /**
      *  @dev Emitted when a pool is open to public.
@@ -230,6 +199,14 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external;
 
     /**
+     *  @dev   Sets the minimum ratio for an asset on a loanManager.
+     *  @param loanManager_     The address of the loan Manager to set the ratio for.
+     *  @param collateralAsset_ The address of the collateral asset.
+     *  @param minRatio_        The new minimum ratio to set.
+     */
+    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external;
+
+    /**
      *  @dev   Sets the value for liquidity cap.
      *  @param liquidityCap_ The value for liquidity cap.
      */
@@ -240,14 +217,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
      */
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
-
-    /**
-     *  @dev   Sets the minimum ratio for an asset on a loanManager.
-     *  @param loanManager_     The address of the loan Manager to set the ratio for.
-     *  @param collateralAsset_ The address of the collateral asset.
-     *  @param minRatio_        The new minimum ratio to set.
-     */
-    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external;
 
     /**
      *  @dev Sets pool open to public depositors.
@@ -261,12 +230,12 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setWithdrawalManager(address withdrawalManager_) external;
 
     /**************************************************************************************************************************************/
-    /*** Loan Functions                                                                                                                 ***/
+    /*** Funding Functions                                                                                                              ***/
     /**************************************************************************************************************************************/
 
     /**
      *  @dev   Accepts new loan terms triggering a loan refinance.
-     *  @param loan_              Loan to be refinanced.
+     *  @param loan_              The address of the loan.
      *  @param refinancer_        The address of the refinancer.
      *  @param deadline_          The new deadline to execute the refinance.
      *  @param calls_             The encoded calls to set new loan terms.
@@ -293,23 +262,11 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function finishCollateralLiquidation(address loan_) external;
 
     /**
-     *  @dev   Removes the loan impairment for a loan.
-     *  @param loan_ Loan to remove the loan impairment.
-     */
-    function removeLoanImpairment(address loan_) external;
-
-    /**
      *  @dev   Triggers the default of a loan.
      *  @param loan_              Loan to trigger the default.
      *  @param liquidatorFactory_ Factory used to deploy the liquidator.
      */
     function triggerDefault(address loan_, address liquidatorFactory_) external;
-
-    /**
-     *  @dev   Triggers the loan impairment for a loan.
-     *  @param loan_ Loan to trigger the loan impairment.
-     */
-    function impairLoan(address loan_) external;
 
     /**************************************************************************************************************************************/
     /*** Exit Functions                                                                                                                 ***/

@@ -143,6 +143,7 @@ contract ConfigureTests is PoolManagerBase {
         assertEq(poolManager.delegateManagementFeeRate(), managementFeeRate);
         assertEq(poolManager.loanManagerList(0),          loanManager);
     }
+
 }
 
 contract MigrateTests is PoolManagerBase {
@@ -676,7 +677,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
        address refinancer = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:GVLL:INVALID_LOAN_FACTORY");
+        vm.expectRevert("PM:GLM:INVALID_LOAN_FACTORY");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
     }
 
@@ -686,24 +687,8 @@ contract AcceptNewTermsTests is PoolManagerBase {
        address refinancer = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:GVLL:INVALID_LOAN_INSTANCE");
+        vm.expectRevert("PM:GLM:INVALID_LOAN_INSTANCE");
         poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp + 1, new bytes[](0), 500_000e18 - 1);
-    }
-
-    function test_acceptNewTerms_unaccountedFunds() external {
-        address refinancer = address(new Address());
-
-        // Add unaccounted funds to the loan.
-        asset.mint(address(loan), 1);
-        loan.__setUnaccountedAmount(address(asset), 1);
-
-        assertEq(asset.balanceOf(address(pool)), 500_000e18);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.acceptNewTerms(address(loan), refinancer, block.timestamp, new bytes[](0), 500_000e18);
-
-        // Confirm unaccounted funds were skimmed to the pool.
-        assertEq(asset.balanceOf(address(pool)), 1);
     }
 
 }
@@ -753,14 +738,6 @@ contract FundTests is PoolManagerBase {
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
-    function test_fund_invalidBorrower() external {
-        MockGlobals(globals).setValidBorrower(BORROWER, false);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_BORROWER");
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
-    }
-
     function test_fund_zeroSupply() external {
         pool.burn(address(1), 1);
 
@@ -768,14 +745,6 @@ contract FundTests is PoolManagerBase {
         vm.expectRevert("PM:VAFL:ZERO_SUPPLY");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
 
-    }
-
-    function test_fund_inactiveLoan() external {
-        loan.__setPaymentsRemaining(0);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:LOAN_NOT_ACTIVE");
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
     function test_fund_transferFail() external {
@@ -787,13 +756,12 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_invalidLoanManager() external {
-
         // Remove the loanManager from the poolManager (added on setUp)
         vm.prank(POOL_DELEGATE);
         poolManager.removeLoanManager(address(loanManager));
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_LOAN_MANAGER");
+        vm.expectRevert("PM:VAFL:NOT_LM");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -810,22 +778,6 @@ contract FundTests is PoolManagerBase {
         asset.mint(poolManager.poolDelegateCover(), 1);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
-    }
-
-    function test_fund_invalidFactory() external {
-       MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), false);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_LOAN_FACTORY");
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
-    }
-
-    function test_acceptNewTerms_invalidInstance() external {
-        loanFactory.__setIsLoan(address(loan), false);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:VAFL:INVALID_LOAN_INSTANCE");
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
@@ -875,20 +827,6 @@ contract FundTests is PoolManagerBase {
         poolManager.fund(principalRequested, address(loan), address(loanManager));
     }
 
-    function test_fund_success_skimUnaccountedFunds() external {
-        loan.__setUnaccountedAmount(address(asset), 1);
-
-        asset.mint(address(loan), 1);
-
-        assertEq(asset.balanceOf(address(loan)), 1);
-        assertEq(asset.balanceOf(address(pool)), principalRequested);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
-
-        assertEq(asset.balanceOf(address(loan)), principalRequested);
-        assertEq(asset.balanceOf(address(pool)), 1);
-    }
 }
 
 contract TriggerDefault is PoolManagerBase {
@@ -963,131 +901,6 @@ contract TriggerDefault is PoolManagerBase {
     function test_triggerDefault_success_asGovernor() external {
         vm.prank(GOVERNOR);
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-    }
-
-}
-
-contract ImpairLoanTests is PoolManagerBase {
-
-    address internal LOAN = address(new MockLoan(address(asset), address(asset)));
-    address internal LP   = address(new Address());
-
-    MockLoanManager internal loanManager;
-
-    function setUp() public override {
-        super.setUp();
-
-        MockLoanFactory loanFactory = new MockLoanFactory();
-
-        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
-
-        MockLoan(LOAN).__setFactory(address(loanFactory));
-        MockLoan(LOAN).__setLender(address(loanManager));
-
-        MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), true);
-
-        loanFactory.__setIsLoan(LOAN, true);
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
-        vm.stopPrank();
-    }
-
-    function test_impairLoan_protocolPaused() external {
-        vm.prank(GOVERNOR);
-        MockGlobals(globals).setProtocolPause(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.impairLoan(LOAN);
-    }
-
-    function test_impairLoan_notPoolDelegate() external {
-        vm.expectRevert("PM:IL:NOT_AUTHORIZED");
-        poolManager.impairLoan(LOAN);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.impairLoan(LOAN);
-    }
-
-    function test_impairLoan_notGovernor() external {
-        vm.expectRevert("PM:IL:NOT_AUTHORIZED");
-        poolManager.impairLoan(LOAN);
-
-        vm.prank(GOVERNOR);
-        poolManager.impairLoan(LOAN);
-    }
-
-    function test_impairLoan_successCalledByPoolDelegate() external {
-        vm.prank(POOL_DELEGATE);
-        poolManager.impairLoan(LOAN);
-
-        assertTrue(!loanManager.wasImpairLoanCalledByGovernor());
-    }
-
-    function test_impairLoan_successCalledByGovernor() external {
-        vm.prank(GOVERNOR);
-        poolManager.impairLoan(LOAN);
-
-        assertTrue(loanManager.wasImpairLoanCalledByGovernor());
-    }
-
-}
-
-contract RemoveLoanImpairmentTests is PoolManagerBase {
-
-    address internal LOAN = address(new MockLoan(address(asset), address(asset)));
-    address internal LP   = address(new Address());
-
-    MockLoanManager loanManager;
-
-    function setUp() public override {
-        super.setUp();
-
-        MockLoanFactory loanFactory = new MockLoanFactory();
-
-        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
-
-        MockLoan(LOAN).__setFactory(address(loanFactory));
-        MockLoan(LOAN).__setLender(address(loanManager));
-
-        MockGlobals(globals).setValidFactory(bytes32("LOAN"), address(loanFactory), true);
-
-        loanFactory.__setIsLoan(LOAN, true);
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
-        vm.stopPrank();
-    }
-
-    function test_removeLoanImpairment_notPoolDelegate() external {
-        vm.expectRevert("PM:RLI:NOT_AUTHORIZED");
-        poolManager.removeLoanImpairment(LOAN);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanImpairment(LOAN);
-    }
-
-    function test_removeLoanImpairment_notGovernor() external {
-        vm.expectRevert("PM:RLI:NOT_AUTHORIZED");
-        poolManager.removeLoanImpairment(LOAN);
-
-        vm.prank(GOVERNOR);
-        poolManager.removeLoanImpairment(LOAN);
-    }
-
-    function test_removeLoanImpairment_successCalledByPoolDelegate() external {
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanImpairment(LOAN);
-
-        assertTrue(!loanManager.wasRemoveLoanImpairmentCalledByGovernor());
-    }
-
-    function test_removeLoanImpairment_successCalledByGovernor() external {
-        vm.prank(GOVERNOR);
-        poolManager.removeLoanImpairment(LOAN);
-
-        assertTrue(loanManager.wasRemoveLoanImpairmentCalledByGovernor());
     }
 
 }
@@ -2154,6 +1967,98 @@ contract DepositCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(POOL_DELEGATE),                       0);
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()),     1_000e18);
         assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 0);
+    }
+
+}
+
+contract HandleCoverTests is PoolManagerBase {
+
+    address loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 1e6);
+
+        loanManager = address(new Address());
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.addLoanManager(loanManager);
+    }
+
+    function test_handleCover_noCover() external {
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+
+        vm.prank(loanManager);
+        poolManager.handleCover(5_000e18, 1_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+    }
+
+    function test_handleCover_onlyFees() external {
+        asset.mint(poolManager.poolDelegateCover(), 800e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 800e18);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+
+        vm.prank(loanManager);
+        poolManager.handleCover(5_000e18, 1_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        800e18);
+    }
+
+    function test_handleCover_feesAndSomeLosses() external {
+        asset.mint(poolManager.poolDelegateCover(), 1_800e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_800e18);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+
+        vm.prank(loanManager);
+        poolManager.handleCover(5_000e18, 1_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 800e18);
+        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
+    }
+
+    function test_handleCover_fullCoverage() external {
+        asset.mint(poolManager.poolDelegateCover(), 6_100e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+
+        vm.prank(loanManager);
+        poolManager.handleCover(5_000e18, 1_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 100e18);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 5_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
+    }
+
+    function test_handleCover_halfCoverage() external {
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 0.5e6);
+
+        asset.mint(poolManager.poolDelegateCover(), 6_100e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
+        assertEq(asset.balanceOf(TREASURY),                        0);
+
+        vm.prank(loanManager);
+        poolManager.handleCover(5_000e18, 1_000e18);
+
+        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18 / 2);
+        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 2_050e18);
+        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
     }
 
 }
