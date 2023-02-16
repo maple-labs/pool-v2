@@ -87,6 +87,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Initial Configuration Function                                                                                                 ***/
     /**************************************************************************************************************************************/
 
+    // TODO: Should we remove the loan manager from this function now that there are two? Or remove this function entirely?
     function configure(
         address loanManager_,
         address withdrawalManager_,
@@ -154,6 +155,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate OR Governor Admin Functions                                                                                      ***/
     /**************************************************************************************************************************************/
 
+    // TODO: Remove this function and call loan manager directly.
     function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override {
         _whenProtocolNotPaused();
 
@@ -163,6 +165,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         ILoanManagerLike(loanManager_).setAllowedSlippage(collateralAsset_, allowedSlippage_);
     }
 
+    // TODO: Remove this function and call loan manager directly.
     function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override {
         _whenProtocolNotPaused();
 
@@ -247,7 +250,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     /**************************************************************************************************************************************/
-    /*** Loan Funding and Refinancing Functions                                                                                         ***/
+    /*** Funding Functions                                                                                                              ***/
     /**************************************************************************************************************************************/
 
     function acceptNewTerms(
@@ -265,8 +268,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
 
-        emit LoanRefinanced(loan_, refinancer_, deadline_, calls_, principalIncrease_);
-
         ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_);
     }
 
@@ -275,38 +276,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         _validateAndFundLoan(loan_, loanManager_, principal_);
 
-        emit LoanFunded(loan_, loanManager_, principal_);
-
         ILoanManagerLike(loanManager_).fund(loan_);
-    }
-
-    /**************************************************************************************************************************************/
-    /*** Loan Impairment Functions                                                                                                      ***/
-    /**************************************************************************************************************************************/
-
-    function impairLoan(address loan_) external override {
-        _whenProtocolNotPaused();
-
-        bool isGovernor_ = msg.sender == governor();
-
-        require(msg.sender == poolDelegate || isGovernor_, "PM:IL:NOT_AUTHORIZED");
-
-        ILoanManagerLike(_getLoanManager(loan_)).impairLoan(loan_, isGovernor_);
-
-        // The change of due date already happened in the loan contract, so we just need to fetch.
-        emit LoanImpaired(loan_, IMapleLoanLike(loan_).nextPaymentDueDate());
-    }
-
-    function removeLoanImpairment(address loan_) external override nonReentrant {
-        _whenProtocolNotPaused();
-
-        bool isGovernor_ = msg.sender == governor();
-
-        require(msg.sender == poolDelegate || isGovernor_, "PM:RLI:NOT_AUTHORIZED");
-
-        ILoanManagerLike(_getLoanManager(loan_)).removeLoanImpairment(loan_, isGovernor_);
-
-        emit LoanImpairmentRemoved(loan_);
     }
 
     /**************************************************************************************************************************************/
@@ -436,72 +406,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         );
 
         emit CoverWithdrawn(amount_);
-    }
-
-    /**************************************************************************************************************************************/
-    /*** Internal Helper Functions                                                                                                      ***/
-    /**************************************************************************************************************************************/
-
-    function _handleCover(uint256 losses_, uint256 platformFees_) internal {
-        address globals_ = globals();
-
-        uint256 availableCover_ =
-            IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) /
-            HUNDRED_PERCENT;
-
-        uint256 toTreasury_ = _min(availableCover_,               platformFees_);
-        uint256 toPool_     = _min(availableCover_ - toTreasury_, losses_);
-
-        if (toTreasury_ != 0) {
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
-        }
-
-        if (toPool_ != 0) {
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
-        }
-    }
-
-    function _validateAndFundLoan(address loan_, address loanManager_, uint256 principal_) internal {
-        address asset_   = asset;
-        address globals_ = globals();
-        address pool_    = pool;
-
-        require(msg.sender == poolDelegate,                                               "PM:VAFL:NOT_PD");
-        require(isLoanManager[loanManager_],                                              "PM:VAFL:INVALID_LOAN_MANAGER");
-        require(IMapleGlobalsLike(globals_).isBorrower(IMapleLoanLike(loan_).borrower()), "PM:VAFL:INVALID_BORROWER");
-        require(IERC20Like(pool_).totalSupply() != 0,                                     "PM:VAFL:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),                                    "PM:VAFL:INSUFFICIENT_COVER");
-        require(IMapleLoanLike(loan_).paymentsRemaining() != 0,                           "PM:VAFL:LOAN_NOT_ACTIVE");
-
-        address loanFactory_ = IMapleProxied(loan_).factory();
-
-        require(IMapleGlobalsLike(globals_).isFactory("LOAN", loanFactory_), "PM:VAFL:INVALID_LOAN_FACTORY");
-        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                "PM:VAFL:INVALID_LOAN_INSTANCE");
-
-        // If loan has unaccounted funds then skim the funds to the pool as cash.
-        if (IMapleLoanLike(loan_).getUnaccountedAmount(asset_) > 0) {
-            IMapleLoanLike(loan_).skim(asset_, pool_);
-        }
-
-        // Fetching locked liquidity needs to be done prior to transferring the tokens.
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-
-        // Transfer the required principal.
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:VAFL:TRANSFER_FAIL");
-
-        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
-        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:VAFL:LOCKED_LIQUIDITY");
-    }
-
-    function _getLoanManager(address loan_) internal view returns (address loanManager_) {
-        address loanFactory_ = IMapleProxied(loan_).factory();
-
-        require(IMapleGlobalsLike(globals()).isFactory("LOAN", loanFactory_), "PM:GVLL:INVALID_LOAN_FACTORY");
-        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                 "PM:GVLL:INVALID_LOAN_INSTANCE");
-
-        loanManager_ = IMapleLoanLike(loan_).lender();
-
-        require(isLoanManager[loanManager_], "PM:GVLL:INVALID_LOAN_MANAGER");
     }
 
     /**************************************************************************************************************************************/
@@ -653,6 +557,62 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     /**************************************************************************************************************************************/
+    /*** Internal Helper Functions                                                                                                      ***/
+    /**************************************************************************************************************************************/
+
+    function _getLoanManager(address loan_) internal view returns (address loanManager_) {
+        address loanFactory_ = IMapleProxied(loan_).factory();
+
+        require(IMapleGlobalsLike(globals()).isFactory("LOAN", loanFactory_), "PM:GLM:INVALID_LOAN_FACTORY");
+        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                 "PM:GLM:INVALID_LOAN_INSTANCE");
+
+        loanManager_ = IMapleLoanLike(loan_).lender();
+
+        require(isLoanManager[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
+    }
+
+    // TODO: Permission this to only allow loan managers to call this function (when they are handling liquidations)?
+    // TODO: Look into if we could just max approve the loan managers so they can handle cover transfers on their own.
+    // TODO: Do we need to provide the platform fees separately (or can we just include them into the losses)?
+    function _handleCover(uint256 losses_, uint256 platformFees_) internal {
+        address globals_ = globals();
+
+        uint256 availableCover_ =
+            IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) /
+            HUNDRED_PERCENT;
+
+        uint256 toTreasury_ = _min(availableCover_,               platformFees_);
+        uint256 toPool_     = _min(availableCover_ - toTreasury_, losses_);
+
+        if (toTreasury_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
+        }
+
+        if (toPool_ != 0) {
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
+        }
+    }
+
+    function _validateAndFundLoan(address loan_, address loanManager_, uint256 principal_) internal {
+        address asset_ = asset;
+        address pool_  = pool;
+
+        require(msg.sender == poolDelegate,             "PM:VAFL:NOT_PD");
+        require(isLoanManager[loanManager_],            "PM:VAFL:NOT_LM");
+        require(IERC20Like(pool_).totalSupply() != 0,   "PM:VAFL:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals(), asset_), "PM:VAFL:INSUFFICIENT_COVER");
+
+        // Fetching locked liquidity needs to be done prior to transferring the tokens.
+        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+
+        // Transfer the required principal.
+        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:VAFL:TRANSFER_FAIL");
+
+        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
+        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:VAFL:LOCKED_LIQUIDITY");
+    }
+
+    /**************************************************************************************************************************************/
     /*** Internal Functions                                                                                                             ***/
     /**************************************************************************************************************************************/
 
@@ -694,9 +654,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         minimum_ = a_ < b_ ? a_ : b_;
     }
 
-    // Necessary to reduce bytecode size.
+    // TODO: Used to be necessary to reduce bytecode size, we can replace this with a modifier now.
     function _whenProtocolNotPaused() internal view {
         require(!IMapleGlobalsLike(globals()).protocolPaused(), "PM:PROTOCOL_PAUSED");
     }
-
 }

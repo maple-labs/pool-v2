@@ -5,6 +5,10 @@ import { PoolManager } from "../../contracts/PoolManager.sol";
 
 contract PoolManagerHarness is PoolManager {
 
+    function handleCover(uint256 losses_, uint256 platformFees_) external {
+        _handleCover(losses_, platformFees_);
+    }
+
     function __setConfigured(bool _configured) external {
         configured = _configured;
     }
