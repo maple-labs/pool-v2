@@ -179,36 +179,28 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addLoanManager(address loanManager_) external override {
+    function addLoanManager(address loanManagerFactory_, bytes calldata arguments_) external override {
         _whenProtocolNotPaused();
 
-        require(msg.sender == poolDelegate,   "PM:ALM:NOT_PD");
-        require(!isLoanManager[loanManager_], "PM:ALM:DUP_LM");
+        address globals_ = globals();
+
+        require(msg.sender == poolDelegate, "PM:ALM:NOT_PD");
+
+        require(
+            IMapleGlobalsLike(globals_).isFactory("FT_LOAN_MANAGER", loanManagerFactory_) ||
+            IMapleGlobalsLike(globals_).isFactory("OT_LOAN_MANAGER", loanManagerFactory_),
+            "PM:ALM:INVALID_FACTORY"
+        );
+
+        // TODO: Use a salt that would allow for pre-determined addresses.
+        bytes32 salt_        = keccak256(abi.encode(block.number, gasleft()));
+        address loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(arguments_, salt_);
 
         isLoanManager[loanManager_] = true;
 
         loanManagerList.push(loanManager_);
 
         emit LoanManagerAdded(loanManager_);
-    }
-
-    function removeLoanManager(address loanManager_) external override {
-        _whenProtocolNotPaused();
-
-        require(msg.sender == poolDelegate,  "PM:RLM:NOT_PD");
-        require(isLoanManager[loanManager_], "PM:RLM:INVALID_LM");
-
-        isLoanManager[loanManager_] = false;
-
-        // Find loan manager index
-        uint256 i_;
-        while (loanManagerList[i_] != loanManager_) i_++;
-
-        // Move last element to index of removed loan manager and pop last element.
-        loanManagerList[i_] = loanManagerList[loanManagerList.length - 1];
-        loanManagerList.pop();
-
-        emit LoanManagerRemoved(loanManager_);
     }
 
     function setAllowedLender(address lender_, bool isValid_) external override {
