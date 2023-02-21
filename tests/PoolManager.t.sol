@@ -409,7 +409,7 @@ contract SetAllowedSlippage_SetterTests is PoolManagerBase {
         loanManager = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
     }
 
     function test_setAllowedSlippage_protocolPaused() external {
@@ -543,7 +543,7 @@ contract SetMinRatio_SetterTests is PoolManagerBase {
         loanManager = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
     }
 
     function test_setMinRatio_protocolPaused() external {
@@ -651,7 +651,7 @@ contract AcceptNewTermsTests is PoolManagerBase {
         loanFactory.__setIsLoan(address(loan), true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
         poolManager.setWithdrawalManager(address(withdrawalManager));
         poolManager.fund(principalRequested, address(loan), address(loanManager));
         vm.stopPrank();
@@ -721,7 +721,7 @@ contract FundTests is PoolManagerBase {
         loanFactory.__setIsLoan(address(loan), true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
         poolManager.setWithdrawalManager(address(withdrawalManager));
         vm.stopPrank();
     }
@@ -756,13 +756,11 @@ contract FundTests is PoolManagerBase {
     }
 
     function test_fund_invalidLoanManager() external {
-        // Remove the loanManager from the poolManager (added on setUp)
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanManager(address(loanManager));
+        address invalidLoanManager = address(new Address());
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:VAFL:NOT_LM");
-        poolManager.fund(principalRequested, address(loan), address(loanManager));
+        poolManager.fund(principalRequested, address(loan), address(invalidLoanManager));
     }
 
     function test_fund_insufficientCover() external {
@@ -861,7 +859,7 @@ contract TriggerDefault is PoolManagerBase {
         loanFactory.__setIsLoan(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
         poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
@@ -937,7 +935,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         loanFactory.__setIsLoan(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(address(loanManager));
+        poolManager.__addLoanManager(address(loanManager));
         poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
         poolManager.fund(1_000_000e18, loan, address(loanManager));
         vm.stopPrank();
@@ -1178,155 +1176,53 @@ contract ProcessRedeemTests is PoolManagerBase {
 
 contract AddLoanManager_SetterTests is PoolManagerBase {
 
-    address LOAN_MANAGER      = address(new Address());
     address NOT_POOL_DELEGATE = address(new Address());
+
+    address fixedTermLoanManagerFactory;
+    address openTermLoanManagerFactory;
+
+    function setUp() public override {
+        super.setUp();
+
+        fixedTermLoanManagerFactory = address(new MockFactory());
+        openTermLoanManagerFactory  = address(new MockFactory());
+
+        MockGlobals(globals).setValidFactory("FT_LOAN_MANAGER", fixedTermLoanManagerFactory, true);
+        MockGlobals(globals).setValidFactory("OT_LOAN_MANAGER", openTermLoanManagerFactory,  true);
+    }
 
     function test_addLoanManager_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.addLoanManager(LOAN_MANAGER);
+        poolManager.addLoanManager(fixedTermLoanManagerFactory, "");
     }
 
     function test_addLoanManager_notPD() external {
         vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:ALM:NOT_PD");
-        poolManager.addLoanManager(LOAN_MANAGER);
+        poolManager.addLoanManager(fixedTermLoanManagerFactory, "");
     }
 
-    function test_addLoanManager_duplicateLM() external {
-        vm.startPrank(POOL_DELEGATE);
-
-        poolManager.addLoanManager(LOAN_MANAGER);
-
-        vm.expectRevert("PM:ALM:DUP_LM");
-        poolManager.addLoanManager(LOAN_MANAGER);
+    function test_addLoanManager_invalidFactory() external {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:ALM:INVALID_FACTORY");
+        poolManager.addLoanManager(address(0), "");
     }
 
     function test_addLoanManager() external {
-        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER));
-
         assertEq(poolManager.__getLoanManagerListLength(), 0);
         assertEq(poolManager.__getLoanManagerListValue(0), address(0));
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.addLoanManager(LOAN_MANAGER);
-
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER));
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.addLoanManager(fixedTermLoanManagerFactory, "");
 
         assertEq(poolManager.__getLoanManagerListLength(), 1);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER);
-    }
 
-}
-
-contract RemoveLoanManager_SetterTests is PoolManagerBase {
-
-    address LOAN_MANAGER_1    = address(new Address());
-    address LOAN_MANAGER_2    = address(new Address());
-    address LOAN_MANAGER_3    = address(new Address());
-    address NOT_POOL_DELEGATE = address(new Address());
-
-    function setUp() public override {
-        super.setUp();
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(LOAN_MANAGER_1);
-        poolManager.addLoanManager(LOAN_MANAGER_2);
-        poolManager.addLoanManager(LOAN_MANAGER_3);
-        vm.stopPrank();
-    }
-
-    function test_addLoanManager_protocolPaused() external {
-        MockGlobals(globals).setProtocolPause(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.removeLoanManager(LOAN_MANAGER_1);
-    }
-
-    function test_removeLoanManager_notPD() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:RLM:NOT_PD");
-        poolManager.removeLoanManager(LOAN_MANAGER_1);
-    }
-
-    function test_removeLoanManager_notLM() external {
-        address notLoanManager = address(new Address());
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:RLM:INVALID_LM");
-        poolManager.removeLoanManager(notLoanManager);
-    }
-
-    function test_removeLoanManager_firstItem() external {
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_3));
-
-        assertEq(poolManager.__getLoanManagerListLength(), 3);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_1);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_2);
-        assertEq(poolManager.__getLoanManagerListValue(2), LOAN_MANAGER_3);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanManager(LOAN_MANAGER_1);
-
-        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_3));
+        poolManager.addLoanManager(openTermLoanManagerFactory, "");
 
         assertEq(poolManager.__getLoanManagerListLength(), 2);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_3);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_2);
-        assertEq(poolManager.__getLoanManagerListValue(2), address(0));
-    }
-
-    function test_removeLoanManager_secondItem() external {
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_3));
-
-        assertEq(poolManager.__getLoanManagerListLength(), 3);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_1);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_2);
-        assertEq(poolManager.__getLoanManagerListValue(2), LOAN_MANAGER_3);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanManager(LOAN_MANAGER_2);
-
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_3));
-
-        assertEq(poolManager.__getLoanManagerListLength(), 2);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_1);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_3);
-        assertEq(poolManager.__getLoanManagerListValue(2), address(0));
-    }
-
-    function test_removeLoanManager_thirdItem() external {
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue(poolManager.isLoanManager(LOAN_MANAGER_3));
-
-        assertEq(poolManager.__getLoanManagerListLength(), 3);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_1);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_2);
-        assertEq(poolManager.__getLoanManagerListValue(2), LOAN_MANAGER_3);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.removeLoanManager(LOAN_MANAGER_3);
-
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_1));
-        assertTrue( poolManager.isLoanManager(LOAN_MANAGER_2));
-        assertTrue(!poolManager.isLoanManager(LOAN_MANAGER_3));
-
-        assertEq(poolManager.__getLoanManagerListLength(), 2);
-        assertEq(poolManager.__getLoanManagerListValue(0), LOAN_MANAGER_1);
-        assertEq(poolManager.__getLoanManagerListValue(1), LOAN_MANAGER_2);
-        assertEq(poolManager.__getLoanManagerListValue(2), address(0));
     }
 
 }
@@ -1983,7 +1879,7 @@ contract HandleCoverTests is PoolManagerBase {
         loanManager = address(new Address());
 
         vm.prank(POOL_DELEGATE);
-        poolManager.addLoanManager(loanManager);
+        poolManager.__addLoanManager(loanManager);
     }
 
     function test_handleCover_noCover() external {

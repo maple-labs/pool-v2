@@ -62,12 +62,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event LiquidityCapSet(uint256 liquidityCap_);
 
     /**
-     *  @dev   Emitted when a new loan manager is removed.
-     *  @param loanManager_ The address of the new loan manager.
-     */
-    event LoanManagerRemoved(address indexed loanManager_);
-
-    /**
      *  @dev Emitted when a pool is open to public.
      */
     event OpenToPublic();
@@ -167,15 +161,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
 
     /**
      *  @dev   Adds a new loan manager.
-     *  @param loanManager_ The address of the new loan manager.
+     *  @param loanManagerFactory_ The address of the new loan manager.
+     *  @param arguments_          The abi encoded arguments to create a new instance.
      */
-    function addLoanManager(address loanManager_) external;
-
-    /**
-     *  @dev   Removes a loan manager.
-     *  @param loanManager_ The address of the new loan manager.
-     */
-    function removeLoanManager(address loanManager_) external;
+    function addLoanManager(address loanManagerFactory_, bytes calldata arguments_) external;
 
     /**
      *  @dev   Sets a the pool to be active or inactive.

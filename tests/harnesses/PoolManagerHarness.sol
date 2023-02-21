@@ -9,6 +9,12 @@ contract PoolManagerHarness is PoolManager {
         _handleCover(losses_, platformFees_);
     }
 
+    function __addLoanManager(address loanManager_) external {
+        isLoanManager[loanManager_] = true;
+        
+        loanManagerList.push(loanManager_);
+    }
+
     function __setConfigured(bool _configured) external {
         configured = _configured;
     }
