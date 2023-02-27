@@ -34,6 +34,8 @@ interface ILoanManagerLike {
 
     function impairLoan(address loan_, bool isGovernor_) external;
 
+    function proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
+
     function triggerDefault(address loan_, address liquidatorFactory_)
         external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
 

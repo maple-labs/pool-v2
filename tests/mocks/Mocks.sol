@@ -210,6 +210,8 @@ contract MockLoanManager {
     mapping(address => uint256) public allowedSlippageFor;
     mapping(address => uint256) public minRatioFor;
 
+    address public factory;
+
     bool public wasRemoveLoanImpairmentCalledByGovernor;
     bool public wasImpairLoanCalledByGovernor;
 
@@ -267,6 +269,10 @@ contract MockLoanManager {
         minRatioFor[collateralAsset_] = minRatio_;
     }
 
+    function __setFactory(address factory_) external {
+        factory = factory_;
+    }
+
     function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_, uint256 serviceFee_) external {
         remainingLosses = remainingLosses_;
         serviceFee      = serviceFee_;
@@ -284,6 +290,14 @@ contract MockLoanManager {
         require(value_ <= type(uint128).max, "LM:UINT128_CAST");
         castedValue_ = uint128(value_);
     }
+
+}
+
+contract MockOpenTermLoanManager is MockLoanManager {
+
+    constructor(address pool_, address treasury_, address poolDelegate_) MockLoanManager(pool_, treasury_, poolDelegate_) {}
+
+    function proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {}
 
 }
 

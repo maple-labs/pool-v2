@@ -186,11 +186,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(msg.sender == poolDelegate, "PM:ALM:NOT_PD");
 
-        require(
-            IMapleGlobalsLike(globals_).isFactory("FT_LOAN_MANAGER", loanManagerFactory_) ||
-            IMapleGlobalsLike(globals_).isFactory("OT_LOAN_MANAGER", loanManagerFactory_),
-            "PM:ALM:INVALID_FACTORY"
-        );
+        require(IMapleGlobalsLike(globals_).isFactory("LOAN_MANAGER", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
         // TODO: Use a salt that would allow for pre-determined addresses.
         bytes32 salt_        = keccak256(abi.encode(block.number, gasleft()));
@@ -219,6 +215,31 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
+    // TODO: Investigate removing this function.
+    function setIsLoanManager(address loanManager_, bool isLoanManager_) external override {
+        _whenProtocolNotPaused();
+
+        require(msg.sender == poolDelegate, "PM:SILM:NOT_PD");
+
+        // Check LoanManager is in the list
+        // NOTE: The factory and instance check are not required as the mapping is being updated for a LoanManager that is in the list.
+        bool loanManagerInList;
+
+        uint256 length_ = loanManagerList.length;
+
+        for (uint256 i_ = 0; i_ < length_;) {
+            if (loanManagerList[i_] == loanManager_) {
+                loanManagerInList = true;
+                break;
+            }
+            unchecked { ++i_; }
+        }
+
+        require(loanManagerInList, "PM:SILM:INVALID_LM");
+
+        emit IsLoanManagerSet(loanManager_, isLoanManager[loanManager_] = isLoanManager_);
+    }
+
     function setLiquidityCap(uint256 liquidityCap_) external override {
         _whenProtocolNotPaused();
 
@@ -245,30 +266,28 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Funding Functions                                                                                                              ***/
     /**************************************************************************************************************************************/
 
-    function acceptNewTerms(
-        address loan_,
-        address refinancer_,
-        uint256 deadline_,
-        bytes[] calldata calls_,
-        uint256 principalIncrease_
-    )
-        external override nonReentrant
-    {
+    function requestFunds(address destination_, uint256 principal_) external override nonReentrant {
         _whenProtocolNotPaused();
 
-        address loanManager_ = _getLoanManager(loan_);
+        address asset_   = asset;
+        address pool_    = pool;
+        address globals_ = globals();
 
-        _validateAndFundLoan(loan_, loanManager_, principalIncrease_);
+        // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
+        require(IMapleGlobalsLike(globals_).isFactory("LOAN_MANAGER", IMapleProxied(msg.sender).factory()), "PM:RF:INVALID_FACTORY");
 
-        ILoanManagerLike(loanManager_).acceptNewTerms(loan_, refinancer_, deadline_, calls_);
-    }
+        require(isLoanManager[msg.sender],             "PM:RF:NOT_LM");
+        require(IERC20Like(pool_).totalSupply() != 0,  "PM:RF:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_), "PM:RF:INSUFFICIENT_COVER");
 
-    function fund(uint256 principal_, address loan_, address loanManager_) external override nonReentrant {
-        _whenProtocolNotPaused();
+        // Fetching locked liquidity needs to be done prior to transferring the tokens.
+        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
-        _validateAndFundLoan(loan_, loanManager_, principal_);
+        // Transfer the required principal.
+        require(ERC20Helper.transferFrom(asset_, pool_, destination_, principal_), "PM:RF:TRANSFER_FAIL");
 
-        ILoanManagerLike(loanManager_).fund(loan_);
+        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
+        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:RF:LOCKED_LIQUIDITY");
     }
 
     /**************************************************************************************************************************************/
@@ -553,11 +572,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /**************************************************************************************************************************************/
 
     function _getLoanManager(address loan_) internal view returns (address loanManager_) {
-        address loanFactory_ = IMapleProxied(loan_).factory();
-
-        require(IMapleGlobalsLike(globals()).isFactory("LOAN", loanFactory_), "PM:GLM:INVALID_LOAN_FACTORY");
-        require(ILoanFactoryLike(loanFactory_).isLoan(loan_),                 "PM:GLM:INVALID_LOAN_INSTANCE");
-
         loanManager_ = IMapleLoanLike(loan_).lender();
 
         require(isLoanManager[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
@@ -583,25 +597,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         if (toPool_ != 0) {
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
-    }
-
-    function _validateAndFundLoan(address loan_, address loanManager_, uint256 principal_) internal {
-        address asset_ = asset;
-        address pool_  = pool;
-
-        require(msg.sender == poolDelegate,             "PM:VAFL:NOT_PD");
-        require(isLoanManager[loanManager_],            "PM:VAFL:NOT_LM");
-        require(IERC20Like(pool_).totalSupply() != 0,   "PM:VAFL:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals(), asset_), "PM:VAFL:INSUFFICIENT_COVER");
-
-        // Fetching locked liquidity needs to be done prior to transferring the tokens.
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
-
-        // Transfer the required principal.
-        require(ERC20Helper.transferFrom(asset_, pool_, loan_, principal_), "PM:VAFL:TRANSFER_FAIL");
-
-        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
-        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:VAFL:LOCKED_LIQUIDITY");
     }
 
     /**************************************************************************************************************************************/

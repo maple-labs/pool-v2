@@ -9,9 +9,11 @@ contract PoolManagerHarness is PoolManager {
         _handleCover(losses_, platformFees_);
     }
 
-    function __addLoanManager(address loanManager_) external {
-        isLoanManager[loanManager_] = true;
-        
+    function __setIsLoanManager(address loanManager_, bool isLoanManager_) external {
+        isLoanManager[loanManager_] = isLoanManager_;
+    }
+
+    function __pushToLoanManagerList(address loanManager_) external {
         loanManagerList.push(loanManager_);
     }
 

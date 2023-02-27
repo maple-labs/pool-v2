@@ -49,6 +49,18 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
 
+    /** @dev   Emitted when a loan manager is set as valid.
+     *  @param loanManager_   The address of the loan manager.
+     *  @param isLoanManager_ Whether the loan manager is valid.
+     */
+    event IsLoanManagerSet(address loanManager_, bool isLoanManager_);
+
+    /**
+     *  @dev   Emitted when a new liquidity cap is set.
+     *  @param liquidityCap_ The value of liquidity cap.
+     */
+    event LiquidityCapSet(uint256 liquidityCap_);
+
     /**
      *  @dev   Emitted when a new loan manager is added.
      *  @param loanManager_ The address of the new loan manager.
@@ -56,10 +68,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event LoanManagerAdded(address indexed loanManager_);
 
     /**
-     *  @dev   Emitted when a new liquidity cap is set.
-     *  @param liquidityCap_ The value of liquidity cap.
-     */
-    event LiquidityCapSet(uint256 liquidityCap_);
 
     /**
      *  @dev Emitted when a pool is open to public.
@@ -188,24 +196,31 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external;
 
     /**
-     *  @dev   Sets the minimum ratio for an asset on a loanManager.
-     *  @param loanManager_     The address of the loan Manager to set the ratio for.
-     *  @param collateralAsset_ The address of the collateral asset.
-     *  @param minRatio_        The new minimum ratio to set.
+     *  @dev   Sets the value for the delegate management fee rate.
+     *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
      */
-    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external;
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
 
     /**
+     *  @dev   Sets if the loanManager is valid in the isLoanManager mapping.
+     *  @param loanManager_   The address of the loanManager
+     *  @param isLoanManager_ Whether the loanManager is valid.
+     */
+    function setIsLoanManager(address loanManager_, bool isLoanManager_) external;
+
+     /**
      *  @dev   Sets the value for liquidity cap.
      *  @param liquidityCap_ The value for liquidity cap.
      */
     function setLiquidityCap(uint256 liquidityCap_) external;
 
     /**
-     *  @dev   Sets the value for the delegate management fee rate.
-     *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
+     *  @dev   Sets the minimum ratio for an asset on a loanManager.
+     *  @param loanManager_     The address of the loan Manager to set the ratio for.
+     *  @param collateralAsset_ The address of the collateral asset.
+     *  @param minRatio_        The new minimum ratio to set.
      */
-    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
+    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external;
 
     /**
      *  @dev Sets pool open to public depositors.
@@ -223,22 +238,11 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev   Accepts new loan terms triggering a loan refinance.
-     *  @param loan_              The address of the loan.
-     *  @param refinancer_        The address of the refinancer.
-     *  @param deadline_          The new deadline to execute the refinance.
-     *  @param calls_             The encoded calls to set new loan terms.
-     *  @param principalIncrease_ The amount of principal increase.
+     *  @dev   LoanManager can request funds from the pool via the poolManager.
+     *  @param destination_ The address to send the funds to.
+     *  @param principal_   The principal amount to fund the loan with.
      */
-    function acceptNewTerms(
-        address loan_,
-        address refinancer_,
-        uint256 deadline_,
-        bytes[] calldata calls_,
-        uint256 principalIncrease_
-    ) external;
-
-    function fund(uint256 principal_, address loan_, address loanManager_) external;
+    function requestFunds(address destination_, uint256 principal_) external;
 
     /**************************************************************************************************************************************/
     /*** Liquidation Functions                                                                                                          ***/
