@@ -227,7 +227,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         uint256 length_ = loanManagerList.length;
 
-        for (uint256 i_ = 0; i_ < length_;) {
+        for (uint256 i_; i_ < length_;) {
             if (loanManagerList[i_] == loanManager_) {
                 loanManagerInList = true;
                 break;
@@ -507,7 +507,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         uint256 length_ = loanManagerList.length;
 
-        for (uint256 i_ = 0; i_ < length_;) {
+        for (uint256 i_; i_ < length_;) {
             totalAssets_ += ILoanManagerLike(loanManagerList[i_]).assetsUnderManagement();
             unchecked { ++i_; }
         }
@@ -558,7 +558,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
         uint256 length_ = loanManagerList.length;
 
-        for (uint256 i_ = 0; i_ < length_;) {
+        for (uint256 i_; i_ < length_;) {
             unrealizedLosses_ += ILoanManagerLike(loanManagerList[i_]).unrealizedLosses();
             unchecked { ++i_; }
         }
