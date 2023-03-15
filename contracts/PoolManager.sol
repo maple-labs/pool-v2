@@ -152,26 +152,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     /**************************************************************************************************************************************/
-    /*** Pool Delegate OR Governor Admin Functions                                                                                      ***/
-    /**************************************************************************************************************************************/
-
-    // TODO: Remove this function and call loan manager directly.
-    function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external override notPaused {
-        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SAS:NOT_AUTHORIZED");
-        require(isLoanManager[loanManager_],                            "PM:SAS:NOT_LM");
-
-        ILoanManagerLike(loanManager_).setAllowedSlippage(collateralAsset_, allowedSlippage_);
-    }
-
-    // TODO: Remove this function and call loan manager directly.
-    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external override notPaused {
-        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:SMR:NOT_AUTHORIZED");
-        require(isLoanManager[loanManager_],                            "PM:SMR:NOT_LM");
-
-        ILoanManagerLike(loanManager_).setMinRatio(collateralAsset_, minRatio_);
-    }
-
-    /**************************************************************************************************************************************/
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
