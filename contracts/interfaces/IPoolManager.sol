@@ -188,14 +188,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setAllowedLender(address lender_, bool isValid_) external;
 
     /**
-     *  @dev   Sets the allowed slippage for an asset on a loanManager.
-     *  @param loanManager_     The address of the loanManager to set the slippage for.
-     *  @param collateralAsset_ The address of the collateral asset.
-     *  @param allowedSlippage_ The new allowed slippage.
-     */
-    function setAllowedSlippage(address loanManager_, address collateralAsset_, uint256 allowedSlippage_) external;
-
-    /**
      *  @dev   Sets the value for the delegate management fee rate.
      *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
      */
@@ -213,14 +205,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @param liquidityCap_ The value for liquidity cap.
      */
     function setLiquidityCap(uint256 liquidityCap_) external;
-
-    /**
-     *  @dev   Sets the minimum ratio for an asset on a loanManager.
-     *  @param loanManager_     The address of the loan Manager to set the ratio for.
-     *  @param collateralAsset_ The address of the collateral asset.
-     *  @param minRatio_        The new minimum ratio to set.
-     */
-    function setMinRatio(address loanManager_, address collateralAsset_, uint256 minRatio_) external;
 
     /**
      *  @dev Sets pool open to public depositors.

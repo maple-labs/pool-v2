@@ -207,9 +207,6 @@ contract MockLoanManager {
 
     uint128 public unrealizedLosses;  // uint128 - 16 bytes: max = 3.4e38
 
-    mapping(address => uint256) public allowedSlippageFor;
-    mapping(address => uint256) public minRatioFor;
-
     address public factory;
 
     bool public wasRemoveLoanImpairmentCalledByGovernor;
@@ -259,14 +256,6 @@ contract MockLoanManager {
         unrealizedLosses -= increasedUnrealizedLosses;
         remainingLosses_  = remainingLosses;
         platformFees_     = serviceFee;
-    }
-
-    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external {
-        allowedSlippageFor[collateralAsset_] = allowedSlippage_;
-    }
-
-    function setMinRatio(address collateralAsset_, uint256 minRatio_) external {
-        minRatioFor[collateralAsset_] = minRatio_;
     }
 
     function __setFactory(address factory_) external {

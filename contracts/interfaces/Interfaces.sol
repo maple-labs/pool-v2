@@ -28,10 +28,6 @@ interface ILoanManagerLike {
 
     function removeLoanImpairment(address loan_, bool isGovernor_) external;
 
-    function setAllowedSlippage(address collateralAsset_, uint256 allowedSlippage_) external;
-
-    function setMinRatio(address collateralAsset_, uint256 minRatio_) external;
-
     function impairLoan(address loan_, bool isGovernor_) external;
 
     function proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
