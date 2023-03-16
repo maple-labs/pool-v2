@@ -4,11 +4,9 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { ILoanManagerInitializerLike, IMapleGlobalsLike, IWithdrawalManagerInitializerLike } from "./interfaces/Interfaces.sol";
-
-import { IPoolDeployer }           from "./interfaces/IPoolDeployer.sol";
-import { IPoolManager }            from "./interfaces/IPoolManager.sol";
-import { IPoolManagerInitializer } from "./interfaces/IPoolManagerInitializer.sol";
+import { IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
+import { IPoolDeployer }     from "./interfaces/IPoolDeployer.sol";
+import { IPoolManager }      from "./interfaces/IPoolManager.sol";
 
 /*
 
@@ -30,76 +28,55 @@ contract PoolDeployer is IPoolDeployer {
     }
 
     function deployPool(
-        address[3] memory factories_,
-        address[3] memory initializers_,
+        address poolManagerFactory_,
+        address withdrawalManagerFactory_,
+        address[] memory loanManagerFactories_,
         address asset_,
         string memory name_,
         string memory symbol_,
         uint256[6] memory configParams_
     )
-        external override returns (
-            address poolManager_,
-            address loanManager_,
-            address withdrawalManager_
-        )
+        external override
+        returns (address poolManager_)
     {
-        address poolDelegate_ = msg.sender;
-
         IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals);
 
-        require(globals_.isPoolDelegate(poolDelegate_), "PD:DP:INVALID_PD");
+        require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
 
-        require(globals_.isFactory("POOL_MANAGER",       factories_[0]), "PD:DP:INVALID_PM_FACTORY");
-        require(globals_.isFactory("LOAN_MANAGER",       factories_[1]), "PD:DP:INVALID_LM_FACTORY");
-        require(globals_.isFactory("WITHDRAWAL_MANAGER", factories_[2]), "PD:DP:INVALID_WM_FACTORY");
+        require(globals_.isFactory("POOL_MANAGER",       poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
+        require(globals_.isFactory("WITHDRAWAL_MANAGER", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
 
-        // Avoid stack too deep error
-        {
-            IMapleProxyFactory PMFactory_ = IMapleProxyFactory(factories_[0]);
-            IMapleProxyFactory LMFactory_ = IMapleProxyFactory(factories_[1]);
-            IMapleProxyFactory WMFactory_ = IMapleProxyFactory(factories_[2]);
-
-            require(
-                initializers_[0] == PMFactory_.migratorForPath(PMFactory_.defaultVersion(), PMFactory_.defaultVersion()),
-                "PD:DP:INVALID_PM_INITIALIZER"
-            );
-
-            require(
-                initializers_[1] == LMFactory_.migratorForPath(LMFactory_.defaultVersion(), LMFactory_.defaultVersion()),
-                "PD:DP:INVALID_LM_INITIALIZER"
-            );
-
-            require(
-                initializers_[2] == WMFactory_.migratorForPath(WMFactory_.defaultVersion(), WMFactory_.defaultVersion()),
-                "PD:DP:INVALID_WM_INITIALIZER"
-            );
-        }
-
-        bytes32 salt_ = keccak256(abi.encode(poolDelegate_));
-
-        // Deploy Pool Manager
-        bytes memory arguments = IPoolManagerInitializer(
-            initializers_[0]).encodeArguments(poolDelegate_, asset_, configParams_[5], name_, symbol_
+        // Deploy Pool Manager (and Pool).
+        poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
+            abi.encode(msg.sender, asset_, configParams_[5], name_, symbol_),
+            keccak256(abi.encode(msg.sender))
         );
 
-        poolManager_  = IMapleProxyFactory(factories_[0]).createInstance(arguments, salt_);
         address pool_ = IPoolManager(poolManager_).pool();
 
-        // Deploy Loan Manager
-        arguments    = ILoanManagerInitializerLike(initializers_[1]).encodeArguments(pool_);
-        loanManager_ = IMapleProxyFactory(factories_[1]).createInstance(arguments, salt_);
+        // Deploy Withdrawal Manager.
+        address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
+            abi.encode(pool_, configParams_[3], configParams_[4]),
+            keccak256(abi.encode(poolManager_))
+        );
 
-        // Deploy Withdrawal Manager
-        arguments          = IWithdrawalManagerInitializerLike(initializers_[2]).encodeArguments(pool_, configParams_[3], configParams_[4]);
-        withdrawalManager_ = IMapleProxyFactory(factories_[2]).createInstance(arguments, salt_);
+        address[] memory loanManagers_ = new address[](loanManagerFactories_.length);
 
-        // Configure Pool Manager
-        IPoolManager(poolManager_).configure(loanManager_, withdrawalManager_, configParams_[0], configParams_[1]);
+        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
+            loanManagers_[i_] = IPoolManager(poolManager_).addLoanManager(loanManagerFactories_[i_]);
+        }
+
+        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, loanManagers_);
 
         require(
-            ERC20Helper.transferFrom(asset_, poolDelegate_, IPoolManager(poolManager_).poolDelegateCover(), configParams_[2]),
+            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManager(poolManager_).poolDelegateCover(), configParams_[2]),
             "PD:DP:TRANSFER_FAILED"
         );
+
+        IPoolManager(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
+        IPoolManager(poolManager_).setLiquidityCap(configParams_[0]);
+        IPoolManager(poolManager_).setWithdrawalManager(withdrawalManager_);
+        IPoolManager(poolManager_).completeConfiguration();
     }
 
 }

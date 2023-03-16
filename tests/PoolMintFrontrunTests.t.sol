@@ -51,7 +51,7 @@ contract PoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
     function _deploy(uint256 bootstrapMint_) internal {
         MockGlobals(globals).__setBootstrapMint(bootstrapMint_);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(POOL_DELEGATE, address(asset), 0, "Pool", "POOL1");
+        bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, "Pool", "POOL1");
 
         poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 

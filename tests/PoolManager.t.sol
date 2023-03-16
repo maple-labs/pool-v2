@@ -15,7 +15,6 @@ import {
     MockGlobals,
     MockLoan,
     MockLoanManager,
-    MockOpenTermLoanManager,
     MockPoolManagerMigrator,
     MockPoolManagerMigratorInvalidPoolDelegateCover,
     MockWithdrawalManager
@@ -60,13 +59,7 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(
-            POOL_DELEGATE,
-            address(asset),
-            0,
-            poolName_,
-            poolSymbol_
-        );
+        bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
         poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
 
@@ -94,55 +87,19 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
 }
 
-contract ConfigureTests is PoolManagerBase {
+contract CompleteConfigurationTests is PoolManagerBase {
 
-    address internal loanManager = address(new Address());
-
-    uint256 internal liquidityCap      = 1_000_000e18;
-    uint256 internal managementFeeRate = 0.1e6;
-
-    function test_configure_notDeployer() public {
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:CO:NOT_DEPLOYER");
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
-
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
-    }
-
-    function test_configure_delegateManagementFeeOOB() public {
-        vm.expectRevert("PM:CO:OOB");
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, 100_0001);
-
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, 100_0000);
-    }
-
-    function test_configure_alreadyConfigured() public {
+    function test_completeConfiguration_alreadyConfigured() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:CO:ALREADY_CONFIGURED");
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
-
-        poolManager.__setConfigured(false);
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
+        vm.expectRevert("PM:CC:ALREADY_CONFIGURED");
+        poolManager.completeConfiguration();
     }
 
-    function test_configure_success() public {
-        assertTrue(!poolManager.configured());
-        assertTrue(!poolManager.isLoanManager(loanManager));
-
-        assertEq(poolManager.withdrawalManager(),         address(0));
-        assertEq(poolManager.liquidityCap(),              uint256(0));
-        assertEq(poolManager.delegateManagementFeeRate(), uint256(0));
-
-        poolManager.configure(loanManager, withdrawalManager, liquidityCap, managementFeeRate);
+    function test_completeConfiguration_success() external {
+        poolManager.completeConfiguration();
 
         assertTrue(poolManager.configured());
-        assertTrue(poolManager.isLoanManager(loanManager));
-
-        assertEq(poolManager.withdrawalManager(),         withdrawalManager);
-        assertEq(poolManager.liquidityCap(),              liquidityCap);
-        assertEq(poolManager.delegateManagementFeeRate(), managementFeeRate);
-        assertEq(poolManager.loanManagerList(0),          loanManager);
     }
 
 }
@@ -255,8 +212,7 @@ contract UpgradeTests is PoolManagerBase {
 
 contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
-    address internal NOT_POOL_DELEGATE = address(new Address());
-    address internal SET_ADDRESS       = address(new Address());
+    address internal SET_ADDRESS = address(new Address());
 
     function setUp() public override {
         super.setUp();
@@ -273,7 +229,6 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
     }
 
     function test_acceptPendingPoolDelegate_notPendingPoolDelegate() external {
-        vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:APPD:NOT_PENDING_PD");
         poolManager.acceptPendingPoolDelegate();
     }
@@ -302,8 +257,7 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
 
 contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
 
-    address internal NOT_POOL_DELEGATE = address(new Address());
-    address internal SET_ADDRESS       = address(new Address());
+    address internal SET_ADDRESS = address(new Address());
 
     function test_setPendingPoolDelegate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -314,7 +268,6 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
     }
 
     function test_setPendingPoolDelegate_notPoolDelegate() external {
-        vm.prank(NOT_POOL_DELEGATE);
         vm.expectRevert("PM:SPA:NOT_PD");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
@@ -400,8 +353,6 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
 
 contract SetLiquidityCap_SetterTests is PoolManagerBase {
 
-    address internal NOT_POOL_DELEGATE = address(new Address());
-
     function test_setLiquidityCap_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
@@ -411,13 +362,20 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
     }
 
     function test_setLiquidityCap_notPoolDelegate() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SLC:NOT_PD");
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:SLC:NO_AUTH");
         poolManager.setLiquidityCap(1000);
     }
 
-    function test_setLiquidityCap_success() external {
-        assertEq(poolManager.liquidityCap(), 0);
+    function test_setLiquidityCap_success_whenNotConfigured() external {
+        poolManager.setLiquidityCap(1000);
+
+        assertEq(poolManager.liquidityCap(), 1000);
+    }
+
+    function test_setLiquidityCap_success_asPoolDelegate() external {
+        poolManager.__setConfigured(true);
 
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1000);
@@ -428,8 +386,6 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
 }
 
 contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
-
-    address internal NOT_POOL_DELEGATE = address(new Address());
 
     uint256 internal newManagementFeeRate = 10_0000;
 
@@ -442,21 +398,27 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
     }
 
     function test_setDelegateManagementFeeRate_notPoolDelegate() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SDMFR:NOT_PD");
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:SDMFR:NO_AUTH");
         poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
     function test_setDelegateManagementFeeRate_oob() external {
-        vm.startPrank(POOL_DELEGATE);
         vm.expectRevert("PM:SDMFR:OOB");
         poolManager.setDelegateManagementFeeRate(100_0001);
 
         poolManager.setDelegateManagementFeeRate(100_0000);
     }
 
-    function test_setDelegateManagementFeeRate_success() external {
-        assertEq(poolManager.delegateManagementFeeRate(), uint256(0));
+    function test_setDelegateManagementFeeRate_success_whenNotConfigured() external {
+        poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
+
+        assertEq(poolManager.delegateManagementFeeRate(), newManagementFeeRate);
+    }
+
+    function test_setDelegateManagementFeeRate_success_asPoolDelegate() external {
+        poolManager.__setConfigured(true);
 
         vm.prank(POOL_DELEGATE);
         poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
@@ -905,8 +867,6 @@ contract ProcessRedeemTests is PoolManagerBase {
 
 contract AddLoanManager_SetterTests is PoolManagerBase {
 
-    address NOT_POOL_DELEGATE = address(new Address());
-
     address loanManagerFactory;
 
     function setUp() public override {
@@ -922,29 +882,41 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.addLoanManager(loanManagerFactory, "");
+        poolManager.addLoanManager(address(0));
     }
 
-    function test_addLoanManager_notPD() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:ALM:NOT_PD");
-        poolManager.addLoanManager(loanManagerFactory, "");
+    function test_addLoanManager_notPoolDelegate() external {
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:ALM:NO_AUTH");
+        poolManager.addLoanManager(address(0));
     }
 
     function test_addLoanManager_invalidFactory() external {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:ALM:INVALID_FACTORY");
-        poolManager.addLoanManager(address(0), "");
+        poolManager.addLoanManager(address(0));
     }
 
-    function test_addLoanManager() external {
-        assertEq(poolManager.__getLoanManagerListLength(), 0);
-        assertEq(poolManager.__getLoanManagerListValue(0), address(0));
+    function test_addLoanManager_success_whenNotConfigured() external {
+        address loanManager_ = poolManager.addLoanManager(loanManagerFactory);
+
+        assertTrue(loanManager_ == poolManager.__getLoanManagerListValue(0));
+        assertTrue(poolManager.__getLoanManagerListValue(0) != address(0));
+
+        assertEq(poolManager.loanManagerListLength(), 1);
+    }
+
+    function test_addLoanManager_success_asPoolDelegate() external {
+        poolManager.__setConfigured(true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.addLoanManager(loanManagerFactory, "");
+        address loanManager_ = poolManager.addLoanManager(loanManagerFactory);
 
-        assertEq(poolManager.__getLoanManagerListLength(), 1);
+        assertTrue(loanManager_ == poolManager.__getLoanManagerListValue(0));
+        assertTrue(poolManager.__getLoanManagerListValue(0) != address(0));
+
+        assertEq(poolManager.loanManagerListLength(), 1);
     }
 
 }
@@ -952,7 +924,6 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
 contract SetWithdrawalManager_SetterTests is PoolManagerBase {
 
     address WITHDRAWAL_MANAGER = address(new Address());
-    address NOT_POOL_DELEGATE  = address(new Address());
 
     function test_setWithdrawalManager_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
@@ -962,14 +933,21 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
         poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
     }
 
-    function test_setWithdrawalManager_notPD() external {
-        vm.prank(NOT_POOL_DELEGATE);
-        vm.expectRevert("PM:SWM:NOT_PD");
+    function test_setWithdrawalManager_notPoolDelegate() external {
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:SWM:NO_AUTH");
         poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
     }
 
-    function test_setWithdrawalManager() external {
-        assertEq(poolManager.withdrawalManager(), address(0));
+    function test_setWithdrawalManager_success_whenNotConfigured() external {
+        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+
+        assertEq(poolManager.withdrawalManager(), WITHDRAWAL_MANAGER);
+    }
+
+    function test_setWithdrawalManager_success_asPoolDelegate() external {
+        poolManager.__setConfigured(true);
 
         vm.prank(POOL_DELEGATE);
         poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
@@ -1610,7 +1588,7 @@ contract HandleCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(TREASURY),                        0);
 
         vm.prank(loanManager);
-        poolManager.handleCover(5_000e18, 1_000e18);
+        poolManager.__handleCover(5_000e18, 1_000e18);
 
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
         assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
@@ -1625,7 +1603,7 @@ contract HandleCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(TREASURY),                        0);
 
         vm.prank(loanManager);
-        poolManager.handleCover(5_000e18, 1_000e18);
+        poolManager.__handleCover(5_000e18, 1_000e18);
 
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
         assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
@@ -1640,7 +1618,7 @@ contract HandleCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(TREASURY),                        0);
 
         vm.prank(loanManager);
-        poolManager.handleCover(5_000e18, 1_000e18);
+        poolManager.__handleCover(5_000e18, 1_000e18);
 
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
         assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 800e18);
@@ -1655,7 +1633,7 @@ contract HandleCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(TREASURY),                        0);
 
         vm.prank(loanManager);
-        poolManager.handleCover(5_000e18, 1_000e18);
+        poolManager.__handleCover(5_000e18, 1_000e18);
 
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 100e18);
         assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 5_000e18);
@@ -1672,7 +1650,7 @@ contract HandleCoverTests is PoolManagerBase {
         assertEq(asset.balanceOf(TREASURY),                        0);
 
         vm.prank(loanManager);
-        poolManager.handleCover(5_000e18, 1_000e18);
+        poolManager.__handleCover(5_000e18, 1_000e18);
 
         assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18 / 2);
         assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 2_050e18);
