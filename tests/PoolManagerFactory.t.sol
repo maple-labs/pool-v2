@@ -58,7 +58,7 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 
         uint256 initialSupply = 100;
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), initialSupply, name_, symbol_);
+        bytes memory arguments = abi.encode(PD, address(asset), initialSupply, name_, symbol_);
 
         address poolManagerAddress = PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
 
@@ -89,7 +89,7 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
 
     function test_createInstance_notPoolDeployer() external {
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
 
         MockGlobals(globals).setValidPoolDeployer(address(this), false);
         vm.expectRevert("PMF:CI:NOT_DEPLOYER");
@@ -102,7 +102,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     function test_createInstance_failWithZeroAddressPoolDelegate() external {
         address ZERO_PD = address(0);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(ZERO_PD, address(asset), 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(ZERO_PD, address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
@@ -111,7 +111,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     function test_createInstance_failWithInvalidPoolDelegate() external {
         address owner_ = address(2);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(address(owner_), address(asset), 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(address(owner_), address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
@@ -120,7 +120,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     function test_createInstance_failWithActivePoolDelegate() external {
         MockGlobals(globals).__setOwnedPoolManager(PD, address(13));
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
@@ -129,14 +129,14 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     function test_createInstance_failWithNonERC20Asset() external {
         address asset_ = address(2);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, asset_, 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(PD, asset_, 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithDisallowedAsset() external {
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), 0, "Pool", "P2");
+        bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
 
         MockGlobals(globals).setValidPoolAsset(address(asset), false);
 
@@ -145,7 +145,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
     }
 
     function test_createInstance_failWithZeroAdmin() external {
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(PD, address(asset), 1, "Pool", "P2");
+        bytes memory arguments = abi.encode(PD, address(asset), 1, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
         PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));

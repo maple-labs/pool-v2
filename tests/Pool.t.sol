@@ -56,13 +56,7 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
-        bytes memory arguments = PoolManagerInitializer(initializer).encodeArguments(
-            POOL_DELEGATE,
-            address(asset),
-            0,
-            poolName_,
-            poolSymbol_
-        );
+        bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
         poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 

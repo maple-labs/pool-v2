@@ -49,11 +49,12 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
 
-    /** @dev   Emitted when a loan manager is set as valid.
+    /**
+     *  @dev   Emitted when a loan manager is set as valid.
      *  @param loanManager_   The address of the loan manager.
      *  @param isLoanManager_ Whether the loan manager is valid.
      */
-    event IsLoanManagerSet(address loanManager_, bool isLoanManager_);
+    event IsLoanManagerSet(address indexed loanManager_, bool isLoanManager_);
 
     /**
      *  @dev   Emitted when a new liquidity cap is set.
@@ -66,8 +67,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @param loanManager_ The address of the new loan manager.
      */
     event LoanManagerAdded(address indexed loanManager_);
-
-    /**
 
     /**
      *  @dev Emitted when a pool is open to public.
@@ -89,13 +88,9 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event PendingDelegateSet(address indexed previousDelegate_, address indexed newDelegate_);
 
     /**
-     *  @dev   Emitted when the pool is configured the pool.
-     *  @param loanManager_               The address of the new loan manager.
-     *  @param withdrawalManager_         The address of the withdrawal manager.
-     *  @param liquidityCap_              The new liquidity cap.
-     *  @param delegateManagementFeeRate_ The management fee rate.
+     *  @dev Emitted when the pool configuration is marked as complete.
      */
-    event PoolConfigured(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 delegateManagementFeeRate_);
+    event PoolConfigurationComplete();
 
     /**
      *  @dev   Emitted when a redemption of shares from the pool is processed.
@@ -159,20 +154,16 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev   Configures the pool.
-     *  @param loanManager_       The address of the new loan manager.
-     *  @param withdrawalManager_ The address of the withdrawal manager.
-     *  @param liquidityCap_      The new liquidity cap.
-     *  @param managementFee_     The management fee rate.
+     *  @dev Complete the configuration.
      */
-    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external;
+    function completeConfiguration() external;
 
     /**
-     *  @dev   Adds a new loan manager.
-     *  @param loanManagerFactory_ The address of the new loan manager.
-     *  @param arguments_          The abi encoded arguments to create a new instance.
+     *  @dev    Adds a new loan manager.
+     *  @param  loanManagerFactory_ The address of the loan manager factory to use.
+     *  @return loanManager_        The address of the new loan manager.
      */
-    function addLoanManager(address loanManagerFactory_, bytes calldata arguments_) external;
+    function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
 
     /**
      *  @dev   Sets a the pool to be active or inactive.
@@ -200,7 +191,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      */
     function setIsLoanManager(address loanManager_, bool isLoanManager_) external;
 
-     /**
+    /**
      *  @dev   Sets the value for liquidity cap.
      *  @param liquidityCap_ The value for liquidity cap.
      */
@@ -258,7 +249,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return resultingAssets_  The amount of assets withdrawn.
      */
     function processRedeem(uint256 shares_, address owner_, address sender_)
-        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+        external
+        returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
      *  @dev    Processes a redemptions of shares for assets from the pool.
@@ -269,7 +261,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return resultingAssets_  The amount of assets withdrawn.
      */
     function processWithdraw(uint256 assets_, address owner_, address sender_)
-        external returns (uint256 redeemableShares_, uint256 resultingAssets_);
+        external
+        returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
     /**
      *  @dev    Requests a redemption of shares from the pool.
@@ -390,7 +383,8 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return errorMessage_ The error message if the call cannot be executed.
      */
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
-        external view returns (bool canCall_, string memory errorMessage_);
+        external view
+        returns (bool canCall_, string memory errorMessage_);
 
     /**
      *  @dev    Gets the address of the globals.
@@ -409,6 +403,12 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return hasSufficientCover_ True if pool has sufficient cover.
      */
     function hasSufficientCover() external view returns (bool hasSufficientCover_);
+
+    /**
+     *  @dev    Returns the length of the `loanManagerList`.
+     *  @return loanManagerListLength_ The length of the `loanManagerList`.
+     */
+    function loanManagerListLength() external view returns (uint256 loanManagerListLength_);
 
     /**
      *  @dev    Returns the amount of total assets.

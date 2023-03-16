@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address }               from "../../modules/contract-test-utils/contracts/test.sol";
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { ERC20Helper }           from "../../modules/erc20-helper/src/ERC20Helper.sol";
 
-import { IMapleLoanLike, IPoolLike } from "../../contracts/interfaces/Interfaces.sol";
+import { Pool }        from "../../contracts/Pool.sol";         // TODO: This should not be used in mocks.
+import { PoolManager } from "../../contracts/PoolManager.sol";  // TODO: This should not be used in mocks.
 
-import { Pool }        from "../../contracts/Pool.sol";
-import { PoolManager } from "../../contracts/PoolManager.sol";
-
-import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";
+import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";  // TODO: This should not be used in mocks.
 
 contract MockProxied is MapleProxiedInternals {
 
@@ -316,14 +313,14 @@ contract MockPoolManager is MockProxied, PoolManagerStorage {
     mapping(address => uint256) public maxRedeem;
     mapping(address => uint256) public maxWithdraw;
 
+    function addLoanManager(address loanManagerFactory_) external view returns (address loanManager_) {}
+
     function canCall(bytes32, address, bytes memory) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;
         errorMessage_ = errorMessage;
     }
 
-    function configure(address loanManager_, address withdrawalManager_, uint256 liquidityCap_, uint256 managementFee_) external {
-        // Do nothing.
-    }
+    function completeConfiguration() external view {}
 
     function getEscrowParams(address, uint256 shares_) external view returns (uint256 escrowShares_, address destination_) {
         ( escrowShares_, destination_) = (shares_, address(this));
@@ -349,7 +346,7 @@ contract MockPoolManager is MockProxied, PoolManagerStorage {
 
     function requestRedeem(uint256 shares_, address owner_, address sender_) external view {
         if (sender_ != owner_ && shares_ == 0) {
-            require(IPoolLike(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
+            require(Pool(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
         }
     }
 
@@ -358,6 +355,10 @@ contract MockPoolManager is MockProxied, PoolManagerStorage {
     }
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) {}
+
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {}
+
+    function setLiquidityCap(uint256 liquidityCap_) external {}
 
     function setWithdrawalManager(address withdrawalManager_) external {
         withdrawalManager = withdrawalManager_;
@@ -398,7 +399,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     function transfer(address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
-            IPoolLike(pool).deposit(0, address(0));
+            Pool(pool).deposit(0, address(0));
         } else {
             success_ = super.transfer(recipient_, amount_);
         }
@@ -406,7 +407,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     function transferFrom(address owner_, address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
-            IPoolLike(pool).deposit(0, address(0));
+            Pool(pool).deposit(0, address(0));
         } else {
             success_ = super.transferFrom(owner_, recipient_, amount_);
         }
@@ -477,29 +478,11 @@ contract MockMigrator {
 
 }
 
-contract MockPoolManagerInitializer is MockMigrator {
-
-    function encodeArguments(address, address, uint256, string memory, string memory) external pure
-        returns (bytes memory encodedArguments_) {
-
-        encodedArguments_ = new bytes(0);
-    }
-
-}
-
-contract MockLoanManagerInitializer is MockMigrator {
-
-    function encodeArguments(address) external pure returns (bytes memory calldata_) {
-        calldata_ = new bytes(0);
-    }
-
-}
-
 contract MockWithdrawalManager is MapleProxiedInternals {
 
     uint256 public lockedLiquidity;
 
-    function addShares(uint256 shares_, address owner_) external { }
+    function addShares(uint256 shares_, address owner_) external {}
 
     function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) {}
 
@@ -508,14 +491,6 @@ contract MockWithdrawalManager is MapleProxiedInternals {
     function __setLockedLiquidity(uint256 lockedLiquidity_) external {
         lockedLiquidity = lockedLiquidity_;
     }
-}
-
-contract MockWithdrawalManagerInitializer {
-
-    function encodeArguments(address pool_, uint256 cycleDuration_, uint256 windowDuration_) external pure returns (bytes memory calldata_) {
-        calldata_ = abi.encode(pool_, cycleDuration_, windowDuration_);
-    }
-
 }
 
 contract MockImplementation {

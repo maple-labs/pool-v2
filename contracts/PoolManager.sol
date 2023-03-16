@@ -10,7 +10,6 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
 import {
     IERC20Like,
-    ILoanFactoryLike,
     ILoanManagerLike,
     IMapleGlobalsLike,
     IMapleLoanLike,
@@ -93,28 +92,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Initial Configuration Function                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    // TODO: Should we remove the loan manager from this function now that there are two? Or remove this function entirely?
-    function configure(
-        address loanManager_,
-        address withdrawalManager_,
-        uint256 liquidityCap_,
-        uint256 delegateManagementFeeRate_
-    )
-        external override
-    {
-        require(!configured,                                             "PM:CO:ALREADY_CONFIGURED");
-        require(IMapleGlobalsLike(globals()).isPoolDeployer(msg.sender), "PM:CO:NOT_DEPLOYER");
-        require(delegateManagementFeeRate_ <= HUNDRED_PERCENT,           "PM:CO:OOB");
+    function completeConfiguration() external override {
+        require(!configured, "PM:CC:ALREADY_CONFIGURED");
 
-        configured                  = true;
-        isLoanManager[loanManager_] = true;
-        withdrawalManager           = withdrawalManager_;  // NOTE: Can be zero in order to temporarily pause withdrawals.
-        liquidityCap                = liquidityCap_;
-        delegateManagementFeeRate   = delegateManagementFeeRate_;
+        configured = true;
 
-        loanManagerList.push(loanManager_);
-
-        emit PoolConfigured(loanManager_, withdrawalManager_, liquidityCap_, delegateManagementFeeRate_);
+        emit PoolConfigurationComplete();
     }
 
     /**************************************************************************************************************************************/
@@ -155,16 +138,16 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addLoanManager(address loanManagerFactory_, bytes calldata arguments_) external override notPaused {
-        address globals_ = globals();
+    function addLoanManager(address loanManagerFactory_) external override notPaused returns (address loanManager_) {
+        require(!configured || msg.sender == poolDelegate, "PM:ALM:NO_AUTH");
 
-        require(msg.sender == poolDelegate, "PM:ALM:NOT_PD");
+        require(IMapleGlobalsLike(globals()).isFactory("LOAN_MANAGER", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
-        require(IMapleGlobalsLike(globals_).isFactory("LOAN_MANAGER", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
-
-        // TODO: Use a salt that would allow for pre-determined addresses.
-        bytes32 salt_        = keccak256(abi.encode(block.number, gasleft()));
-        address loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(arguments_, salt_);
+        // NOTE: If we allow the removing of loan manager sin the future, we will need ot rethink salts here due to collisions.
+        loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(
+            abi.encode(address(this)),
+            keccak256(abi.encode(address(this), loanManagerList.length))
+        );
 
         isLoanManager[loanManager_] = true;
 
@@ -179,48 +162,43 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external override notPaused {
-        require(msg.sender == poolDelegate,                    "PM:SDMFR:NOT_PD");
+        require(!configured || msg.sender == poolDelegate,     "PM:SDMFR:NO_AUTH");
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
-    // TODO: Investigate removing this function.
     function setIsLoanManager(address loanManager_, bool isLoanManager_) external override notPaused {
         require(msg.sender == poolDelegate, "PM:SILM:NOT_PD");
 
-        // Check LoanManager is in the list
+        emit IsLoanManagerSet(loanManager_, isLoanManager[loanManager_] = isLoanManager_);
+
+        // Check LoanManager is in the list.
         // NOTE: The factory and instance check are not required as the mapping is being updated for a LoanManager that is in the list.
-        bool loanManagerInList;
-
-        uint256 length_ = loanManagerList.length;
-
-        for (uint256 i_; i_ < length_;) {
-            if (loanManagerList[i_] == loanManager_) {
-                loanManagerInList = true;
-                break;
-            }
-            unchecked { ++i_; }
+        for (uint256 i_; i_ < loanManagerList.length; ++i_) {
+            if (loanManagerList[i_] == loanManager_) return;
         }
 
-        require(loanManagerInList, "PM:SILM:INVALID_LM");
-
-        emit IsLoanManagerSet(loanManager_, isLoanManager[loanManager_] = isLoanManager_);
+        revert("PM:SILM:INVALID_LM");
     }
 
     function setLiquidityCap(uint256 liquidityCap_) external override notPaused {
-        require(msg.sender == poolDelegate, "PM:SLC:NOT_PD");
+        require(!configured || msg.sender == poolDelegate, "PM:SLC:NO_AUTH");
+
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
     function setOpenToPublic() external override notPaused {
         require(msg.sender == poolDelegate, "PM:SOTP:NOT_PD");
+
         openToPublic = true;
+
         emit OpenToPublic();
     }
 
     function setWithdrawalManager(address withdrawalManager_) external override notPaused {
-        require(msg.sender == poolDelegate, "PM:SWM:NOT_PD");
+        require(!configured || msg.sender == poolDelegate, "PM:SWM:NO_AUTH");
+
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);  // NOTE: Can be zero in order to temporarily pause withdrawals.
     }
 
@@ -444,6 +422,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         implementation_ = _implementation();
     }
 
+    function loanManagerListLength() external view override returns (uint256 loanManagerListLength_) {
+        loanManagerListLength_ = loanManagerList.length;
+    }
+
     function totalAssets() public view override returns (uint256 totalAssets_) {
         totalAssets_ = IERC20Like(asset).balanceOf(pool);
 
@@ -485,8 +467,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
-        owner_; maxAssets_;  // Silence compiler warning
-        return 0;            // NOTE: always returns 0 as withdraw is not implemented
+        owner_;          // Silence compiler warning
+        maxAssets_ = 0;  // NOTE: always returns 0 as withdraw is not implemented
     }
 
     function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {
