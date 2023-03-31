@@ -91,11 +91,13 @@ interface IPoolLike is IERC20Like {
 
 interface IPoolManagerLike {
 
-    function addLoanManager(address loanManager_) external;
+    function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view
         returns (bool canCall_, string memory errorMessage_);
+
+    function completeConfiguration() external;
 
     function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address escrow_);
 
@@ -106,6 +108,10 @@ interface IPoolManagerLike {
     function maxRedeem(address owner_) external view returns (uint256 maxShares_);
 
     function maxWithdraw(address owner_) external view returns (uint256 maxAssets_);
+
+    function pool() external view returns (address pool_);
+
+    function poolDelegateCover() external view returns (address poolDelegateCover_);
 
     function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
 
@@ -119,13 +125,15 @@ interface IPoolManagerLike {
         external
         returns (uint256 redeemableShares_, uint256 resultingAssets_);
 
-    function poolDelegateCover() external view returns (address poolDelegateCover_);
-
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
     function requestRedeem(uint256 shares_, address owner_, address sender_) external;
 
     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
+
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
+
+    function setLiquidityCap(uint256 liquidityCap_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 
