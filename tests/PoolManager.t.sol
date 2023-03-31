@@ -210,7 +210,7 @@ contract UpgradeTests is PoolManagerBase {
 
 }
 
-contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
+contract AcceptPoolDelegate_SetterTests is PoolManagerBase {
 
     address internal SET_ADDRESS = address(new Address());
 
@@ -220,34 +220,34 @@ contract AcceptPendingPoolDelegate_SetterTests is PoolManagerBase {
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_acceptPendingPoolDelegate_protocolPaused() external {
+    function test_acceptPoolDelegate_protocolPaused() external {
         MockGlobals(globals).setProtocolPause(true);
 
         vm.prank(SET_ADDRESS);
         vm.expectRevert("PM:PROTOCOL_PAUSED");
-        poolManager.acceptPendingPoolDelegate();
+        poolManager.acceptPoolDelegate();
     }
 
-    function test_acceptPendingPoolDelegate_notPendingPoolDelegate() external {
-        vm.expectRevert("PM:APPD:NOT_PENDING_PD");
-        poolManager.acceptPendingPoolDelegate();
+    function test_acceptPoolDelegate_notPendingPoolDelegate() external {
+        vm.expectRevert("PM:APD:NOT_PENDING_PD");
+        poolManager.acceptPoolDelegate();
     }
 
-    function test_acceptPendingPoolDelegate_globalsTransferFails() external {
+    function test_acceptPoolDelegate_globalsTransferFails() external {
         MockGlobals(globals).__setFailTransferOwnedPoolManager(true);
         vm.prank(SET_ADDRESS);
         vm.expectRevert("MG:TOPM:FAILED");
-        poolManager.acceptPendingPoolDelegate();
+        poolManager.acceptPoolDelegate();
     }
 
-    function test_acceptPendingPoolDelegate_success() external {
+    function test_acceptPoolDelegate_success() external {
         MockGlobals(globals).__setFailTransferOwnedPoolManager(false);
 
         assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
         assertEq(poolManager.poolDelegate(),        POOL_DELEGATE);
 
         vm.prank(SET_ADDRESS);
-        poolManager.acceptPendingPoolDelegate();
+        poolManager.acceptPoolDelegate();
 
         assertEq(poolManager.pendingPoolDelegate(), address(0));
         assertEq(poolManager.poolDelegate(),        SET_ADDRESS);
