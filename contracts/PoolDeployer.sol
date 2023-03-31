@@ -4,9 +4,8 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
-import { IPoolDeployer }     from "./interfaces/IPoolDeployer.sol";
-import { IPoolManager }      from "./interfaces/IPoolManager.sol";
+import { IMapleGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
+import { IPoolDeployer }                       from "./interfaces/IPoolDeployer.sol";
 
 /*
 
@@ -52,7 +51,7 @@ contract PoolDeployer is IPoolDeployer {
             keccak256(abi.encode(msg.sender))
         );
 
-        address pool_ = IPoolManager(poolManager_).pool();
+        address pool_ = IPoolManagerLike(poolManager_).pool();
 
         // Deploy Withdrawal Manager.
         address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
@@ -63,20 +62,20 @@ contract PoolDeployer is IPoolDeployer {
         address[] memory loanManagers_ = new address[](loanManagerFactories_.length);
 
         for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
-            loanManagers_[i_] = IPoolManager(poolManager_).addLoanManager(loanManagerFactories_[i_]);
+            loanManagers_[i_] = IPoolManagerLike(poolManager_).addLoanManager(loanManagerFactories_[i_]);
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, loanManagers_);
 
         require(
-            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManager(poolManager_).poolDelegateCover(), configParams_[2]),
+            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManagerLike(poolManager_).poolDelegateCover(), configParams_[2]),
             "PD:DP:TRANSFER_FAILED"
         );
 
-        IPoolManager(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
-        IPoolManager(poolManager_).setLiquidityCap(configParams_[0]);
-        IPoolManager(poolManager_).setWithdrawalManager(withdrawalManager_);
-        IPoolManager(poolManager_).completeConfiguration();
+        IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
+        IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
+        IPoolManagerLike(poolManager_).setWithdrawalManager(withdrawalManager_);
+        IPoolManagerLike(poolManager_).completeConfiguration();
     }
 
 }
