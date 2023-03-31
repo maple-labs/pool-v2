@@ -141,7 +141,7 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**
      *  @dev Accepts the role of pool delegate.
      */
-    function acceptPendingPoolDelegate() external;
+    function acceptPoolDelegate() external;
 
     /**
      *  @dev   Sets an address as the pending pool delegate.

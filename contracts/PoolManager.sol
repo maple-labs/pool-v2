@@ -104,8 +104,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Ownership Transfer Functions                                                                                                   ***/
     /**************************************************************************************************************************************/
 
-    function acceptPendingPoolDelegate() external override notPaused {
-        require(msg.sender == pendingPoolDelegate, "PM:APPD:NOT_PENDING_PD");
+    function acceptPoolDelegate() external override notPaused {
+        require(msg.sender == pendingPoolDelegate, "PM:APD:NOT_PENDING_PD");
 
         IMapleGlobalsLike(globals()).transferOwnedPoolManager(poolDelegate, msg.sender);
 
