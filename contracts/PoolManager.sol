@@ -504,9 +504,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(isLoanManager[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
     }
 
-    // TODO: Permission this to only allow loan managers to call this function (when they are handling liquidations)?
-    // TODO: Look into if we could just max approve the loan managers so they can handle cover transfers on their own.
-    // TODO: Do we need to provide the platform fees separately (or can we just include them into the losses)?
     function _handleCover(uint256 losses_, uint256 platformFees_) internal {
         address globals_ = globals();
 
