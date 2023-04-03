@@ -46,9 +46,11 @@ contract MockGlobals {
 
     bool internal _factorySet;
     bool internal _failTransferOwnedPoolManager;
+    bool internal _instanceSet;
     bool internal _isValidScheduledCall;
 
     mapping(bytes32 => mapping(address => bool)) public _validFactory;
+    mapping(bytes32 => mapping(address => bool)) public _validInstance;
 
     address public governor;
     address public mapleTreasury;
@@ -104,6 +106,13 @@ contract MockGlobals {
         }
     }
 
+    function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_) {
+        isInstance_ = true;
+        if (_instanceSet) {
+            isInstance_ = _validInstance[instanceId_][instance_];
+        }
+    }
+
     function setMigrationAdmin(address migrationAdmin_) external {
         migrationAdmin = migrationAdmin_;
     }
@@ -133,6 +142,11 @@ contract MockGlobals {
     function setValidFactory(bytes32 factoryId_, address factory_, bool isValid_) external {
         _factorySet = true;
         _validFactory[factoryId_][factory_] = isValid_;
+    }
+
+    function setValidInstance(bytes32 instanceId_, address instance_, bool isInstance_) external {
+        _instanceSet = true;
+        _validInstance[instanceId_][instance_] = isInstance_;
     }
 
     function setValidPoolDeployer(address poolDeployer_, bool isValid_) external {
