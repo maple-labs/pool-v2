@@ -31,7 +31,7 @@ interface IMapleGlobalsLike {
 
     function governor() external view returns (address governor_);
 
-    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
+    function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_);
 
     function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
 

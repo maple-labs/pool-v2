@@ -535,9 +535,9 @@ contract TriggerDefault is PoolManagerBase {
         MockLoan(loan).__setLender(address(loanManager));
         MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
-        MockGlobals(globals).setValidFactory(bytes32("LOAN"),         address(loanFactory),        true);
-        MockGlobals(globals).setValidFactory(bytes32("LIQUIDATOR"),   address(liquidatorFactory),  true);
-        MockGlobals(globals).setValidFactory(bytes32("LOAN_MANAGER"), address(loanManagerFactory), true);
+        MockGlobals(globals).setValidInstance("LOAN",                 address(loanFactory),        true);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",   address(liquidatorFactory),  true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", address(loanManagerFactory), true);
 
         loanFactory.__setIsLoan(loan, true);
 
@@ -562,13 +562,13 @@ contract TriggerDefault is PoolManagerBase {
     }
 
     function test_triggerDefault_invalidFactory() external {
-        MockGlobals(globals).setValidFactory("LIQUIDATOR", address(liquidatorFactory), false);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY", address(liquidatorFactory), false);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:TD:NOT_FACTORY");
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
 
-        MockGlobals(globals).setValidFactory("LIQUIDATOR", address(liquidatorFactory), true);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY", address(liquidatorFactory), true);
 
         vm.prank(POOL_DELEGATE);
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
@@ -612,9 +612,9 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setFactory(address(loanManagerFactory));
 
-        MockGlobals(globals).setValidFactory(bytes32("LOAN_MANAGER"), address(loanManagerFactory), true);
-        MockGlobals(globals).setValidFactory(bytes32("LOAN"),         address(loanFactory),        true);
-        MockGlobals(globals).setValidFactory(bytes32("LIQUIDATOR"),   address(liquidatorFactory),  true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", address(loanManagerFactory), true);
+        MockGlobals(globals).setValidInstance("LOAN",                 address(loanFactory),        true);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",   address(liquidatorFactory),  true);
 
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
@@ -874,7 +874,7 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
 
         loanManagerFactory = address(new MockFactory());
 
-        MockGlobals(globals).setValidFactory("LOAN_MANAGER", loanManagerFactory, true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", loanManagerFactory, true);
     }
 
     function test_addLoanManager_protocolPaused() external {
@@ -2004,7 +2004,7 @@ contract RequestFundsTests is PoolManagerBase {
         loanManager        = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
         loanManagerFactory = address(new MockFactory());
 
-        MockGlobals(globals).setValidFactory("LOAN_MANAGER", loanManagerFactory, true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", loanManagerFactory, true);
 
         MockLoanManager(loanManager).__setFactory(loanManagerFactory);
 

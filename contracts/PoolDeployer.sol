@@ -42,8 +42,8 @@ contract PoolDeployer is IPoolDeployer {
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
 
-        require(globals_.isFactory("POOL_MANAGER",       poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
-        require(globals_.isFactory("WITHDRAWAL_MANAGER", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
+        require(globals_.isInstanceOf("POOL_MANAGER_FACTORY",       poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
+        require(globals_.isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
 
         // Deploy Pool Manager (and Pool).
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(

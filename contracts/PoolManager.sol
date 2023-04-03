@@ -141,7 +141,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function addLoanManager(address loanManagerFactory_) external override notPaused returns (address loanManager_) {
         require(!configured || msg.sender == poolDelegate, "PM:ALM:NO_AUTH");
 
-        require(IMapleGlobalsLike(globals()).isFactory("LOAN_MANAGER", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
+        require(IMapleGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
         // NOTE: If we allow the removing of loan manager sin the future, we will need ot rethink salts here due to collisions.
         loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(
@@ -212,7 +212,10 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address globals_ = globals();
 
         // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
-        require(IMapleGlobalsLike(globals_).isFactory("LOAN_MANAGER", IMapleProxied(msg.sender).factory()), "PM:RF:INVALID_FACTORY");
+        require(
+            IMapleGlobalsLike(globals_).isInstanceOf("LOAN_MANAGER_FACTORY", IMapleProxied(msg.sender).factory()),
+            "PM:RF:INVALID_FACTORY"
+        );
 
         require(isLoanManager[msg.sender],             "PM:RF:NOT_LM");
         require(IERC20Like(pool_).totalSupply() != 0,  "PM:RF:ZERO_SUPPLY");
@@ -243,7 +246,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function triggerDefault(address loan_, address liquidatorFactory_) external override notPaused nonReentrant {
-        bool isFactory_ = IMapleGlobalsLike(globals()).isFactory("LIQUIDATOR", liquidatorFactory_);
+        bool isFactory_ = IMapleGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_);
 
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:TD:NOT_AUTHORIZED");
         require(isFactory_,                                             "PM:TD:NOT_FACTORY");
