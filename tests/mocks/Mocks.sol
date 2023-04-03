@@ -523,6 +523,10 @@ contract MockFactory {
         instance_ = address(new MockImplementation());
     }
 
+    function __setIsInstance(address instance, bool status) external {
+        isInstance[instance] = status;
+    }
+
 }
 
 contract MockLoanFactory {

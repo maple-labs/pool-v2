@@ -2010,8 +2010,17 @@ contract RequestFundsTests is PoolManagerBase {
 
         poolManager.__setIsLoanManager(loanManager, true);
 
+        MockFactory(loanManagerFactory).__setIsInstance(address(loanManager), true);
+
         vm.prank(POOL_DELEGATE);
         poolManager.setWithdrawalManager(withdrawalManager);
+    }
+
+    function test_requestFunds_zeroPrincipal() external {
+        vm.expectRevert("PM:RF:INVALID_PRINCIPAL");
+
+        vm.prank(loanManager);
+        poolManager.requestFunds(loanManager, 0);
     }
 
     function test_requestFunds_protocolPaused() external {
@@ -2027,6 +2036,14 @@ contract RequestFundsTests is PoolManagerBase {
         vm.prank(loanManager);
         vm.expectRevert("PM:RF:INVALID_FACTORY");
         poolManager.requestFunds(loanManager, 1);
+    }
+
+    function test_requestFunds_invalidInstance() external {
+        MockFactory(loanManagerFactory).__setIsInstance(address(loanManager), false);
+
+        vm.prank(address(loanManager));
+        vm.expectRevert("PM:RF:INVALID_INSTANCE");
+        poolManager.requestFunds(address(loanManager), 1);
     }
 
     function test_requestFunds_notLM() external {
@@ -2069,6 +2086,12 @@ contract RequestFundsTests is PoolManagerBase {
         asset.mint(poolManager.pool(), 1);
 
         poolManager.requestFunds(loanManager, 1);
+    }
+
+    function test_requestFunds_zeroAddress() external {
+        vm.prank(loanManager);
+        vm.expectRevert("PM:RF:INVALID_DESTINATION");
+        poolManager.requestFunds(address(0), 1000e18);
     }
 
     function test_requestFunds_success() external {

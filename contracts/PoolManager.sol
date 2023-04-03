@@ -22,12 +22,19 @@ import { IPoolManager } from "./interfaces/IPoolManager.sol";
 
 /*
 
-    ██████╗  ██████╗  ██████╗ ██╗         ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
-    ██╔══██╗██╔═══██╗██╔═══██╗██║         ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
-    ██████╔╝██║   ██║██║   ██║██║         ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
-    ██╔═══╝ ██║   ██║██║   ██║██║         ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
-    ██║     ╚██████╔╝╚██████╔╝███████╗    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
-    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
+    ██╔████╔██║███████║██████╔╝██║     █████╗
+    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+
+   ██████╗  ██████╗  ██████╗ ██╗         ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
+   ██╔══██╗██╔═══██╗██╔═══██╗██║         ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+   ██████╔╝██║   ██║██║   ██║██║         ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
+   ██╔═══╝ ██║   ██║██║   ██║██║         ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
+   ██║     ╚██████╔╝╚██████╔╝███████╗    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
+   ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
 
 */
 
@@ -143,7 +150,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
         require(IMapleGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
-        // NOTE: If we allow the removing of loan manager sin the future, we will need ot rethink salts here due to collisions.
+        // NOTE: If removing loan managers is allowed in the future, there will be a need to rethink salts here due to collisions.
         loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(
             abi.encode(address(this)),
             keccak256(abi.encode(address(this), loanManagerList.length))
@@ -210,6 +217,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address asset_   = asset;
         address pool_    = pool;
         address globals_ = globals();
+        address factory_ = IMapleProxied(msg.sender).factory();
 
         // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
         require(
@@ -217,14 +225,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             "PM:RF:INVALID_FACTORY"
         );
 
-        require(isLoanManager[msg.sender],             "PM:RF:NOT_LM");
-        require(IERC20Like(pool_).totalSupply() != 0,  "PM:RF:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_), "PM:RF:INSUFFICIENT_COVER");
+        require(principal_ != 0,                                     "PM:RF:INVALID_PRINCIPAL");
+        require(IMapleProxyFactory(factory_).isInstance(msg.sender), "PM:RF:INVALID_INSTANCE");
+        require(isLoanManager[msg.sender],                           "PM:RF:NOT_LM");
+        require(IERC20Like(pool_).totalSupply() != 0,                "PM:RF:ZERO_SUPPLY");
+        require(_hasSufficientCover(globals_, asset_),               "PM:RF:INSUFFICIENT_COVER");
 
         // Fetching locked liquidity needs to be done prior to transferring the tokens.
         uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
 
         // Transfer the required principal.
+        require(destination_ != address(0),                                        "PM:RF:INVALID_DESTINATION");
         require(ERC20Helper.transferFrom(asset_, pool_, destination_, principal_), "PM:RF:TRANSFER_FAIL");
 
         // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
