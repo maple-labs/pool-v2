@@ -47,7 +47,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /**************************************************************************************************************************************/
 
     modifier notPaused() {
-        require(!IMapleGlobalsLike(globals()).protocolPaused(), "PM:PROTOCOL_PAUSED");
+        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "PM:PAUSED");
 
         _;
     }
@@ -68,29 +68,29 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
 
     // NOTE: Can't add whenProtocolNotPaused modifier here, as globals won't be set until
     //       initializer.initialize() is called, and this function is what triggers that initialization.
-    function migrate(address migrator_, bytes calldata arguments_) external override {
+    function migrate(address migrator_, bytes calldata arguments_) external override notPaused {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
         require(poolDelegateCover != address(0), "PM:M:DELEGATE_NOT_SET");
     }
 
-    function setImplementation(address implementation_) external override {
+    function setImplementation(address implementation_) external override notPaused {
         require(msg.sender == _factory(), "PM:SI:NOT_FACTORY");
         _setImplementation(implementation_);
     }
 
-    function upgrade(uint256 version_, bytes calldata arguments_) external override {
-        address poolDelegate_ = poolDelegate;
+    function upgrade(uint256 version_, bytes calldata arguments_) external override notPaused {
+        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals());
 
-        require(msg.sender == poolDelegate_ || msg.sender == governor(), "PM:U:NOT_AUTHORIZED");
+        if (msg.sender == poolDelegate) {
+            require(globals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:INVALID_SCHED_CALL");
 
-        IMapleGlobalsLike mapleGlobals_ = IMapleGlobalsLike(globals());
-
-        if (msg.sender == poolDelegate_) {
-            require(mapleGlobals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:INVALID_SCHED_CALL");
-
-            mapleGlobals_.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
+            globals_.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
+        } else {
+            require(msg.sender == globals_.securityAdmin(), "PM:U:NO_AUTH");
         }
+
+        emit Upgraded(version_, arguments_);
 
         IMapleProxyFactory(_factory()).upgradeInstance(version_, arguments_);
     }
@@ -99,7 +99,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Initial Configuration Function                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function completeConfiguration() external override {
+    // NOTE: This function is always called atomically during the deployment process so a DoS attack is not possible.
+    function completeConfiguration() external override notPaused {
         require(!configured, "PM:CC:ALREADY_CONFIGURED");
 
         configured = true;
@@ -257,10 +258,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function triggerDefault(address loan_, address liquidatorFactory_) external override notPaused nonReentrant {
-        bool isFactory_ = IMapleGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_);
-
-        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:TD:NOT_AUTHORIZED");
-        require(isFactory_,                                             "PM:TD:NOT_FACTORY");
+        require(msg.sender == poolDelegate || msg.sender == governor(),                              "PM:TD:NOT_AUTHORIZED");
+        require(IMapleGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_), "PM:TD:NOT_FACTORY");
 
         (
             bool    liquidationComplete_,
@@ -362,9 +361,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     {
         // NOTE: `caller_` param not named to avoid compiler warning.
 
-        if (IMapleGlobalsLike(globals()).protocolPaused()) {
-            return (false, "PM:CC:PROTOCOL_PAUSED");
-        }
+        if (IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
 
         if (
             functionId_ == "P:redeem"          ||
@@ -372,9 +369,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
             functionId_ == "P:removeShares"    ||
             functionId_ == "P:requestRedeem"   ||
             functionId_ == "P:requestWithdraw"
-        ) {
-            return (true, "");
-        }
+        ) return (true, "");
 
         if (functionId_ == "P:deposit") {
             ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));

@@ -47,6 +47,7 @@ contract MockGlobals {
     bool internal _factorySet;
     bool internal _failTransferOwnedPoolManager;
     bool internal _instanceSet;
+    bool internal _isFunctionPaused;
     bool internal _isValidScheduledCall;
 
     mapping(bytes32 => mapping(address => bool)) public _validFactory;
@@ -55,6 +56,7 @@ contract MockGlobals {
     address public governor;
     address public mapleTreasury;
     address public migrationAdmin;
+    address public securityAdmin;
 
     bool public protocolPaused;
 
@@ -72,6 +74,10 @@ contract MockGlobals {
 
     constructor(address governor_) {
         governor = governor_;
+    }
+
+    function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
+        isFunctionPaused_ = _isFunctionPaused;
     }
 
     function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
@@ -97,13 +103,6 @@ contract MockGlobals {
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
         asset_;
         bootstrapMint_ = _bootstrapMint;
-    }
-
-    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_) {
-        isValid_ = true;
-        if (_factorySet) {
-            isValid_ = _validFactory[factoryId_][factory_];
-        }
     }
 
     function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_) {
@@ -166,6 +165,14 @@ contract MockGlobals {
     }
 
     function unscheduleCall(address, bytes32, bytes calldata) external {}
+
+    function __setFunctionPaused(bool paused_) external {
+        _isFunctionPaused = paused_;
+    }
+
+    function __setSecurityAdmin(address securityAdmin_) external {
+        securityAdmin = securityAdmin_;
+    }
 
 }
 
