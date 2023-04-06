@@ -31,6 +31,8 @@ interface IMapleGlobalsLike {
 
     function governor() external view returns (address governor_);
 
+    function isFunctionPaused(bytes4 sig_) external view returns (bool isFunctionPaused_);
+
     function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_);
 
     function isPoolAsset(address asset_) external view returns (bool isPoolAsset_);
@@ -53,7 +55,7 @@ interface IMapleGlobalsLike {
 
     function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
-    function protocolPaused() external view returns (bool protocolPaused_);
+    function securityAdmin() external view returns (address securityAdmin_);
 
     function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
 
