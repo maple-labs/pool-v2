@@ -2084,42 +2084,41 @@ contract RequestFundsTests is PoolManagerBase {
         poolManager.requestFunds(loanManager, 1);
     }
 
+    function test_requestFunds_zeroPrincipal() external {
+        vm.expectRevert("PM:RF:INVALID_PRINCIPAL");
+        vm.prank(loanManager);
+        poolManager.requestFunds(loanManager, 0);
+    }
+
     function test_requestFunds_invalidFactory() external {
         MockLoanManager(loanManager).__setFactory(address(0));
 
-        vm.prank(loanManager);
         vm.expectRevert("PM:RF:INVALID_FACTORY");
-        poolManager.requestFunds(loanManager, 1);
-    }
-
-    function test_requestFunds_zeroPrincipal() external {
-        vm.expectRevert("PM:RF:INVALID_PRINCIPAL");
-
         vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 0);
+        poolManager.requestFunds(loanManager, 1);
     }
 
     function test_requestFunds_invalidInstance() external {
         MockFactory(loanManagerFactory).__setIsInstance(address(loanManager), false);
 
-        vm.prank(address(loanManager));
         vm.expectRevert("PM:RF:INVALID_INSTANCE");
+        vm.prank(loanManager);
         poolManager.requestFunds(address(loanManager), 1);
     }
 
     function test_requestFunds_notLM() external {
         poolManager.__setIsLoanManager(loanManager, false);
 
-        vm.prank(loanManager);
         vm.expectRevert("PM:RF:NOT_LM");
+        vm.prank(loanManager);
         poolManager.requestFunds(loanManager, 1);
     }
 
     function test_requestFunds_zeroSupply() external {
         pool.burn(address(1), 1);
 
-        vm.prank(loanManager);
         vm.expectRevert("PM:RF:ZERO_SUPPLY");
+        vm.prank(loanManager);
         poolManager.requestFunds(loanManager, 1);
     }
 
@@ -2128,8 +2127,8 @@ contract RequestFundsTests is PoolManagerBase {
 
         asset.mint(poolManager.poolDelegateCover(), 1000e18 - 1);
 
-        vm.startPrank(loanManager);
         vm.expectRevert("PM:RF:INSUFFICIENT_COVER");
+        vm.startPrank(loanManager);
         poolManager.requestFunds(loanManager, 1);
 
         asset.mint(poolManager.poolDelegateCover(), 1);
@@ -2140,8 +2139,8 @@ contract RequestFundsTests is PoolManagerBase {
     function test_requestFunds_lockedLiquidityBoundary() external {
         MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1_000_000e18);
 
-        vm.startPrank(loanManager);
         vm.expectRevert("PM:RF:LOCKED_LIQUIDITY");
+        vm.startPrank(loanManager);
         poolManager.requestFunds(loanManager, 1);
 
         asset.mint(poolManager.pool(), 1);
@@ -2150,8 +2149,8 @@ contract RequestFundsTests is PoolManagerBase {
     }
 
     function test_requestFunds_zeroAddress() external {
-        vm.prank(loanManager);
         vm.expectRevert("PM:RF:INVALID_DESTINATION");
+        vm.prank(loanManager);
         poolManager.requestFunds(address(0), 1000e18);
     }
 
