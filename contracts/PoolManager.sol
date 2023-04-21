@@ -224,20 +224,17 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function requestFunds(address destination_, uint256 principal_) external override notPaused nonReentrant {
         address asset_   = asset;
         address pool_    = pool;
-        address globals_ = globals();
         address factory_ = IMapleProxied(msg.sender).factory();
 
-        // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
-        require(
-            IMapleGlobalsLike(globals_).isInstanceOf("LOAN_MANAGER_FACTORY", IMapleProxied(msg.sender).factory()),
-            "PM:RF:INVALID_FACTORY"
-        );
+        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals());
 
-        require(principal_ != 0,                                     "PM:RF:INVALID_PRINCIPAL");
-        require(IMapleProxyFactory(factory_).isInstance(msg.sender), "PM:RF:INVALID_INSTANCE");
-        require(isLoanManager[msg.sender],                           "PM:RF:NOT_LM");
-        require(IERC20Like(pool_).totalSupply() != 0,                "PM:RF:ZERO_SUPPLY");
-        require(_hasSufficientCover(globals_, asset_),               "PM:RF:INSUFFICIENT_COVER");
+        // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
+        require(principal_ != 0,                                         "PM:RF:INVALID_PRINCIPAL");
+        require(globals_.isInstanceOf("LOAN_MANAGER_FACTORY", factory_), "PM:RF:INVALID_FACTORY");
+        require(IMapleProxyFactory(factory_).isInstance(msg.sender),     "PM:RF:INVALID_INSTANCE");
+        require(isLoanManager[msg.sender],                               "PM:RF:NOT_LM");
+        require(IERC20Like(pool_).totalSupply() != 0,                    "PM:RF:ZERO_SUPPLY");
+        require(_hasSufficientCover(address(globals_), asset_),          "PM:RF:INSUFFICIENT_COVER");
 
         // Fetching locked liquidity needs to be done prior to transferring the tokens.
         uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
