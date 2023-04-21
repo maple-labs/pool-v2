@@ -505,9 +505,17 @@ contract MockWithdrawalManager is MapleProxiedInternals {
 
     function addShares(uint256 shares_, address owner_) external {}
 
+    function factory() external view returns (address factory_) {
+        factory_ = _factory();
+    }
+
     function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) {}
 
     function removeShares(uint256 shares_, address owner_) external {}
+
+    function __setFactory(address factory_) external {
+        _setFactory(factory_);
+    }
 
     function __setLockedLiquidity(uint256 lockedLiquidity_) external {
         lockedLiquidity = lockedLiquidity_;

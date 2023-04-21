@@ -31,6 +31,7 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
     MockERC20     internal asset;
     MockERC20Pool internal pool;
     MockFactory   internal liquidatorFactory;
+    MockFactory   internal withdrawalManagerFactory;
 
     PoolManagerHarness internal poolManager;
     PoolManagerFactory internal factory;
@@ -63,7 +64,11 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
 
         poolManager = PoolManagerHarness(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
 
-        withdrawalManager = address(new MockWithdrawalManager());
+        withdrawalManagerFactory = new MockFactory();
+        withdrawalManager        = address(new MockWithdrawalManager());
+
+        withdrawalManagerFactory.__setIsInstance(address(withdrawalManager), true);
+        MockWithdrawalManager(withdrawalManager).__setFactory(address(withdrawalManagerFactory));
 
         MockERC20Pool mockPool = new MockERC20Pool(address(poolManager), address(asset), poolName_, poolSymbol_);
 
@@ -567,16 +572,17 @@ contract TriggerDefault is PoolManagerBase {
         MockLoan(loan).__setLender(address(loanManager));
         MockLoan(loan).__setPaymentsRemaining(3);
         MockGlobals(globals).setValidBorrower(BORROWER, true);
-        MockGlobals(globals).setValidInstance("LOAN",                 address(loanFactory),        true);
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",   address(liquidatorFactory),  true);
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", address(loanManagerFactory), true);
+        MockGlobals(globals).setValidInstance("LOAN",                       address(loanFactory),              true);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",         address(liquidatorFactory),        true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       address(loanManagerFactory),       true);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
 
         loanFactory.__setIsLoan(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.__setIsLoanManager(address(loanManager), true);
         poolManager.__pushToLoanManagerList(address(loanManager));
-        poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
+        poolManager.setWithdrawalManager(withdrawalManager);
         vm.stopPrank();
     }
 
@@ -644,9 +650,10 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setFactory(address(loanManagerFactory));
 
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", address(loanManagerFactory), true);
-        MockGlobals(globals).setValidInstance("LOAN",                 address(loanFactory),        true);
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",   address(liquidatorFactory),  true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       address(loanManagerFactory),       true);
+        MockGlobals(globals).setValidInstance("LOAN",                       address(loanFactory),              true);
+        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",         address(liquidatorFactory),        true);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
 
         loan = address(new MockLoan(address(asset), address(asset)));
         MockLoan(loan).__setBorrower(BORROWER);
@@ -660,7 +667,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         vm.startPrank(POOL_DELEGATE);
         poolManager.__setIsLoanManager(address(loanManager), true);
         poolManager.__pushToLoanManagerList(address(loanManager));
-        poolManager.setWithdrawalManager(address(new MockWithdrawalManager()));
+        poolManager.setWithdrawalManager(address(withdrawalManager));
         vm.stopPrank();
     }
 
@@ -955,36 +962,57 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
 
 contract SetWithdrawalManager_SetterTests is PoolManagerBase {
 
-    address WITHDRAWAL_MANAGER = address(new Address());
-
     function test_setWithdrawalManager_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+        poolManager.setWithdrawalManager(withdrawalManager);
     }
 
     function test_setWithdrawalManager_notPoolDelegate() external {
         poolManager.__setConfigured(true);
 
         vm.expectRevert("PM:SWM:NO_AUTH");
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+        poolManager.setWithdrawalManager(withdrawalManager);
     }
 
-    function test_setWithdrawalManager_success_whenNotConfigured() external {
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+    function test_setWithdrawalManager_invalidFactory() external {
+        poolManager.__setConfigured(true);
 
-        assertEq(poolManager.withdrawalManager(), WITHDRAWAL_MANAGER);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SWM:INVALID_FACTORY");
+        poolManager.setWithdrawalManager(withdrawalManager);
+    }
+
+    function test_setWithdrawalManager_invalidInstance() external {
+        poolManager.__setConfigured(true);
+
+        withdrawalManagerFactory.__setIsInstance(address(withdrawalManager), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SWM:INVALID_INSTANCE");
+        poolManager.setWithdrawalManager(withdrawalManager);
     }
 
     function test_setWithdrawalManager_success_asPoolDelegate() external {
         poolManager.__setConfigured(true);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(WITHDRAWAL_MANAGER);
+        poolManager.setWithdrawalManager(withdrawalManager);
 
-        assertEq(poolManager.withdrawalManager(), WITHDRAWAL_MANAGER);
+        assertEq(poolManager.withdrawalManager(), withdrawalManager);
+    }
+
+    function test_setWithdrawalManager_success_asPoolDelegate_zeroAddress() external {
+        poolManager.__setConfigured(true);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(address(0));
+
+        assertEq(poolManager.withdrawalManager(), address(0));
     }
 
 }
@@ -2036,7 +2064,8 @@ contract RequestFundsTests is PoolManagerBase {
         loanManager        = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
         loanManagerFactory = address(new MockFactory());
 
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", loanManagerFactory, true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       loanManagerFactory,                true);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
 
         MockLoanManager(loanManager).__setFactory(loanManagerFactory);
 
