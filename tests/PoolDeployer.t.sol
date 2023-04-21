@@ -20,10 +20,25 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
     address asset;
     address poolDelegate;
+    address poolDeployer;
     address poolManagerFactory;
     address withdrawalManagerFactory;
 
     address[] loanManagerFactories;
+
+    uint256 constant coverAmountRequired = 10e18;
+
+    string name   = "Pool";
+    string symbol = "P2";
+
+    uint256[6] configParams_ = [
+        1_000_000e18,
+        0.1e18,
+        coverAmountRequired,
+        3 days,
+        1 days,
+        0
+    ];
 
     function setUp() public virtual {
         asset        = address(new MockERC20("Asset", "AT", 18));
@@ -52,25 +67,12 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         IMapleProxyFactory(withdrawalManagerFactory).setDefaultVersion(1);
 
         vm.stopPrank();
+
+        poolDeployer = address(new PoolDeployer(globals));
+        MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
     }
 
     function test_deployPool_transferFailed() external {
-        string memory name_   = "Pool";
-        string memory symbol_ = "P2";
-
-        address poolDeployer = address(new PoolDeployer(globals));
-        MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
-
-        uint256 coverAmountRequired = 10e18;
-        uint256[6] memory configParams_ = [
-            1_000_000e18,
-            0.1e18,
-            coverAmountRequired,
-            3 days,
-            1 days,
-            0
-        ];
-
         vm.prank(poolDelegate);
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
         MockERC20(asset).mint(poolDelegate, coverAmountRequired - 1);
@@ -82,42 +84,13 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             address(asset),
-            name_,
-            symbol_,
-            configParams_
-        );
-
-        MockERC20(asset).mint(poolDelegate, 1);
-
-        vm.prank(poolDelegate);
-        PoolDeployer(poolDeployer).deployPool(
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            loanManagerFactories,
-            address(asset),
-            name_,
-            symbol_,
+            name,
+            symbol,
             configParams_
         );
     }
 
     function test_deployPool_invalidPoolDelegate() external {
-        string memory name_   = "Pool";
-        string memory symbol_ = "P2";
-
-        address poolDeployer = address(new PoolDeployer(globals));
-        MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
-
-        uint256 coverAmountRequired = 10e18;
-        uint256[6] memory configParams_ = [
-            1_000_000e18,
-            0.1e18,
-            coverAmountRequired,
-            3 days,
-            1 days,
-            0
-        ];
-
         vm.prank(poolDelegate);
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
         MockERC20(asset).mint(poolDelegate, coverAmountRequired);
@@ -128,10 +101,16 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             address(asset),
-            name_,
-            symbol_,
+            name,
+            symbol,
             configParams_
         );
+    }
+
+    function test_deployPool_success_withCoverRequired() external {
+        vm.prank(poolDelegate);
+        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
 
         vm.prank(poolDelegate);
         PoolDeployer(poolDeployer).deployPool(
@@ -139,9 +118,31 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             address(asset),
-            name_,
-            symbol_,
+            name,
+            symbol,
             configParams_
+        );
+    }
+
+    function test_deployPool_success_withoutCoverRequired() external {
+        uint256[6] memory noCoverConfigParams_ = [
+            uint256(1_000_000e18),
+            0.1e18,
+            0,
+            3 days,
+            1 days,
+            0
+        ];
+
+        vm.prank(poolDelegate);
+        PoolDeployer(poolDeployer).deployPool(
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            loanManagerFactories,
+            address(asset),
+            name,
+            symbol,
+            noCoverConfigParams_
         );
     }
 

@@ -67,8 +67,11 @@ contract PoolDeployer is IPoolDeployer {
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, loanManagers_);
 
+        uint256 coverAmount_ = configParams_[2];
+
         require(
-            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManagerLike(poolManager_).poolDelegateCover(), configParams_[2]),
+            coverAmount_ == 0 ||
+            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManagerLike(poolManager_).poolDelegateCover(), coverAmount_),
             "PD:DP:TRANSFER_FAILED"
         );
 
