@@ -205,14 +205,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setWithdrawalManager(address withdrawalManager_) external override notPaused {
-        require(!configured || msg.sender == poolDelegate, "PM:SWM:NO_AUTH");
+        require(!configured, "PM:SWM:ALREADY_CONFIGURED");
 
-        if (withdrawalManager_ != address(0)) {
-            address factory_ = IMapleProxied(withdrawalManager_).factory();
+        address factory_ = IMapleProxied(withdrawalManager_).factory();
 
-            require(IMapleGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
-            require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                       "PM:SWM:INVALID_INSTANCE");
-        }
+        require(IMapleGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
+        require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                       "PM:SWM:INVALID_INSTANCE");
 
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);  // NOTE: Can be zero in order to temporarily pause withdrawals.
     }

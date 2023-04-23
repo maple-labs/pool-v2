@@ -970,16 +970,14 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
         poolManager.setWithdrawalManager(withdrawalManager);
     }
 
-    function test_setWithdrawalManager_notPoolDelegate() external {
+    function test_setWithdrawalManager_configured() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:SWM:NO_AUTH");
+        vm.expectRevert("PM:SWM:ALREADY_CONFIGURED");
         poolManager.setWithdrawalManager(withdrawalManager);
     }
 
     function test_setWithdrawalManager_invalidFactory() external {
-        poolManager.__setConfigured(true);
-
         MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), false);
 
         vm.prank(POOL_DELEGATE);
@@ -988,8 +986,6 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
     }
 
     function test_setWithdrawalManager_invalidInstance() external {
-        poolManager.__setConfigured(true);
-
         withdrawalManagerFactory.__setIsInstance(address(withdrawalManager), false);
 
         vm.prank(POOL_DELEGATE);
@@ -998,21 +994,10 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
     }
 
     function test_setWithdrawalManager_success_asPoolDelegate() external {
-        poolManager.__setConfigured(true);
-
-        vm.prank(POOL_DELEGATE);
+        poolManager.__setConfigured(false);
         poolManager.setWithdrawalManager(withdrawalManager);
 
         assertEq(poolManager.withdrawalManager(), withdrawalManager);
-    }
-
-    function test_setWithdrawalManager_success_asPoolDelegate_zeroAddress() external {
-        poolManager.__setConfigured(true);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(address(0));
-
-        assertEq(poolManager.withdrawalManager(), address(0));
     }
 
 }
