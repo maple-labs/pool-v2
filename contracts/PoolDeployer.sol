@@ -4,8 +4,8 @@ pragma solidity 0.8.7;
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { IMapleGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
-import { IPoolDeployer }                       from "./interfaces/IPoolDeployer.sol";
+import { IGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
+import { IPoolDeployer }                  from "./interfaces/IPoolDeployer.sol";
 
 /*
 
@@ -27,18 +27,18 @@ contract PoolDeployer is IPoolDeployer {
     }
 
     function deployPool(
-        address poolManagerFactory_,
-        address withdrawalManagerFactory_,
-        address[] memory loanManagerFactories_,
-        address asset_,
-        string memory name_,
-        string memory symbol_,
+        address           poolManagerFactory_,
+        address           withdrawalManagerFactory_,
+        address[]  memory loanManagerFactories_,
+        address           asset_,
+        string     memory name_,
+        string     memory symbol_,
         uint256[6] memory configParams_
     )
         external override
         returns (address poolManager_)
     {
-        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals);
+        IGlobalsLike globals_ = IGlobalsLike(globals);
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
 
@@ -82,21 +82,21 @@ contract PoolDeployer is IPoolDeployer {
     }
 
     function getDeploymentAddresses(
-        address poolDelegate_,
-        address poolManagerFactory_,
-        address withdrawalManagerFactory_,
-        address[] memory loanManagerFactories_,
-        address asset_,
-        string memory name_,
-        string memory symbol_,
+        address           poolDelegate_,
+        address           poolManagerFactory_,
+        address           withdrawalManagerFactory_,
+        address[]  memory loanManagerFactories_,
+        address           asset_,
+        string     memory name_,
+        string     memory symbol_,
         uint256[6] memory configParams_
     )
         public view override
         returns (
-            address poolManager_,
-            address pool_,
-            address poolDelegateCover_,
-            address withdrawalManager_,
+            address          poolManager_,
+            address          pool_,
+            address          poolDelegateCover_,
+            address          withdrawalManager_,
             address[] memory loanManagers_
         )
     {

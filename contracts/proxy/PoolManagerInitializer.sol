@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { IMapleGlobalsLike, IMapleProxyFactoryLike } from "../interfaces/Interfaces.sol";
-import { IPoolManagerInitializer }                   from "../interfaces/IPoolManagerInitializer.sol";
+import { IGlobalsLike, IMapleProxyFactoryLike } from "../interfaces/Interfaces.sol";
+import { IPoolManagerInitializer }              from "../interfaces/IPoolManagerInitializer.sol";
 
 import { Pool }               from "../Pool.sol";
 import { PoolDelegateCover }  from "../PoolDelegateCover.sol";
@@ -66,11 +66,11 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require((poolDelegate = poolDelegate_) != address(0), "PMI:I:ZERO_PD");
         require((asset = asset_)               != address(0), "PMI:I:ZERO_ASSET");
 
-        require(IMapleGlobalsLike(globals_).isPoolDelegate(poolDelegate_),                 "PMI:I:NOT_PD");
-        require(IMapleGlobalsLike(globals_).ownedPoolManager(poolDelegate_) == address(0), "PMI:I:POOL_OWNER");
-        require(IMapleGlobalsLike(globals_).isPoolAsset(asset_),                           "PMI:I:ASSET_NOT_ALLOWED");
+        require(IGlobalsLike(globals_).isPoolDelegate(poolDelegate_),                 "PMI:I:NOT_PD");
+        require(IGlobalsLike(globals_).ownedPoolManager(poolDelegate_) == address(0), "PMI:I:POOL_OWNER");
+        require(IGlobalsLike(globals_).isPoolAsset(asset_),                           "PMI:I:ASSET_NOT_ALLOWED");
 
-        address migrationAdmin_ = IMapleGlobalsLike(globals_).migrationAdmin();
+        address migrationAdmin_ = IGlobalsLike(globals_).migrationAdmin();
 
         require(initialSupply_ == 0 || migrationAdmin_ != address(0), "PMI:I:INVALID_POOL_PARAMS");
 
@@ -79,7 +79,7 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
                 address(this),
                 asset_,
                 migrationAdmin_,
-                IMapleGlobalsLike(globals_).bootstrapMint(asset_),
+                IGlobalsLike(globals_).bootstrapMint(asset_),
                 initialSupply_,
                 name_,
                 symbol_

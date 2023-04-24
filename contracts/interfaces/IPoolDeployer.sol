@@ -12,8 +12,6 @@ interface IPoolDeployer {
      */
     event PoolDeployed(address indexed pool_, address indexed poolManager_, address indexed withdrawalManager_, address[] loanManagers_);
 
-    function globals() external view returns (address globals_);
-
     /**
      *  @dev   Deploys a pool along with its dependencies.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
@@ -29,12 +27,12 @@ interface IPoolDeployer {
      *  @return poolManager_ The address of the PoolManager.
      */
     function deployPool(
-        address poolManagerFactory_,
-        address withdrawalManagerFactory_,
-        address[] memory loanManagerFactories_,
-        address asset_,
-        string memory name_,
-        string memory symbol_,
+        address           poolManagerFactory_,
+        address           withdrawalManagerFactory_,
+        address[]  memory loanManagerFactories_,
+        address           asset_,
+        string     memory name_,
+        string     memory symbol_,
         uint256[6] memory configParams_
     )
         external
@@ -60,22 +58,24 @@ interface IPoolDeployer {
      *  @return loanManagers_      The address of the LoanManager contracts that will be deployed.
      */
     function getDeploymentAddresses(
-        address poolDelegate_,
-        address poolManagerFactory_,
-        address withdrawalManagerFactory_,
-        address[] memory loanManagerFactories_,
-        address asset_,
-        string memory name_,
-        string memory symbol_,
+        address           poolDelegate_,
+        address           poolManagerFactory_,
+        address           withdrawalManagerFactory_,
+        address[]  memory loanManagerFactories_,
+        address           asset_,
+        string     memory name_,
+        string     memory symbol_,
         uint256[6] memory configParams_
     )
         external view
         returns (
-            address poolManager_,
-            address pool_,
-            address poolDelegateCover_,
-            address withdrawalManager_,
+            address          poolManager_,
+            address          pool_,
+            address          poolDelegateCover_,
+            address          withdrawalManager_,
             address[] memory loanManagers_
         );
+
+    function globals() external view returns (address globals_);
 
 }

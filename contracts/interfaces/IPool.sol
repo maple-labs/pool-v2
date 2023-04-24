@@ -124,20 +124,20 @@ interface IPool is IERC20, IERC4626 {
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
     /**
-     *  @dev    Requests a withdrawal of assets from the pool.
-     *  @param  assets_       The amount of assets to withdraw.
-     *  @param  owner_        The owner of the shares.
-     *  @return escrowShares_ The amount of shares sent to escrow.
-     */
-    function requestWithdraw(uint256 assets_, address owner_) external returns (uint256 escrowShares_);
-
-    /**
      *  @dev    Requests a redemption of shares from the pool.
      *  @param  shares_       The amount of shares to redeem.
      *  @param  owner_        The owner of the shares.
      *  @return escrowShares_ The amount of shares sent to escrow.
      */
     function requestRedeem(uint256 shares_, address owner_) external returns (uint256 escrowShares_);
+
+    /**
+     *  @dev    Requests a withdrawal of assets from the pool.
+     *  @param  assets_       The amount of assets to withdraw.
+     *  @param  owner_        The owner of the shares.
+     *  @return escrowShares_ The amount of shares sent to escrow.
+     */
+    function requestWithdraw(uint256 assets_, address owner_) external returns (uint256 escrowShares_);
 
     /**************************************************************************************************************************************/
     /*** View Functions                                                                                                                 ***/

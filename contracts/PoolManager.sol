@@ -10,9 +10,9 @@ import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
 
 import {
     IERC20Like,
+    IGlobalsLike,
+    ILoanLike,
     ILoanManagerLike,
-    IMapleGlobalsLike,
-    IMapleLoanLike,
     IPoolDelegateCoverLike,
     IPoolLike,
     IWithdrawalManagerLike
@@ -104,7 +104,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override whenNotPaused {
-        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals());
+        IGlobalsLike globals_ = IGlobalsLike(globals());
 
         if (msg.sender == poolDelegate) {
             require(globals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:INVALID_SCHED_CALL");
@@ -137,7 +137,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function acceptPoolDelegate() external override whenNotPaused {
         require(msg.sender == pendingPoolDelegate, "PM:APD:NOT_PENDING_PD");
 
-        IMapleGlobalsLike(globals()).transferOwnedPoolManager(poolDelegate, msg.sender);
+        IGlobalsLike(globals()).transferOwnedPoolManager(poolDelegate, msg.sender);
 
         emit PendingDelegateAccepted(poolDelegate, pendingPoolDelegate);
 
@@ -167,7 +167,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function addLoanManager(address loanManagerFactory_)
         external override whenNotPaused onlyIfNotConfiguredOrPoolDelegate returns (address loanManager_)
     {
-        require(IMapleGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
+        require(IGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
         // NOTE: If removing loan managers is allowed in the future, there will be a need to rethink salts here due to collisions.
         loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(
@@ -219,8 +219,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function setWithdrawalManager(address withdrawalManager_) external override whenNotPaused onlyIfNotConfigured {
         address factory_ = IMapleProxied(withdrawalManager_).factory();
 
-        require(IMapleGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
-        require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                       "PM:SWM:INVALID_INSTANCE");
+        require(IGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
+        require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                  "PM:SWM:INVALID_INSTANCE");
 
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);
     }
@@ -234,7 +234,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address pool_    = pool;
         address factory_ = IMapleProxied(msg.sender).factory();
 
-        IMapleGlobalsLike globals_ = IMapleGlobalsLike(globals());
+        IGlobalsLike globals_ = IGlobalsLike(globals());
 
         // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
         require(principal_ != 0,                                         "PM:RF:INVALID_PRINCIPAL");
@@ -270,7 +270,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     function triggerDefault(address loan_, address liquidatorFactory_)
         external override whenNotPaused nonReentrant onlyPoolDelegateOrGovernor
     {
-        require(IMapleGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_), "PM:TD:NOT_FACTORY");
+        require(IGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_), "PM:TD:NOT_FACTORY");
 
         (
             bool    liquidationComplete_,
@@ -353,7 +353,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         IPoolDelegateCoverLike(poolDelegateCover).moveFunds(amount_, recipient_);
 
         require(
-            IERC20Like(asset).balanceOf(poolDelegateCover) >= IMapleGlobalsLike(globals()).minCoverAmount(address(this)),
+            IERC20Like(asset).balanceOf(poolDelegateCover) >= IGlobalsLike(globals()).minCoverAmount(address(this)),
             "PM:WC:BELOW_MIN"
         );
 
@@ -369,7 +369,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     {
         // NOTE: `caller_` param not named to avoid compiler warning.
 
-        if (IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
+        if (IGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
 
         if (
             functionId_ == "P:redeem"          ||
@@ -428,7 +428,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function governor() public view override returns (address governor_) {
-        governor_ = IMapleGlobalsLike(globals()).governor();
+        governor_ = IGlobalsLike(globals()).governor();
     }
 
     function hasSufficientCover() public view override returns (bool hasSufficientCover_) {
@@ -513,7 +513,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /**************************************************************************************************************************************/
 
     function _getLoanManager(address loan_) internal view returns (address loanManager_) {
-        loanManager_ = IMapleLoanLike(loan_).lender();
+        loanManager_ = ILoanLike(loan_).lender();
 
         require(isLoanManager[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
     }
@@ -522,14 +522,14 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         address globals_ = globals();
 
         uint256 availableCover_ =
-            IERC20Like(asset).balanceOf(poolDelegateCover) * IMapleGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) /
+            IERC20Like(asset).balanceOf(poolDelegateCover) * IGlobalsLike(globals_).maxCoverLiquidationPercent(address(this)) /
             HUNDRED_PERCENT;
 
         uint256 toTreasury_ = _min(availableCover_,               platformFees_);
         uint256 toPool_     = _min(availableCover_ - toTreasury_, losses_);
 
         if (toTreasury_ != 0) {
-            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IMapleGlobalsLike(globals_).mapleTreasury());
+            IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toTreasury_, IGlobalsLike(globals_).mapleTreasury());
         }
 
         if (toPool_ != 0) {
@@ -572,7 +572,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function _hasSufficientCover(address globals_, address asset_) internal view returns (bool hasSufficientCover_) {
-        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IMapleGlobalsLike(globals_).minCoverAmount(address(this));
+        hasSufficientCover_ = IERC20Like(asset_).balanceOf(poolDelegateCover) >= IGlobalsLike(globals_).minCoverAmount(address(this));
     }
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
@@ -600,7 +600,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function _revertIfPaused() internal view {
-        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "PM:PAUSED");
+        require(!IGlobalsLike(globals()).isFunctionPaused(msg.sig), "PM:PAUSED");
     }
 
 }

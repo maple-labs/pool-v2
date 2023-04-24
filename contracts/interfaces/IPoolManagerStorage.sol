@@ -22,6 +22,12 @@ interface IPoolManagerStorage {
     function configured() external view returns (bool configured_);
 
     /**
+     *  @dev    Gets the delegate management fee rate.
+     *  @return delegateManagementFeeRate_ The value for the delegate management fee rate.
+     */
+    function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
+
+    /**
      *  @dev    Returns whether or not the given address is a loan manager.
      *  @param  loan_          The address of the loan.
      *  @return isLoanManager_ True if the address is a loan manager.
@@ -36,23 +42,17 @@ interface IPoolManagerStorage {
     function isValidLender(address lender_) external view returns (bool isValidLender_);
 
     /**
-     *  @dev    Gets the address of the loan manager in the list.
-     *  @param  index_       The index to get the address of.
-     *  @return loanManager_ The address in the list.
-     */
-    function loanManagerList(uint256 index_) external view returns (address loanManager_);
-
-    /**
      *  @dev    Gets the liquidity cap for the pool.
      *  @return liquidityCap_ The liquidity cap for the pool.
      */
     function liquidityCap() external view returns (uint256 liquidityCap_);
 
     /**
-     *  @dev    Gets the delegate management fee rate.
-     *  @return delegateManagementFeeRate_ The value for the delegate management fee rate.
+     *  @dev    Gets the address of the loan manager in the list.
+     *  @param  index_       The index to get the address of.
+     *  @return loanManager_ The address in the list.
      */
-    function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
+    function loanManagerList(uint256 index_) external view returns (address loanManager_);
 
     /**
      *  @dev    Returns whether or not a pool is open to public deposits.

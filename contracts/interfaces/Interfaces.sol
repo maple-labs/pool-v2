@@ -11,21 +11,7 @@ interface IERC20Like {
 
 }
 
-interface ILoanManagerLike {
-
-    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
-
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
-
-    function triggerDefault(address loan_, address liquidatorFactory_)
-        external
-        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
-
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
-
-}
-
-interface IMapleGlobalsLike {
+interface IGlobalsLike {
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_);
 
@@ -45,13 +31,13 @@ interface IMapleGlobalsLike {
         external view
         returns (bool isValid_);
 
+    function mapleTreasury() external view returns (address mapleTreasury_);
+
     function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
 
     function migrationAdmin() external view returns (address migrationAdmin_);
 
     function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
-
-    function mapleTreasury() external view returns (address mapleTreasury_);
 
     function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
@@ -63,7 +49,21 @@ interface IMapleGlobalsLike {
 
 }
 
-interface IMapleLoanLike {
+interface ILoanManagerLike {
+
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+
+    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
+
+    function triggerDefault(address loan_, address liquidatorFactory_)
+        external
+        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
+
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface ILoanLike {
 
     function lender() external view returns (address lender_);
 
