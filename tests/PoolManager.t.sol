@@ -104,7 +104,7 @@ contract CompleteConfigurationTests is PoolManagerBase {
     function test_completeConfiguration_alreadyConfigured() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:CC:ALREADY_CONFIGURED");
+        vm.expectRevert("PM:ALREADY_CONFIGURED");
         poolManager.completeConfiguration();
     }
 
@@ -305,7 +305,7 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerBase {
     }
 
     function test_setPendingPoolDelegate_notPoolDelegate() external {
-        vm.expectRevert("PM:SPA:NOT_PD");
+        vm.expectRevert("PM:NOT_PD");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
@@ -369,7 +369,7 @@ contract SetAllowedLender_SetterTests is PoolManagerBase {
     }
 
     function test_setAllowedLender_notPoolDelegate() external {
-        vm.expectRevert("PM:SAL:NOT_PD");
+        vm.expectRevert("PM:NOT_PD");
         poolManager.setAllowedLender(address(this), true);
     }
 
@@ -401,7 +401,7 @@ contract SetLiquidityCap_SetterTests is PoolManagerBase {
     function test_setLiquidityCap_notPoolDelegate() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:SLC:NO_AUTH");
+        vm.expectRevert("PM:NO_AUTH");
         poolManager.setLiquidityCap(1000);
     }
 
@@ -437,7 +437,7 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerBase {
     function test_setDelegateManagementFeeRate_notPoolDelegate() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:SDMFR:NO_AUTH");
+        vm.expectRevert("PM:NO_AUTH");
         poolManager.setDelegateManagementFeeRate(newManagementFeeRate);
     }
 
@@ -490,7 +490,7 @@ contract SetIsLoanManager_SetterTests is PoolManagerBase {
     }
 
     function test_setIsLoanManager_notPoolDelegate() external {
-        vm.expectRevert("PM:SILM:NOT_PD");
+        vm.expectRevert("PM:NOT_PD");
         poolManager.setIsLoanManager(loanManager2, false);
     }
 
@@ -528,7 +528,7 @@ contract SetOpenToPublic_SetterTests is PoolManagerBase {
     }
 
     function test_setOpenToPublic_notPoolDelegate() external {
-        vm.expectRevert("PM:SOTP:NOT_PD");
+        vm.expectRevert("PM:NOT_PD");
         poolManager.setOpenToPublic();
     }
 
@@ -595,7 +595,7 @@ contract TriggerDefault is PoolManagerBase {
     }
 
     function test_triggerDefault_notAuthorized() external {
-        vm.expectRevert("PM:TD:NOT_AUTHORIZED");
+        vm.expectRevert("PM:NOT_PD_OR_GOV");
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
@@ -690,7 +690,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
 
         loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
-        vm.expectRevert("PM:FCL:NOT_AUTHORIZED");
+        vm.expectRevert("PM:NOT_PD_OR_GOV");
         poolManager.finishCollateralLiquidation(loan);
     }
 
@@ -873,7 +873,7 @@ contract ProcessRedeemTests is PoolManagerBase {
     }
 
     function test_processRedeem_notWithdrawalManager() external {
-        vm.expectRevert("PM:PR:NOT_POOL");
+        vm.expectRevert("PM:NOT_POOL");
         poolManager.processRedeem(1, address(1), address(1));
     }
 
@@ -927,7 +927,7 @@ contract AddLoanManager_SetterTests is PoolManagerBase {
     function test_addLoanManager_notPoolDelegate() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:ALM:NO_AUTH");
+        vm.expectRevert("PM:NO_AUTH");
         poolManager.addLoanManager(address(0));
     }
 
@@ -973,7 +973,7 @@ contract SetWithdrawalManager_SetterTests is PoolManagerBase {
     function test_setWithdrawalManager_configured() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:SWM:ALREADY_CONFIGURED");
+        vm.expectRevert("PM:ALREADY_CONFIGURED");
         poolManager.setWithdrawalManager(withdrawalManager);
     }
 
@@ -1719,7 +1719,7 @@ contract WithdrawCoverTests is PoolManagerBase {
 
         asset.mint(poolManager.poolDelegateCover(), 2_000e18);
 
-        vm.expectRevert("PM:WC:NOT_PD");
+        vm.expectRevert("PM:NOT_PD");
         poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
 
         vm.prank(POOL_DELEGATE);
