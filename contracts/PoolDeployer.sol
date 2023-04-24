@@ -81,4 +81,63 @@ contract PoolDeployer is IPoolDeployer {
         IPoolManagerLike(poolManager_).completeConfiguration();
     }
 
+    function getDeploymentAddresses(
+        address poolDelegate_,
+        address poolManagerFactory_,
+        address withdrawalManagerFactory_,
+        address[] memory loanManagerFactories_,
+        address asset_,
+        string memory name_,
+        string memory symbol_,
+        uint256[6] memory configParams_
+    )
+        public view override
+        returns (
+            address poolManager_,
+            address pool_,
+            address poolDelegateCover_,
+            address withdrawalManager_,
+            address[] memory loanManagers_
+        )
+    {
+        poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(
+            abi.encode(poolDelegate_, asset_, configParams_[5], name_, symbol_),
+            keccak256(abi.encode(poolDelegate_))
+        );
+
+        pool_              = _addressFrom(poolManager_, 1);
+        poolDelegateCover_ = _addressFrom(poolManager_, 2);
+
+        withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).getInstanceAddress(
+            abi.encode(pool_, configParams_[3], configParams_[4]),
+            keccak256(abi.encode(poolManager_))
+        );
+
+        loanManagers_ = new address[](loanManagerFactories_.length);
+
+        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
+            loanManagers_[i_] = IMapleProxyFactory(loanManagerFactories_[i_]).getInstanceAddress(
+                abi.encode(poolManager_),
+                keccak256(abi.encode(poolManager_, i_))
+            );
+        }
+    }
+
+    function _addressFrom(address origin_, uint nonce_) internal pure returns (address address_) {
+        address_ = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        nonce_ == 0x00     ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, bytes1(0x80))                 :
+                        nonce_ <= 0x7f     ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, uint8(nonce_))                :
+                        nonce_ <= 0xff     ? abi.encodePacked(bytes1(0xd7), bytes1(0x94), origin_, bytes1(0x81), uint8(nonce_))  :
+                        nonce_ <= 0xffff   ? abi.encodePacked(bytes1(0xd8), bytes1(0x94), origin_, bytes1(0x82), uint16(nonce_)) :
+                        nonce_ <= 0xffffff ? abi.encodePacked(bytes1(0xd9), bytes1(0x94), origin_, bytes1(0x83), uint24(nonce_)) :
+                                             abi.encodePacked(bytes1(0xda), bytes1(0x94), origin_, bytes1(0x84), uint32(nonce_))
+                    )
+                )
+            )
+        );
+    }
+
 }

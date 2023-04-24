@@ -5,14 +5,13 @@ import { Address, TestUtils }                    from "../modules/contract-test-
 import { MockERC20 }                             from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
-import { PoolDeployer } from "../contracts/PoolDeployer.sol";
+import { PoolDeployer }           from "../contracts/PoolDeployer.sol";
+import { PoolManager }            from "../contracts/PoolManager.sol";
+import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
 
-import {
-    MockGlobals,
-    MockMigrator,
-    MockProxied,
-    MockPoolManager
-} from "./mocks/Mocks.sol";
+import { IPoolManager } from "../contracts/interfaces/IPoolManager.sol";
+
+import { MockGlobals, MockMigrator, MockProxied } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
@@ -24,16 +23,16 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
     address poolManagerFactory;
     address withdrawalManagerFactory;
 
-    address[] loanManagerFactories;
-
-    uint256 constant coverAmountRequired = 10e18;
-
     string name   = "Pool";
     string symbol = "P2";
 
-    uint256[6] configParams_ = [
+    uint256 coverAmountRequired = 10e18;
+
+    address[] loanManagerFactories;
+
+    uint256[6] configParams = [
         1_000_000e18,
-        0.1e18,
+        0.1e6,
         coverAmountRequired,
         3 days,
         1 days,
@@ -44,7 +43,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         asset        = address(new MockERC20("Asset", "AT", 18));
         poolDelegate = address(new Address());
 
-        _deployAndBootstrapGlobals(address(asset), poolDelegate);
+        _deployAndBootstrapGlobals(asset, poolDelegate);
 
         for (uint256 i; i < 2; ++i) {
             loanManagerFactories.push(address(new MapleProxyFactory(globals)));
@@ -55,7 +54,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
         vm.startPrank(GOVERNOR);
 
-        IMapleProxyFactory(poolManagerFactory).registerImplementation(1, address(new MockPoolManager()), address(new MockMigrator()));
+        IMapleProxyFactory(poolManagerFactory).registerImplementation(1, address(new PoolManager()), address(new PoolManagerInitializer()));
         IMapleProxyFactory(poolManagerFactory).setDefaultVersion(1);
 
         for (uint256 i; i < loanManagerFactories.length; ++i) {
@@ -73,9 +72,10 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
     }
 
     function test_deployPool_transferFailed() external {
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired - 1);
+
         vm.prank(poolDelegate);
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired - 1);
 
         vm.prank(poolDelegate);
         vm.expectRevert("PD:DP:TRANSFER_FAILED");
@@ -83,27 +83,28 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
-            address(asset),
+            asset,
             name,
             symbol,
-            configParams_
+            configParams
         );
     }
 
     function test_deployPool_invalidPoolDelegate() external {
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
+
         vm.prank(poolDelegate);
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
 
         vm.expectRevert("PD:DP:INVALID_PD");
         PoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
-            address(asset),
+            asset,
             name,
             symbol,
-            configParams_
+            configParams
         );
     }
 
@@ -112,38 +113,90 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
         MockERC20(asset).mint(poolDelegate, coverAmountRequired);
 
-        vm.prank(poolDelegate);
-        PoolDeployer(poolDeployer).deployPool(
+        (
+            address          expectedPoolManager_,
+            address          expectedPool_,
+            address          expectedPoolDelegateCover_,
+            address          expectedWithdrawalManager_,
+            address[] memory expectedLoanManagers_
+        ) = PoolDeployer(poolDeployer).getDeploymentAddresses(
+            poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
-            address(asset),
+            asset,
             name,
             symbol,
-            configParams_
+            configParams
         );
+
+        vm.prank(poolDelegate);
+        address poolManager_ = PoolDeployer(poolDeployer).deployPool(
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            loanManagerFactories,
+            asset,
+            name,
+            symbol,
+            configParams
+        );
+
+        assertEq(poolManager_,                                   expectedPoolManager_);
+        assertEq(IPoolManager(poolManager_).pool(),              expectedPool_);
+        assertEq(IPoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
+        assertEq(IPoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
+
+        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
+            assertEq(IPoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        }
     }
 
     function test_deployPool_success_withoutCoverRequired() external {
-        uint256[6] memory noCoverConfigParams_ = [
+        uint256[6] memory noCoverConfigParams = [
             uint256(1_000_000e18),
-            0.1e18,
+            0.1e6,
             0,
             3 days,
             1 days,
             0
         ];
 
-        vm.prank(poolDelegate);
-        PoolDeployer(poolDeployer).deployPool(
+        (
+            address          expectedPoolManager_,
+            address          expectedPool_,
+            address          expectedPoolDelegateCover_,
+            address          expectedWithdrawalManager_,
+            address[] memory expectedLoanManagers_
+        ) = PoolDeployer(poolDeployer).getDeploymentAddresses(
+            poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
-            address(asset),
+            asset,
             name,
             symbol,
-            noCoverConfigParams_
+            configParams
         );
+
+        vm.prank(poolDelegate);
+        address poolManager_ = PoolDeployer(poolDeployer).deployPool(
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            loanManagerFactories,
+            asset,
+            name,
+            symbol,
+            noCoverConfigParams
+        );
+
+        assertEq(poolManager_,                                   expectedPoolManager_);
+        assertEq(IPoolManager(poolManager_).pool(),              expectedPool_);
+        assertEq(IPoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
+        assertEq(IPoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
+
+        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
+            assertEq(IPoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        }
     }
 
 }
