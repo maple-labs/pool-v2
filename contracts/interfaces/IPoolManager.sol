@@ -19,17 +19,17 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event AllowedLenderSet(address indexed lender_, bool isValid_);
 
     /**
-     *  @dev   Emitted when a collateral liquidations is triggered.
-     *  @param loan_ The address of the loan.
-     */
-    event CollateralLiquidationTriggered(address indexed loan_);
-
-    /**
      *  @dev   Emitted when a collateral liquidations is finished.
      *  @param loan_             The address of the loan.
      *  @param unrealizedLosses_ The amount of unrealized losses.
      */
     event CollateralLiquidationFinished(address indexed loan_, uint256 unrealizedLosses_);
+
+    /**
+     *  @dev   Emitted when a collateral liquidations is triggered.
+     *  @param loan_ The address of the loan.
+     */
+    event CollateralLiquidationTriggered(address indexed loan_);
 
     /**
      *  @dev   Emitted when cover is deposited.
@@ -154,16 +154,16 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev Complete the configuration.
-     */
-    function completeConfiguration() external;
-
-    /**
      *  @dev    Adds a new loan manager.
      *  @param  loanManagerFactory_ The address of the loan manager factory to use.
      *  @return loanManager_        The address of the new loan manager.
      */
     function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
+
+    /**
+     *  @dev Complete the configuration.
+     */
+    function completeConfiguration() external;
 
     /**
      *  @dev   Sets a the pool to be active or inactive.
@@ -311,6 +311,13 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
+     *  @dev    Returns the amount of exit shares for the input amount.
+     *  @param  amount_  Address of the account.
+     *  @return shares_  Amount of shares able to be exited.
+     */
+    function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
+
+    /**
      *  @dev    Gets the information of escrowed shares.
      *  @param  owner_        The address of the owner of the shares.
      *  @param  shares_       The amount of shares to get the information of.
@@ -318,13 +325,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @return destination_  The address of the destination.
      */
     function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address destination_);
-
-    /**
-     *  @dev    Returns the amount of exit shares for the input amount.
-     *  @param  amount_  Address of the account.
-     *  @return shares_  Amount of shares able to be exited.
-     */
-    function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
 
     /**
      *  @dev   Gets the amount of assets that can be deposited.

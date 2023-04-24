@@ -67,7 +67,7 @@ contract PoolManagerBase is TestUtils, GlobalsBootstrapper {
         withdrawalManagerFactory = new MockFactory();
         withdrawalManager        = address(new MockWithdrawalManager());
 
-        withdrawalManagerFactory.__setIsInstance(address(withdrawalManager), true);
+        withdrawalManagerFactory.__setIsInstance(withdrawalManager, true);
         MockWithdrawalManager(withdrawalManager).__setFactory(address(withdrawalManagerFactory));
 
         MockERC20Pool mockPool = new MockERC20Pool(address(poolManager), address(asset), poolName_, poolSymbol_);
@@ -667,7 +667,7 @@ contract FinishCollateralLiquidation is PoolManagerBase {
         vm.startPrank(POOL_DELEGATE);
         poolManager.__setIsLoanManager(address(loanManager), true);
         poolManager.__pushToLoanManagerList(address(loanManager));
-        poolManager.setWithdrawalManager(address(withdrawalManager));
+        poolManager.setWithdrawalManager(withdrawalManager);
         vm.stopPrank();
     }
 
