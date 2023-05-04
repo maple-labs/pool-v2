@@ -38,6 +38,13 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event CoverDeposited(uint256 amount_);
 
     /**
+     *  @dev   Emitted when cover is liquidated in the case of a loan defaulting.
+     *  @param toTreasury_ The amount of cover sent to the Treasury.
+     *  @param toPool_     The amount of cover sent to the Pool.
+     */
+    event CoverLiquidated(uint256 toTreasury_, uint256 toPool_);
+
+    /**
      *  @dev   Emitted when cover is withdrawn.
      *  @param amount_ The amount of cover withdrawn.
      */
