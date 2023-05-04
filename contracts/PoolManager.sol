@@ -535,6 +535,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         if (toPool_ != 0) {
             IPoolDelegateCoverLike(poolDelegateCover).moveFunds(toPool_, pool);
         }
+
+        emit CoverLiquidated(toTreasury_, toPool_);
     }
 
     /**************************************************************************************************************************************/
