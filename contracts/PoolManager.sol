@@ -61,8 +61,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _;
     }
 
-    modifier onlyIfNotConfiguredOrPoolDelegate() {
-        _revertIfConfiguredAndNotPoolDelegate();
+    modifier onlyPoolDelegateOrNotConfigured() {
+        _revertIfConfiguredOrNotPoolDelegate();
         _;
     }
 
@@ -77,7 +77,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     modifier onlyPoolDelegateOrGovernor() {
-        _revertIfNotPoolDelegateOrGovernor();
+        _revertIfNeitherPoolDelegateNorGovernor();
         _;
     }
 
@@ -165,7 +165,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /**************************************************************************************************************************************/
 
     function addLoanManager(address loanManagerFactory_)
-        external override whenNotPaused onlyIfNotConfiguredOrPoolDelegate returns (address loanManager_)
+        external override whenNotPaused onlyPoolDelegateOrNotConfigured returns (address loanManager_)
     {
         require(IGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
 
@@ -187,7 +187,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
-        external override whenNotPaused onlyIfNotConfiguredOrPoolDelegate
+        external override whenNotPaused onlyPoolDelegateOrNotConfigured
     {
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
@@ -206,7 +206,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         revert("PM:SILM:INVALID_LM");
     }
 
-    function setLiquidityCap(uint256 liquidityCap_) external override whenNotPaused onlyIfNotConfiguredOrPoolDelegate {
+    function setLiquidityCap(uint256 liquidityCap_) external override whenNotPaused onlyPoolDelegateOrNotConfigured {
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
@@ -585,7 +585,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(!configured, "PM:ALREADY_CONFIGURED");
     }
 
-    function _revertIfConfiguredAndNotPoolDelegate() internal view {
+    function _revertIfConfiguredOrNotPoolDelegate() internal view {
         require(!configured || msg.sender == poolDelegate, "PM:NO_AUTH");
     }
 
@@ -597,7 +597,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate, "PM:NOT_PD");
     }
 
-    function _revertIfNotPoolDelegateOrGovernor() internal view {
+    function _revertIfNeitherPoolDelegateNorGovernor() internal view {
         require(msg.sender == poolDelegate || msg.sender == governor(), "PM:NOT_PD_OR_GOV");
     }
 
