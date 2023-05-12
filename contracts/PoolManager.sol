@@ -62,7 +62,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     modifier onlyPoolDelegateOrNotConfigured() {
-        _revertIfConfiguredOrNotPoolDelegate();
+        _revertIfConfiguredAndNotPoolDelegate();
         _;
     }
 
@@ -585,7 +585,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(!configured, "PM:ALREADY_CONFIGURED");
     }
 
-    function _revertIfConfiguredOrNotPoolDelegate() internal view {
+    function _revertIfConfiguredAndNotPoolDelegate() internal view {
         require(!configured || msg.sender == poolDelegate, "PM:NO_AUTH");
     }
 
