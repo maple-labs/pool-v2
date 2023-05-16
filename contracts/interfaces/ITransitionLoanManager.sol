@@ -20,9 +20,9 @@ interface ITransitionLoanManager is IMapleProxied, ILoanManagerStorage {
     event IssuanceParamsUpdated(uint48 domainEnd_, uint256 issuanceRate_, uint112 accountedInterest_);
 
     /**
-     *  @dev   Emitted when a payment is removed from the LoanManager payments array.
+     *  @dev   Emitted when a payment is added from the LoanManager payments array.
      *  @param loan_      The address of the loan.
-     *  @param paymentId_ The payment ID of the payment that was removed.
+     *  @param paymentId_ The payment ID of the payment that was added.
      */
     event PaymentAdded(
         address indexed loan_,
