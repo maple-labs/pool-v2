@@ -1,9 +1,10 @@
 # Pool V2
 
 ![Foundry CI](https://github.com/maple-labs/pool-v2/actions/workflows/forge.yaml/badge.svg)
-[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview)
+[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/technical-resources/protocol-overview)
 [![Foundry][foundry-badge]][foundry]
 [![License: BUSL 1.1](https://img.shields.io/badge/License-BUSL%201.1-blue.svg)](https://github.com/maple-labs/pool-v2/blob/main/LICENSE)
+
 
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
@@ -16,7 +17,6 @@ This repository contains the core contracts of the Maple V2 protocol that are re
 | -------- | ------- |
 | [`Pool`](https://github.com/maple-labs/maple-core-v2/wiki/Pools) | Each pool represents a different lending pool with a unique strategy and pool delegate that issues loans on behalf of the liquidity providers. The `Pool` contract is compatible with the [ERC-4626 Tokenized Vault standard](https://eips.ethereum.org/EIPS/eip-4626). |
 | [`PoolManager`](https://github.com/maple-labs/maple-core-v2/wiki/PoolManager) | Used by the pool delegate to manage pool level parameters and to issue loans to borrowers. |
-| [`LoanManager`](https://github.com/maple-labs/maple-core-v2/wiki/LoanManager) | Owns and keeps track of value of all outstanding loans. |
 | [`PoolDelegateCover`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Delegate-Cover) | Holds first-loss capital in escrow on behalf of the pool delegate. |
 | [`PoolDeployer`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Creation) | Used to deploy new pools with all the required dependencies. |
 
@@ -30,8 +30,8 @@ Contracts in this repo inherit and import code from:
 Contracts inherit and import code in the following ways:
 - `Pool` inherits `ERC20` for fungible token functionality.
 - `PoolDelegateCover`, `PoolDeployer` and `PoolManager` use `ERC20Helper` for token interactions.
-- `LoanManager`, `PoolManager`, and `TransitionLoanManager` inherit `MapleProxiedInternals` for proxy logic.
-- `LoanManagerFactory` and `PoolManagerFactory` inherit `MapleProxyFactory` for proxy deployment and management.
+- `PoolManager` inherits `MapleProxiedInternals` for proxy logic.
+- `PoolManagerFactory` inherits `MapleProxyFactory` for proxy deployment and management.
 
 Versions of dependencies can be checked with `git submodule status`.
 
@@ -54,11 +54,22 @@ forge install
 
 ## Audit Reports
 
+### December 2022 Release
+
 | Auditor | Report Link |
 |---|---|
 | Trail of Bits | [`2022-08-24 - Trail of Bits Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10246688/Maple.Finance.v2.-.Final.Report.-.Fixed.-.2022.pdf) |
 | Spearbit | [`2022-10-17 - Spearbit Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10223545/Maple.Finance.v2.-.Spearbit.pdf) |
 | Three Sigma | [`2022-10-24 - Three Sigma Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10223541/three-sigma_maple-finance_code-audit_v1.1.1.pdf) |
+
+<br>
+
+### June 2023 Release
+
+| Auditor | Report Link |
+|---|---|
+| Spearbit Auditors via Cantina | [`2023-06-05 - Cantina Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11667848/cantina-maple.pdf) |
+| Three Sigma | [`2023-04-10 - Three Sigma Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11663546/maple-v2-audit_three-sigma_2023.pdf) |
 
 ## Bug Bounty
 
@@ -68,7 +79,6 @@ For all information related to the ongoing bug bounty for these contracts run by
 
 [Maple Finance](https://maple.finance/) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
 
----
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/44272939/196706799-fe96d294-f700-41e7-a65f-2d754d0a6eac.gif" height="100" />

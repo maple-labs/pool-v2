@@ -1,21 +1,13 @@
 name: pool-v2
-version: 1.0.0-beta.0
+version: 2.0.0
 source: contracts
 packages:
-  - path: contracts/proxy/LoanManagerFactory.sol
-    contractName: LoanManagerFactory
-  - path: contracts/proxy/LoanManagerInitializer.sol
-    contractName: LoanManagerInitializer
-  - path: contracts/proxy/LoanManagerStorage.sol
-    contractName: LoanManagerStorage
   - path: contracts/proxy/PoolManagerFactory.sol
     contractName: PoolManagerFactory
   - path: contracts/proxy/PoolManagerInitializer.sol
     contractName: PoolManagerInitializer
   - path: contracts/proxy/PoolManagerStorage.sol
     contractName: PoolManagerStorage
-  - path: contracts/LoanManager.sol
-    contractName: LoanManager
   - path: contracts/Pool.sol
     contractName: Pool
   - path: contracts/PoolDelegateCover.sol
@@ -24,6 +16,4 @@ packages:
     contractName: PoolDeployer
   - path: contracts/PoolManager.sol
     contractName: PoolManager
-  - path: contracts/TransitionLoanManager.sol
-    contractName: TransitionLoanManager
 customDescription: Pool V2 Artifacts and ABIs

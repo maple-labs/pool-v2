@@ -5,7 +5,7 @@ import { IMapleProxyFactory, MapleProxyFactory } from "../../modules/maple-proxy
 
 import { IPoolManagerFactory } from "../interfaces/IPoolManagerFactory.sol";
 
-import { IMapleGlobalsLike } from "../interfaces/Interfaces.sol";
+import { IGlobalsLike } from "../interfaces/Interfaces.sol";
 
 contract PoolManagerFactory is IPoolManagerFactory, MapleProxyFactory {
 
@@ -14,7 +14,7 @@ contract PoolManagerFactory is IPoolManagerFactory, MapleProxyFactory {
     function createInstance(bytes calldata arguments_, bytes32 salt_)
         public override(IMapleProxyFactory, MapleProxyFactory) returns (address instance_)
     {
-        require(IMapleGlobalsLike(mapleGlobals).isPoolDeployer(msg.sender), "PMF:CI:NOT_DEPLOYER");
+        require(IGlobalsLike(mapleGlobals).isPoolDeployer(msg.sender), "PMF:CI:NOT_DEPLOYER");
 
         instance_ = super.createInstance(arguments_, salt_);
     }
