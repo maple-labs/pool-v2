@@ -1,7 +1,7 @@
 # Pool V2
 
 ![Foundry CI](https://github.com/maple-labs/pool-v2/actions/workflows/forge.yaml/badge.svg)
-[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview)
+[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/technical-resources/protocol-overview)
 [![Foundry][foundry-badge]][foundry]
 [![License: BUSL 1.1](https://img.shields.io/badge/License-BUSL%201.1-blue.svg)](https://github.com/maple-labs/pool-v2/blob/main/LICENSE)
 
@@ -40,8 +40,8 @@ Versions of dependencies can be checked with `git submodule status`.
 This project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
 
 ```sh
-git clone git@github.com:maple-labs/pool-v2-private.git
-cd pool-v2-private
+git clone git@github.com:maple-labs/pool-v2.git
+cd pool-v2
 forge install
 ```
 
