@@ -6,8 +6,6 @@ packages:
     contractName: PoolManagerFactory
   - path: contracts/proxy/PoolManagerInitializer.sol
     contractName: PoolManagerInitializer
-  - path: contracts/proxy/PoolManagerStorage.sol
-    contractName: PoolManagerStorage
   - path: contracts/Pool.sol
     contractName: Pool
   - path: contracts/PoolDelegateCover.sol
@@ -16,4 +14,4 @@ packages:
     contractName: PoolDeployer
   - path: contracts/PoolManager.sol
     contractName: PoolManager
-customDescription: Pool V2 Artifacts and ABIs
+customDescription: Pool Artifacts and ABIs
