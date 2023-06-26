@@ -4,27 +4,27 @@ pragma solidity 0.8.7;
 import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IPool } from "../contracts/interfaces/IPool.sol";
+import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
-import { Pool }                   from "../contracts/Pool.sol";
-import { PoolManager }            from "../contracts/PoolManager.sol";
-import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
-import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
+import { MaplePool }                   from "../contracts/MaplePool.sol";
+import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
 import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract PoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
+contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
 
     address POOL_DELEGATE = address(new Address());
     address USER1         = address(new Address());
     address USER2         = address(new Address());
 
-    MockERC20             asset;
-    MockWithdrawalManager withdrawalManager;
-    Pool                  pool;
-    PoolManagerFactory    factory;
+    MockERC20               asset;
+    MockWithdrawalManager   withdrawalManager;
+    MaplePool               pool;
+    MaplePoolManagerFactory factory;
 
     address poolManager;
     address implementation;
@@ -35,10 +35,10 @@ contract PoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
 
         _deployAndBootstrapGlobals(address(asset), POOL_DELEGATE);
 
-        factory = new PoolManagerFactory(globals);
+        factory = new MaplePoolManagerFactory(globals);
 
-        implementation = address(new PoolManager());
-        initializer    = address(new PoolManagerInitializer());
+        implementation = address(new MaplePoolManager());
+        initializer    = address(new MaplePoolManagerInitializer());
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -53,9 +53,9 @@ contract PoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, "Pool", "POOL1");
 
-        poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
+        poolManager = address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
-        pool = Pool(PoolManager(poolManager).pool());
+        pool = MaplePool(MaplePoolManager(poolManager).pool());
 
         withdrawalManager = new MockWithdrawalManager();
 
@@ -70,10 +70,10 @@ contract PoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
     function _deposit(address pool_, address poolManager_, address user_, uint256 assetAmount_) internal returns (uint256 shares_) {
         vm.startPrank(user_);
         asset.approve(pool_, assetAmount_);
-        shares_ = IPool(pool_).deposit(assetAmount_, user_);
+        shares_ = IMaplePool(pool_).deposit(assetAmount_, user_);
         vm.stopPrank();
 
-        MockPoolManager(poolManager_).__setTotalAssets(IPool(pool_).totalAssets() + assetAmount_);
+        MockPoolManager(poolManager_).__setTotalAssets(IMaplePool(pool_).totalAssets() + assetAmount_);
     }
 
     function test_depositFrontRun_zeroShares() external {

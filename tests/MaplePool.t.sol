@@ -4,12 +4,12 @@ pragma solidity 0.8.7;
 import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { IPool } from "../contracts/interfaces/IPool.sol";
+import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
-import { Pool }                   from "../contracts/Pool.sol";
-import { PoolManager }            from "../contracts/PoolManager.sol";
-import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
-import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
+import { MaplePool }                   from "../contracts/MaplePool.sol";
+import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
 import {
     MockGlobals,
@@ -21,14 +21,14 @@ import {
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract PoolBase is TestUtils, GlobalsBootstrapper {
+contract TestBase is TestUtils, GlobalsBootstrapper {
 
     address POOL_DELEGATE = address(new Address());
 
     MockReenteringERC20   asset;
     MockWithdrawalManager withdrawalManager;
-    Pool                  pool;
-    PoolManagerFactory    factory;
+    MaplePool                  pool;
+    MaplePoolManagerFactory    factory;
 
     address poolManager;
     address implementation;
@@ -41,26 +41,29 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
         _deployAndBootstrapGlobals(address(asset), POOL_DELEGATE);
 
-        factory = new PoolManagerFactory(address(globals));
+        factory = new MaplePoolManagerFactory(address(globals));
 
-        implementation = address(new PoolManager());
-        initializer    = address(new PoolManagerInitializer());
+        implementation = address(new MaplePoolManager());
+        initializer    = address(new MaplePoolManagerInitializer());
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
         vm.stopPrank();
 
-        string memory poolName_   = "Pool";
+        string memory poolName_   = "MaplePool";
         string memory poolSymbol_ = "POOL1";
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
-        poolManager = address(PoolManager(PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
+        poolManager = address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(
+            arguments,
+            keccak256(abi.encode(POOL_DELEGATE)))
+        ));
 
-        pool = Pool(PoolManager(poolManager).pool());
+        pool = MaplePool(MaplePoolManager(poolManager).pool());
 
         withdrawalManager = new MockWithdrawalManager();
 
@@ -93,12 +96,12 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
     }
 
     function _deposit(address pool_, address poolManager_, address user_, uint256 assetAmount_) internal returns (uint256 shares_) {
-        address asset_ = IPool(pool_).asset();
+        address asset_ = IMaplePool(pool_).asset();
         MockERC20(asset_).mint(user_, assetAmount_);
 
         vm.startPrank(user_);
         MockERC20(asset_).approve(pool_, assetAmount_);
-        shares_ = IPool(pool_).deposit(assetAmount_, user_);
+        shares_ = IMaplePool(pool_).deposit(assetAmount_, user_);
         vm.stopPrank();
 
         MockPoolManager(poolManager_).__setTotalAssets(assetAmount_);
@@ -118,7 +121,7 @@ contract PoolBase is TestUtils, GlobalsBootstrapper {
 
 }
 
-contract ConstructorTests is PoolBase {
+contract ConstructorTests is TestBase {
 
     function setUp() public override {}
 
@@ -126,9 +129,9 @@ contract ConstructorTests is PoolBase {
         address asset = address(new MockERC20("Asset", "AT", 18));
 
         vm.expectRevert("P:C:ZERO_MANAGER");
-        new Pool(address(0), asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(address(0), asset, address(0), 0, 0, "MaplePool", "POOL1");
 
-        new Pool(address(new Address()), asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(address(new Address()), asset, address(0), 0, 0, "MaplePool", "POOL1");
     }
 
     function test_constructor_invalidDecimals() public {
@@ -138,10 +141,10 @@ contract ConstructorTests is PoolBase {
         address poolDelegate = address(new Address());
 
         vm.expectRevert("ERC20:D:REVERT");
-        new Pool(poolDelegate, asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(poolDelegate, asset, address(0), 0, 0, "MaplePool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(poolDelegate, asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(poolDelegate, asset, address(0), 0, 0, "MaplePool", "POOL1");
     }
 
     function test_constructor_invalidApproval() public {
@@ -151,15 +154,15 @@ contract ConstructorTests is PoolBase {
         address poolDelegate = address(new Address());
 
         vm.expectRevert("P:C:FAILED_APPROVE");
-        new Pool(poolDelegate, asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(poolDelegate, asset, address(0), 0, 0, "MaplePool", "POOL1");
 
         asset = address(new MockERC20("Asset", "AT", 18));
-        new Pool(poolDelegate, asset, address(0), 0, 0, "Pool", "POOL1");
+        new MaplePool(poolDelegate, asset, address(0), 0, 0, "Pool", "POOL1");
     }
 
 }
 
-contract DepositTests is PoolBase {
+contract DepositTests is TestBase {
 
     uint256 DEPOSIT_AMOUNT = 1e18;
 
@@ -168,13 +171,13 @@ contract DepositTests is PoolBase {
 
         uint256 depositAmount_ = 1_000e6;
 
-        address asset_ = IPool(pool).asset();
+        address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(user, depositAmount_);
 
         vm.startPrank(user);
         MockERC20(asset_).approve(address(pool), depositAmount_);
         vm.expectRevert("TEST_MESSAGE");
-        IPool(pool).deposit(depositAmount_, user);
+        IMaplePool(pool).deposit(depositAmount_, user);
     }
 
     function test_deposit_zeroReceiver() public {
@@ -224,7 +227,7 @@ contract DepositTests is PoolBase {
 
 }
 
-contract DepositWithPermitTests is PoolBase {
+contract DepositWithPermitTests is TestBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -250,7 +253,7 @@ contract DepositWithPermitTests is PoolBase {
 
         ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
-        address asset_ = IPool(pool).asset();
+        address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(STAKER, DEPOSIT_AMOUNT);
 
         vm.startPrank(STAKER);
@@ -366,20 +369,20 @@ contract DepositWithPermitTests is PoolBase {
 
 }
 
-contract MintTests is PoolBase {
+contract MintTests is TestBase {
 
     uint256 MINT_AMOUNT = 1e18;
 
     function test_mint_checkCall() public {
         MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
 
-        address asset_ = IPool(pool).asset();
+        address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(user, MINT_AMOUNT);
 
         vm.startPrank(user);
         MockERC20(asset_).approve(address(pool), MINT_AMOUNT);
         vm.expectRevert("TEST_MESSAGE");
-        IPool(pool).mint(MINT_AMOUNT, user);
+        IMaplePool(pool).mint(MINT_AMOUNT, user);
     }
 
     function test_mint_zeroReceiver() public {
@@ -429,7 +432,7 @@ contract MintTests is PoolBase {
 
 }
 
-contract MintWithPermitTests is PoolBase {
+contract MintWithPermitTests is TestBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -454,7 +457,7 @@ contract MintWithPermitTests is PoolBase {
 
         ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MINT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
-        address asset_ = IPool(pool).asset();
+        address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(STAKER, MINT_AMOUNT);
 
         vm.startPrank(STAKER);
@@ -576,7 +579,7 @@ contract MintWithPermitTests is PoolBase {
 
 }
 
-contract RedeemTests is PoolBase {
+contract RedeemTests is TestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -728,7 +731,7 @@ contract RedeemTests is PoolBase {
 
 }
 
-contract RemoveSharesTests is PoolBase {
+contract RemoveSharesTests is TestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -791,7 +794,7 @@ contract RemoveSharesTests is PoolBase {
 
 }
 
-contract RequestRedeemTests is PoolBase {
+contract RequestRedeemTests is TestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -873,7 +876,7 @@ contract RequestRedeemTests is PoolBase {
 
 }
 
-contract RequestWithdraw is PoolBase {
+contract RequestWithdraw is TestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -943,7 +946,7 @@ contract RequestWithdraw is PoolBase {
 
 }
 
-contract TransferTests is PoolBase {
+contract TransferTests is TestBase {
 
     address RECIPIENT = address(new Address());
 
@@ -960,7 +963,7 @@ contract TransferTests is PoolBase {
 
 }
 
-contract TransferFromTests is PoolBase {
+contract TransferFromTests is TestBase {
 
     address RECIPIENT = address(new Address());
     address OWNER     = address(new Address());
@@ -983,7 +986,7 @@ contract TransferFromTests is PoolBase {
 
 }
 
-contract WithdrawTests is PoolBase {
+contract WithdrawTests is TestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -1022,7 +1025,7 @@ contract WithdrawTests is PoolBase {
 
 }
 
-contract PreviewDepositTests is PoolBase {
+contract PreviewDepositTests is TestBase {
 
     function test_previewDeposit_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1099,7 +1102,7 @@ contract PreviewDepositTests is PoolBase {
 
 }
 
-contract PreviewMintTests is PoolBase {
+contract PreviewMintTests is TestBase {
 
     function test_previewMint_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1171,7 +1174,7 @@ contract PreviewMintTests is PoolBase {
 
 }
 
-contract ConvertToExitAssetsTests is PoolBase {
+contract ConvertToExitAssetsTests is TestBase {
 
     function test_convertToExitAssets_zeroSupply() external {
         assertEq(pool.convertToExitAssets(0),   0);
@@ -1225,7 +1228,7 @@ contract ConvertToExitAssetsTests is PoolBase {
 
 }
 
-// contract PreviewRedeemTests is PoolBase {
+// contract PreviewRedeemTests is TestBase {
 
 //     function test_previewRedeem_initialState() public {
 //         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1302,7 +1305,7 @@ contract ConvertToExitAssetsTests is PoolBase {
 
 // }
 
-// contract PreviewWithdrawTests is PoolBase {
+// contract PreviewWithdrawTests is TestBase {
 
 //     function test_previewWithdraw_initialState() public {
 //         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1392,7 +1395,7 @@ contract ConvertToExitAssetsTests is PoolBase {
 
 // }
 
-contract ConvertToAssetsTests is PoolBase {
+contract ConvertToAssetsTests is TestBase {
 
     function test_convertToAssets_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1459,7 +1462,7 @@ contract ConvertToAssetsTests is PoolBase {
     }
 }
 
-contract ConvertToSharesTests is PoolBase {
+contract ConvertToSharesTests is TestBase {
 
     function test_convertToShares_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });

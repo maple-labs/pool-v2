@@ -3,4 +3,4 @@ pragma solidity 0.8.7;
 
 import { IMapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
-interface IPoolManagerFactory is IMapleProxyFactory {}
+interface IMaplePoolManagerFactory is IMapleProxyFactory {}

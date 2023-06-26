@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
+import { IMaplePoolManagerStorage } from "../interfaces/IMaplePoolManagerStorage.sol";
 
-abstract contract PoolManagerStorage is IPoolManagerStorage {
+abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
     uint256 internal _locked;  // Used when checking for reentrancy.
 

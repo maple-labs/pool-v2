@@ -5,7 +5,7 @@ import { IERC20 } from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 
 import { IERC4626 } from "./IERC4626.sol";
 
-interface IPool is IERC20, IERC4626 {
+interface IMaplePool is IERC20, IERC4626 {
 
     /**************************************************************************************************************************************/
     /*** Events                                                                                                                         ***/

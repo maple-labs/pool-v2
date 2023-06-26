@@ -6,7 +6,7 @@ import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/
 import { IMapleProxied }         from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
+import { MaplePoolManagerStorage } from "./proxy/MaplePoolManagerStorage.sol";
 
 import {
     IERC20Like,
@@ -18,16 +18,17 @@ import {
     IWithdrawalManagerLike
 } from "./interfaces/Interfaces.sol";
 
-import { IPoolManager } from "./interfaces/IPoolManager.sol";
+import { IMaplePoolManager } from "./interfaces/IMaplePoolManager.sol";
 
 /*
 
-    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
-    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
-    ██╔████╔██║███████║██████╔╝██║     █████╗
-    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
-    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
-    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+   ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
+   ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
+   ██╔████╔██║███████║██████╔╝██║     █████╗
+   ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
+   ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
+   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+
 
    ██████╗  ██████╗  ██████╗ ██╗         ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
    ██╔══██╗██╔═══██╗██╔═══██╗██║         ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
@@ -38,7 +39,7 @@ import { IPoolManager } from "./interfaces/IPoolManager.sol";
 
 */
 
-contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
+contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePoolManagerStorage {
 
     uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision.
 

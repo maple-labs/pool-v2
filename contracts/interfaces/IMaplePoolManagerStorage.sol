@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-interface IPoolManagerStorage {
+interface IMaplePoolManagerStorage {
 
     /**
      *  @dev    Returns whether or not a pool is active.

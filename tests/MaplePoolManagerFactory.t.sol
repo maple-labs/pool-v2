@@ -4,22 +4,22 @@ pragma solidity 0.8.7;
 import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { PoolManagerFactory }     from "../contracts/proxy/PoolManagerFactory.sol";
-import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
+import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
-import { Pool }        from "../contracts/Pool.sol";
-import { PoolManager } from "../contracts/PoolManager.sol";
+import { MaplePool }        from "../contracts/MaplePool.sol";
+import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
 
 import { MockGlobals } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
+contract TestBase is TestUtils, GlobalsBootstrapper {
 
     address internal PD = address(new Address());
 
-    MockERC20          internal asset;
-    PoolManagerFactory internal factory;
+    MockERC20               internal asset;
+    MaplePoolManagerFactory internal factory;
 
     address internal implementation;
     address internal initializer;
@@ -28,10 +28,10 @@ contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
         asset = new MockERC20("Asset", "AT", 18);
         _deployAndBootstrapGlobals(address(asset), PD);
 
-        factory = new PoolManagerFactory(address(globals));
+        factory = new MaplePoolManagerFactory(address(globals));
 
-        implementation = address(new PoolManager());
-        initializer    = address(new PoolManagerInitializer());
+        implementation = address(new MaplePoolManager());
+        initializer    = address(new MaplePoolManagerInitializer());
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -43,7 +43,7 @@ contract PoolManagerFactoryBase is TestUtils, GlobalsBootstrapper {
 
 }
 
-contract PoolManagerFactoryTest is PoolManagerFactoryBase {
+contract PoolManagerFactoryTest is TestBase {
 
     function test_createInstance() external {
         address migrationAdmin = address(new Address());
@@ -60,9 +60,9 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 
         bytes memory arguments = abi.encode(PD, address(asset), initialSupply, name_, symbol_);
 
-        address poolManagerAddress = PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        address poolManagerAddress = MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
 
-        PoolManager poolManager = PoolManager(poolManagerAddress);
+        MaplePoolManager poolManager = MaplePoolManager(poolManagerAddress);
 
         assertEq(poolManager.factory(),        address(factory));
         assertEq(poolManager.implementation(), implementation);
@@ -71,7 +71,7 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
         assertTrue(address(poolManager.pool()) != address(0));
 
         // Assert Pool was correctly initialized
-        Pool pool = Pool(poolManager.pool());
+        MaplePool pool = MaplePool(poolManager.pool());
 
         assertEq(pool.BOOTSTRAP_MINT(),          bootstrapMint);
         assertEq(pool.manager(),                 poolManagerAddress);
@@ -86,17 +86,17 @@ contract PoolManagerFactoryTest is PoolManagerFactoryBase {
 
 }
 
-contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
+contract PoolManagerFactoryFailureTest is TestBase {
 
     function test_createInstance_notPoolDeployer() external {
         bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
 
         MockGlobals(globals).setValidPoolDeployer(address(this), false);
         vm.expectRevert("PMF:CI:NOT_DEPLOYER");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
 
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithZeroAddressPoolDelegate() external {
@@ -105,7 +105,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         bytes memory arguments = abi.encode(ZERO_PD, address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithInvalidPoolDelegate() external {
@@ -114,7 +114,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         bytes memory arguments = abi.encode(address(owner_), address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(owner_)));
     }
 
     function test_createInstance_failWithActivePoolDelegate() external {
@@ -123,7 +123,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithNonERC20Asset() external {
@@ -132,7 +132,7 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         bytes memory arguments = abi.encode(PD, asset_, 0, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithDisallowedAsset() external {
@@ -141,18 +141,18 @@ contract PoolManagerFactoryFailureTest is PoolManagerFactoryBase {
         MockGlobals(globals).setValidPoolAsset(address(asset), false);
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
     function test_createInstance_failWithZeroAdmin() external {
         bytes memory arguments = abi.encode(PD, address(asset), 1, "Pool", "P2");
 
         vm.expectRevert("MPF:CI:FAILED");
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
 
         MockGlobals(globals).setMigrationAdmin(address(1));
 
-        PoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
+        MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(PD)));
     }
 
 }

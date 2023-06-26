@@ -3,9 +3,9 @@ pragma solidity 0.8.7;
 
 import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
-import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
+import { IMaplePoolManagerStorage } from "./IMaplePoolManagerStorage.sol";
 
-interface IPoolManager is IMapleProxied, IPoolManagerStorage {
+interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**************************************************************************************************************************************/
     /*** Events                                                                                                                         ***/

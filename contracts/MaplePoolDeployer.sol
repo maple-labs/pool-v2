@@ -5,9 +5,17 @@ import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol"
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { IGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
-import { IPoolDeployer }                  from "./interfaces/IPoolDeployer.sol";
+import { IMaplePoolDeployer }             from "./interfaces/IMaplePoolDeployer.sol";
 
 /*
+
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
+    ██╔████╔██║███████║██████╔╝██║     █████╗
+    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+
 
     ██████╗  ██████╗  ██████╗ ██╗         ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███████╗██████╗
     ██╔══██╗██╔═══██╗██╔═══██╗██║         ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝██╔════╝██╔══██╗
@@ -18,7 +26,7 @@ import { IPoolDeployer }                  from "./interfaces/IPoolDeployer.sol";
 
 */
 
-contract PoolDeployer is IPoolDeployer {
+contract MaplePoolDeployer is IMaplePoolDeployer {
 
     address public override globals;
 

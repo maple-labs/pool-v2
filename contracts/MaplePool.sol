@@ -4,21 +4,21 @@ pragma solidity 0.8.7;
 import { ERC20 }       from "../modules/erc20/contracts/ERC20.sol";
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
-import { IPoolManagerLike } from "./interfaces/Interfaces.sol";
-import { IERC20, IPool }    from "./interfaces/IPool.sol";
+import { IPoolManagerLike }   from "./interfaces/Interfaces.sol";
+import { IERC20, IMaplePool } from "./interfaces/IMaplePool.sol";
 
 /*
 
-    ██████╗  ██████╗  ██████╗ ██╗
-    ██╔══██╗██╔═══██╗██╔═══██╗██║
-    ██████╔╝██║   ██║██║   ██║██║
-    ██╔═══╝ ██║   ██║██║   ██║██║
-    ██║     ╚██████╔╝╚██████╔╝███████╗
-    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██████╗  ██████╗  ██████╗ ██╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██╔══██╗██╔═══██╗██╔═══██╗██║
+    ██╔████╔██║███████║██████╔╝██║     █████╗      ██████╔╝██║   ██║██║   ██║██║
+    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██╔═══╝ ██║   ██║██║   ██║██║
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ██║     ╚██████╔╝╚██████╔╝███████╗
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝
 
 */
 
-contract Pool is IPool, ERC20 {
+contract MaplePool is IMaplePool, ERC20 {
 
     uint256 public immutable override BOOTSTRAP_MINT;
 

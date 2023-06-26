@@ -5,17 +5,17 @@ import { Address, TestUtils }                    from "../modules/contract-test-
 import { MockERC20 }                             from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
-import { PoolDeployer }           from "../contracts/PoolDeployer.sol";
-import { PoolManager }            from "../contracts/PoolManager.sol";
-import { PoolManagerInitializer } from "../contracts/proxy/PoolManagerInitializer.sol";
+import { MaplePoolDeployer }           from "../contracts/MaplePoolDeployer.sol";
+import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
-import { IPoolManager } from "../contracts/interfaces/IPoolManager.sol";
+import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
 
 import { MockGlobals, MockMigrator, MockProxied } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
+contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
     address asset;
     address poolDelegate;
@@ -54,7 +54,12 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
         vm.startPrank(GOVERNOR);
 
-        IMapleProxyFactory(poolManagerFactory).registerImplementation(1, address(new PoolManager()), address(new PoolManagerInitializer()));
+        IMapleProxyFactory(poolManagerFactory).registerImplementation(
+            1,
+            address(new MaplePoolManager()),
+            address(new MaplePoolManagerInitializer())
+        );
+
         IMapleProxyFactory(poolManagerFactory).setDefaultVersion(1);
 
         for (uint256 i; i < loanManagerFactories.length; ++i) {
@@ -67,7 +72,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
         vm.stopPrank();
 
-        poolDeployer = address(new PoolDeployer(globals));
+        poolDeployer = address(new MaplePoolDeployer(globals));
         MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
     }
 
@@ -79,7 +84,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
         vm.prank(poolDelegate);
         vm.expectRevert("PD:DP:TRANSFER_FAILED");
-        PoolDeployer(poolDeployer).deployPool(
+        MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
@@ -97,7 +102,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
 
         vm.expectRevert("PD:DP:INVALID_PD");
-        PoolDeployer(poolDeployer).deployPool(
+        MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
@@ -119,7 +124,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             address          expectedPoolDelegateCover_,
             address          expectedWithdrawalManager_,
             address[] memory expectedLoanManagers_
-        ) = PoolDeployer(poolDeployer).getDeploymentAddresses(
+        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
             poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
@@ -131,7 +136,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         );
 
         vm.prank(poolDelegate);
-        address poolManager_ = PoolDeployer(poolDeployer).deployPool(
+        address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
@@ -141,13 +146,13 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             configParams
         );
 
-        assertEq(poolManager_,                                   expectedPoolManager_);
-        assertEq(IPoolManager(poolManager_).pool(),              expectedPool_);
-        assertEq(IPoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
-        assertEq(IPoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
+        assertEq(poolManager_,                                        expectedPoolManager_);
+        assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
+        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
+        assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
         for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
-            assertEq(IPoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
         }
     }
 
@@ -167,7 +172,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             address          expectedPoolDelegateCover_,
             address          expectedWithdrawalManager_,
             address[] memory expectedLoanManagers_
-        ) = PoolDeployer(poolDeployer).getDeploymentAddresses(
+        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
             poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
@@ -179,7 +184,7 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
         );
 
         vm.prank(poolDelegate);
-        address poolManager_ = PoolDeployer(poolDeployer).deployPool(
+        address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
             loanManagerFactories,
@@ -189,13 +194,13 @@ contract PoolDeployerTests is TestUtils, GlobalsBootstrapper {
             noCoverConfigParams
         );
 
-        assertEq(poolManager_,                                   expectedPoolManager_);
-        assertEq(IPoolManager(poolManager_).pool(),              expectedPool_);
-        assertEq(IPoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
-        assertEq(IPoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
+        assertEq(poolManager_,                                        expectedPoolManager_);
+        assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
+        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
+        assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
         for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
-            assertEq(IPoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
         }
     }
 
