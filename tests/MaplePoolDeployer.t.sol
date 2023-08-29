@@ -30,13 +30,14 @@ contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
     address[] loanManagerFactories;
 
-    uint256[6] configParams = [
+    uint256[7] configParams = [
         1_000_000e18,
         0.1e6,
         coverAmountRequired,
         3 days,
         1 days,
-        0
+        0,
+        block.timestamp + 10 days
     ];
 
     function setUp() public virtual {
@@ -157,13 +158,14 @@ contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
     }
 
     function test_deployPool_success_withoutCoverRequired() external {
-        uint256[6] memory noCoverConfigParams = [
+        uint256[7] memory noCoverConfigParams = [
             uint256(1_000_000e18),
             0.1e6,
             0,
             3 days,
             1 days,
-            0
+            0,
+            block.timestamp + 10 days
         ];
 
         (

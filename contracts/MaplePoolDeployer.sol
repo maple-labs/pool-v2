@@ -41,7 +41,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           asset_,
         string     memory name_,
         string     memory symbol_,
-        uint256[6] memory configParams_
+        uint256[7] memory configParams_
     )
         external override
         returns (address poolManager_)
@@ -63,7 +63,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         // Deploy Withdrawal Manager.
         address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
-            abi.encode(pool_, configParams_[3], configParams_[4]),
+            abi.encode(pool_, configParams_[6], configParams_[3], configParams_[4]),
             keccak256(abi.encode(poolManager_))
         );
 
@@ -97,7 +97,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           asset_,
         string     memory name_,
         string     memory symbol_,
-        uint256[6] memory configParams_
+        uint256[7] memory configParams_
     )
         public view override
         returns (
@@ -117,7 +117,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         poolDelegateCover_ = _addressFrom(poolManager_, 2);
 
         withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).getInstanceAddress(
-            abi.encode(pool_, configParams_[3], configParams_[4]),
+            abi.encode(pool_, configParams_[6], configParams_[3], configParams_[4]),
             keccak256(abi.encode(poolManager_))
         );
 

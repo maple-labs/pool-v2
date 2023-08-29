@@ -24,6 +24,7 @@ interface IMaplePoolDeployer {
      *                                    [3]: cycleDuration
      *                                    [4]: windowDuration
      *                                    [5]: initialSupply
+     *                                    [6]: startTime
      *  @return poolManager_ The address of the PoolManager.
      */
     function deployPool(
@@ -33,7 +34,7 @@ interface IMaplePoolDeployer {
         address           asset_,
         string     memory name_,
         string     memory symbol_,
-        uint256[6] memory configParams_
+        uint256[7] memory configParams_
     )
         external
         returns (address poolManager_);
@@ -51,6 +52,7 @@ interface IMaplePoolDeployer {
      *                                    [3]: cycleDuration
      *                                    [4]: windowDuration
      *                                    [5]: initialSupply
+     *                                    [6]: startTime
      *  @return poolManager_       The address of the PoolManager contract that will be deployed.
      *  @return pool_              The address of the Pool contract that will be deployed.
      *  @return poolDelegateCover_ The address of the PoolDelegateCover contract that will be deployed.
@@ -65,7 +67,7 @@ interface IMaplePoolDeployer {
         address           asset_,
         string     memory name_,
         string     memory symbol_,
-        uint256[6] memory configParams_
+        uint256[7] memory configParams_
     )
         external view
         returns (
