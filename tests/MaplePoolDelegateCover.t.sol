@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test }      from "../modules/forge-std/src/Test.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { MaplePoolDelegateCover } from "../contracts/MaplePoolDelegateCover.sol";
 
-contract MaplePoolDelegateCoverTests is TestUtils {
+contract MaplePoolDelegateCoverTests is Test {
 
-    address pool         = address(new Address());
-    address poolManager  = address(new Address());
-    address poolDelegate = address(new Address());
+    address pool         = makeAddr("pool");
+    address poolManager  = makeAddr("poolManager");
+    address poolDelegate = makeAddr("poolDelegate");
 
     address asset;
     address poolDelegateCover;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test }      from "../modules/forge-std/src/Test.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
 import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
@@ -24,9 +24,9 @@ import { MaplePoolManagerHarness } from "./harnesses/MaplePoolManagerHarness.sol
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract TestBase is TestUtils, GlobalsBootstrapper {
+contract TestBase is Test, GlobalsBootstrapper {
 
-    address internal POOL_DELEGATE = address(new Address());
+    address internal POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
     MockERC20     internal asset;
     MockERC20Pool internal pool;
@@ -188,7 +188,7 @@ contract SetImplementationTests is TestBase {
 
 contract UpgradeTests is TestBase {
 
-    address internal SECURITY_ADMIN = address(new Address());
+    address internal SECURITY_ADMIN = makeAddr("SECURITY_ADMIN");
 
     address internal newImplementation = address(new MaplePoolManager());
 
@@ -252,7 +252,7 @@ contract UpgradeTests is TestBase {
 
 contract AcceptPoolDelegate_SetterTests is TestBase {
 
-    address internal SET_ADDRESS = address(new Address());
+    address internal SET_ADDRESS = makeAddr("SET_ADDRESS");
 
     function setUp() public override {
         super.setUp();
@@ -297,7 +297,7 @@ contract AcceptPoolDelegate_SetterTests is TestBase {
 
 contract SetPendingPoolDelegate_SetterTests is TestBase {
 
-    address internal SET_ADDRESS = address(new Address());
+    address internal SET_ADDRESS = makeAddr("SET_ADDRESS");
 
     function test_setPendingPoolDelegate_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -547,9 +547,9 @@ contract SetOpenToPublic_SetterTests is TestBase {
 
 contract TriggerDefault is TestBase {
 
-    address internal AUCTIONEER = address(new Address());
-    address internal BORROWER   = address(new Address());
-    address internal LP         = address(new Address());
+    address internal AUCTIONEER = makeAddr("AUCTIONEER");
+    address internal BORROWER   = makeAddr("BORROWER");
+    address internal LP         = makeAddr("LP");
 
     address internal loan;
     address internal poolDelegateCover;
@@ -629,9 +629,9 @@ contract TriggerDefault is TestBase {
 
 contract FinishCollateralLiquidation is TestBase {
 
-    address internal BORROWER = address(new Address());
-    address internal LOAN     = address(new Address());
-    address internal LP       = address(new Address());
+    address internal BORROWER = makeAddr("BORROWER");
+    address internal LOAN     = makeAddr("LOAN");
+    address internal LP       = makeAddr("LP");
 
     address internal loan;
     address internal poolDelegateCover;
@@ -881,8 +881,8 @@ contract ProcessRedeemTests is TestBase {
     }
 
     function test_processRedeem_noApproval() external {
-        address user1 = address(new Address());
-        address user2 = address(new Address());
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
 
         vm.prank(poolManager.pool());
         vm.expectRevert("PM:PR:NO_ALLOWANCE");
@@ -895,8 +895,8 @@ contract ProcessRedeemTests is TestBase {
     }
 
     function test_processRedeem_success_notSender() external {
-        address user1 = address(new Address());
-        address user2 = address(new Address());
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
 
         vm.prank(user1);
         pool.approve(user2, 1);
@@ -1557,7 +1557,7 @@ contract CanCallTests is TestBase {
     }
 
     function test_canCall_invalidFunctionId() external {
-        address caller     = address(new Address());
+        address caller     = makeAddr("caller");
         bytes32 functionId = bytes32("Fake Function");
 
         bytes memory data = new bytes(0);
@@ -1624,7 +1624,7 @@ contract HandleCoverTests is TestBase {
 
         MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 1e6);
 
-        loanManager = address(new Address());
+        loanManager = makeAddr("loanManager");
 
         poolManager.__setIsLoanManager(loanManager, true);
         poolManager.__pushToLoanManagerList(loanManager);
@@ -1799,7 +1799,7 @@ contract MaxDepositTests is TestBase {
     }
 
     function test_maxDeposit_privatePool() external {
-        address lp = address(new Address());
+        address lp = makeAddr("lp");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1817,7 +1817,7 @@ contract MaxDepositTests is TestBase {
     }
 
     function test_maxDeposit_publicPool() external {
-        address lp = address(new Address());
+        address lp = makeAddr("lp");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1831,8 +1831,8 @@ contract MaxDepositTests is TestBase {
     }
 
     function test_maxDeposit_liquidityCap() external {
-        address lp1 = address(new Address());
-        address lp2 = address(new Address());
+        address lp1 = makeAddr("lp1");
+        address lp2 = makeAddr("lp2");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1907,7 +1907,7 @@ contract MaxMintTests is TestBase {
     function test_maxMint_privatePool() external {
         _doInitialDeposit();
 
-        address lp = address(new Address());
+        address lp = makeAddr("lp");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1927,7 +1927,7 @@ contract MaxMintTests is TestBase {
     function test_maxMint_publicPool() external {
         _doInitialDeposit();
 
-        address lp = address(new Address());
+        address lp = makeAddr("lp");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1943,8 +1943,8 @@ contract MaxMintTests is TestBase {
     function test_maxMint_liquidityCap_exchangeRateOneToOne() external {
         _doInitialDeposit();
 
-        address lp1 = address(new Address());
-        address lp2 = address(new Address());
+        address lp1 = makeAddr("lp1");
+        address lp2 = makeAddr("lp2");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1973,8 +1973,8 @@ contract MaxMintTests is TestBase {
     function test_maxMint_liquidityCap_exchangeRateGtOne() external {
         _doInitialDeposit();
 
-        address lp1 = address(new Address());
-        address lp2 = address(new Address());
+        address lp1 = makeAddr("lp1");
+        address lp2 = makeAddr("lp2");
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1996,9 +1996,9 @@ contract MaxMintTests is TestBase {
     }
 
     function testFuzz_maxMint_liquidityCap(address lp1, address lp2, uint256 liquidityCap, uint256 initialDeposit, uint256 totalAssets) external {
-        liquidityCap  = constrictToRange(liquidityCap,  1,             1e29);
-        initialDeposit = constrictToRange(initialDeposit, 1,             liquidityCap);
-        totalAssets   = constrictToRange(totalAssets,   initialDeposit, 1e29);
+        liquidityCap   = bound(liquidityCap,   1,              1e29);
+        initialDeposit = bound(initialDeposit, 1,              liquidityCap);
+        totalAssets    = bound(totalAssets,    initialDeposit, 1e29);
 
         vm.startPrank(POOL_DELEGATE);
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils }                    from "../modules/contract-test-utils/contracts/test.sol";
+import { Test }                                  from "../modules/forge-std/src/Test.sol";
 import { MockERC20 }                             from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
@@ -15,7 +15,7 @@ import { MockGlobals, MockMigrator, MockProxied } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
+contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
 
     address asset;
     address poolDelegate;
@@ -42,7 +42,7 @@ contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
 
     function setUp() public virtual {
         asset        = address(new MockERC20("Asset", "AT", 18));
-        poolDelegate = address(new Address());
+        poolDelegate = makeAddr("poolDelegate");
 
         _deployAndBootstrapGlobals(asset, poolDelegate);
 
@@ -207,4 +207,3 @@ contract MaplePoolDeployerTests is TestUtils, GlobalsBootstrapper {
     }
 
 }
-

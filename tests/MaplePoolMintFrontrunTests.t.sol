@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
-
+import { Test }       from "../modules/forge-std/src/Test.sol";
+import { stdError }   from "../modules/forge-std/src/StdError.sol";
+import { MockERC20 }  from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
 import { MaplePool }                   from "../contracts/MaplePool.sol";
@@ -15,11 +15,11 @@ import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./mocks/Moc
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
+contract MaplePoolMintFrontrunTests is Test, GlobalsBootstrapper {
 
-    address POOL_DELEGATE = address(new Address());
-    address USER1         = address(new Address());
-    address USER2         = address(new Address());
+    address POOL_DELEGATE = makeAddr("POOL_DELEGATE");
+    address USER1         = makeAddr("USER1");
+    address USER2         = makeAddr("USER2");
 
     MockERC20               asset;
     MockWithdrawalManager   withdrawalManager;
@@ -137,7 +137,7 @@ contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
         asset.approve(address(pool), attackerDepositAmount);
 
         // Call reverts because `attackerDepositAmount` is less thank BOOTSTRAP_MINT causing underflow.
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.deposit(attackerDepositAmount, USER1);
     }
 
@@ -171,7 +171,7 @@ contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
         uint256 attackerDepositAmount = 0.00001001e8;
         uint256 victimDepositAmount   = 2e8;
 
-        attackerTransferAmount = constrictToRange(attackerTransferAmount, 1e8, 100e8);
+        attackerTransferAmount = bound(attackerTransferAmount, 1e8, 100e8);
 
         asset.mint(USER1, attackerDepositAmount + attackerTransferAmount);
         asset.mint(USER2, victimDepositAmount);
@@ -193,7 +193,7 @@ contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
     function testFuzz_depositFrontRun_honestTenPercentHarm(uint256 user1DepositAmount) external {
         _deploy(0.00001e8);
 
-        user1DepositAmount = constrictToRange(user1DepositAmount, 0.0001e8, 100e8);
+        user1DepositAmount = bound(user1DepositAmount, 0.0001e8, 100e8);
 
         uint256 user2DepositAmount = 2e8;
 
@@ -205,13 +205,13 @@ contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
 
         assertTrue(pool.balanceOfAssets(USER1) >= (90 * user1DepositAmount) / 100);
 
-        assertWithinDiff(pool.balanceOfAssets(USER2), 2e8, 1);
+        assertApproxEqRel(pool.balanceOfAssets(USER2), 2e8, 1);
     }
 
     function testFuzz_depositFrontRun_honestOnePercentHarm(uint256 user1DepositAmount) external {
         _deploy(0.000001e8);
 
-        user1DepositAmount = constrictToRange(user1DepositAmount, 0.0001e8, 100e8);
+        user1DepositAmount = bound(user1DepositAmount, 0.0001e8, 100e8);
 
         uint256 user2DepositAmount = 2e8;
 
@@ -223,7 +223,7 @@ contract MaplePoolMintFrontrunTests is TestUtils, GlobalsBootstrapper {
 
         assertTrue(pool.balanceOfAssets(USER1) >= (99 * user1DepositAmount) / 100);
 
-        assertWithinDiff(pool.balanceOfAssets(USER2), 2e8, 1);
+        assertApproxEqRel(pool.balanceOfAssets(USER2), 2e8, 1);
     }
 
 }

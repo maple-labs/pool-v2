@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
-
+import { Test }       from "../modules/forge-std/src/Test.sol";
+import { stdError }   from "../modules/forge-std/src/StdError.sol";
+import { MockERC20 }  from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
 import { MaplePool }                   from "../contracts/MaplePool.sol";
@@ -21,20 +21,20 @@ import {
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract TestBase is TestUtils, GlobalsBootstrapper {
+contract TestBase is Test, GlobalsBootstrapper {
 
-    address POOL_DELEGATE = address(new Address());
+    address POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
-    MockReenteringERC20   asset;
-    MockWithdrawalManager withdrawalManager;
-    MaplePool                  pool;
-    MaplePoolManagerFactory    factory;
+    MockReenteringERC20     asset;
+    MockWithdrawalManager   withdrawalManager;
+    MaplePool               pool;
+    MaplePoolManagerFactory factory;
 
     address poolManager;
     address implementation;
     address initializer;
 
-    address user = address(new Address());
+    address user = makeAddr("user");
 
     function setUp() public virtual {
         asset = new MockReenteringERC20();
@@ -131,14 +131,14 @@ contract ConstructorTests is TestBase {
         vm.expectRevert("P:C:ZERO_MANAGER");
         new MaplePool(address(0), asset, address(0), 0, 0, "MaplePool", "POOL1");
 
-        new MaplePool(address(new Address()), asset, address(0), 0, 0, "MaplePool", "POOL1");
+        new MaplePool(makeAddr("1"), asset, address(0), 0, 0, "MaplePool", "POOL1");
     }
 
     function test_constructor_invalidDecimals() public {
         address asset = address(new MockRevertingERC20("Asset", "AT", 18));
         MockRevertingERC20(asset).__setIsRevertingDecimals(true);
 
-        address poolDelegate = address(new Address());
+        address poolDelegate = makeAddr("poolDelegate");
 
         vm.expectRevert("ERC20:D:REVERT");
         new MaplePool(poolDelegate, asset, address(0), 0, 0, "MaplePool", "POOL1");
@@ -151,7 +151,7 @@ contract ConstructorTests is TestBase {
         address asset = address(new MockRevertingERC20("Asset", "AT", 18));
         MockRevertingERC20(asset).__setIsRevertingApprove(true);
 
-        address poolDelegate = address(new Address());
+        address poolDelegate = makeAddr("poolDelegate");
 
         vm.expectRevert("P:C:FAILED_APPROVE");
         new MaplePool(poolDelegate, asset, address(0), 0, 0, "MaplePool", "POOL1");
@@ -197,7 +197,7 @@ contract DepositTests is TestBase {
     }
 
     function testFuzz_deposit_badApprove(uint256 depositAmount_) public {
-        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
+        depositAmount_ = bound(depositAmount_, 1, 1e29);
 
         asset.mint(address(this),    depositAmount_);
         asset.approve(address(pool), depositAmount_ - 1);
@@ -207,7 +207,7 @@ contract DepositTests is TestBase {
     }
 
     function testFuzz_deposit_insufficientBalance(uint256 depositAmount_) public {
-        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
+        depositAmount_ = bound(depositAmount_, 1, 1e29);
 
         asset.mint(address(this),    depositAmount_);
         asset.approve(address(pool), depositAmount_ + 1);
@@ -346,7 +346,7 @@ contract DepositWithPermitTests is TestBase {
     }
 
     function testFuzz_depositWithPermit_insufficientBalance(uint256 depositAmount_) public {
-        depositAmount_ = constrictToRange(depositAmount_, 1, 1e29);
+        depositAmount_ = bound(depositAmount_, 1, 1e29);
         asset.mint(STAKER, depositAmount_);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), depositAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
@@ -402,7 +402,7 @@ contract MintTests is TestBase {
     }
 
     function testFuzz_mint_badApprove(uint256 mintAmount_) public {
-        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
+        mintAmount_ = bound(mintAmount_, 1, 1e29);
 
         asset.mint(address(this),    mintAmount_);
         asset.approve(address(pool), mintAmount_ - 1);
@@ -412,7 +412,7 @@ contract MintTests is TestBase {
     }
 
     function testFuzz_mint_insufficientBalance(uint256 mintAmount_) public {
-        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
+        mintAmount_ = bound(mintAmount_, 1, 1e29);
 
         asset.mint(address(this),    mintAmount_);
         asset.approve(address(pool), mintAmount_ + 1);
@@ -556,7 +556,7 @@ contract MintWithPermitTests is TestBase {
     }
 
     function testFuzz_mintWithPermit_insufficientBalance(uint256 mintAmount_) public {
-        mintAmount_ = constrictToRange(mintAmount_, 1, 1e29);
+        mintAmount_ = bound(mintAmount_, 1, 1e29);
         asset.mint(STAKER, mintAmount_);
 
         ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), mintAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
@@ -647,13 +647,13 @@ contract RedeemTests is TestBase {
     function test_redeem_insufficientApprove() external {
         MockPoolManager(poolManager).__setRedeemableShares(depositAmount);
 
-        address user2 = address(new Address());
+        address user2 = makeAddr("user2");
 
         vm.prank(user);
         pool.approve(user2, depositAmount - 1);
 
         vm.prank(user2);
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.redeem(depositAmount, user2, user);
 
         vm.prank(user);
@@ -667,7 +667,7 @@ contract RedeemTests is TestBase {
         MockPoolManager(poolManager).__setRedeemableShares(depositAmount + 1);
 
         vm.prank(user);
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.redeem(depositAmount + 1, user, user);
     }
 
@@ -704,7 +704,7 @@ contract RedeemTests is TestBase {
         MockPoolManager(address(poolManager)).__setRedeemableAssets(1000e6);
         asset.mint(address(pool), 1000e6);
 
-        address user2 = address(new Address());
+        address user2 = makeAddr("user2");
 
         vm.prank(user);
         pool.approve(user2, 1000e6);
@@ -759,7 +759,7 @@ contract RemoveSharesTests is TestBase {
     }
 
     function test_removeShares_failWithoutApproval() public {
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.removeShares(500e6, address(user));
     }
 
@@ -770,7 +770,7 @@ contract RemoveSharesTests is TestBase {
         assertEq(pool.allowance(user, address(this)), 500e6 - 1);
 
         // Fail with insufficient approval
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.removeShares(500e6, address(user));
 
         vm.prank(user);
@@ -820,7 +820,7 @@ contract RequestRedeemTests is TestBase {
     }
 
     function test_requestRedeem_failWithoutApproval() public {
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.requestRedeem(500e6, address(user));
     }
 
@@ -831,7 +831,7 @@ contract RequestRedeemTests is TestBase {
         assertEq(pool.allowance(user, address(this)), 500e6 - 1);
 
         // Fail with insufficient approval
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.requestRedeem(500e6, address(user));
 
         vm.prank(user);
@@ -902,7 +902,7 @@ contract RequestWithdraw is TestBase {
     }
 
     function test_requestWithdraw_failWithoutApproval() public {
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.requestWithdraw(500e6, address(user));
     }
 
@@ -913,7 +913,7 @@ contract RequestWithdraw is TestBase {
         assertEq(pool.allowance(user, address(this)), 500e6 - 1);
 
         // Fail with insufficient approval
-        vm.expectRevert(ARITHMETIC_ERROR);
+        vm.expectRevert(stdError.arithmeticError);
         pool.requestWithdraw(500e6, address(user));
 
         vm.prank(user);
@@ -934,7 +934,7 @@ contract RequestWithdraw is TestBase {
     }
 
     function testFuzz_requestWithdraw_failNotEnabled(uint256 assets_) public {
-        assets_ = constrictToRange(assets_, 0, depositAmount);
+        assets_ = bound(assets_, 0, depositAmount);
         vm.prank(user);
         pool.approve(address(this), assets_);
 
@@ -948,7 +948,7 @@ contract RequestWithdraw is TestBase {
 
 contract TransferTests is TestBase {
 
-    address RECIPIENT = address(new Address());
+    address RECIPIENT = makeAddr("RECIPIENT");
 
     uint256 TRANSFER_AMOUNT = 1e18;
 
@@ -965,8 +965,8 @@ contract TransferTests is TestBase {
 
 contract TransferFromTests is TestBase {
 
-    address RECIPIENT = address(new Address());
-    address OWNER     = address(new Address());
+    address RECIPIENT = makeAddr("RECIPIENT");
+    address OWNER     = makeAddr("OWNER");
 
     uint256 TRANSFER_AMOUNT = 1e18;
 
@@ -1038,13 +1038,13 @@ contract PreviewDepositTests is TestBase {
     function test_previewDeposit_worthlessShares() public {
         _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.previewDeposit(0);
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.previewDeposit(1);
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.previewDeposit(2);
     }
 
@@ -1081,14 +1081,14 @@ contract PreviewDepositTests is TestBase {
     }
 
     function testFuzz_previewDeposit(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToDeposit_) public {
-        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
-        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
-        assetsToDeposit_ = constrictToRange(assetsToDeposit_, 0, 1e30);
+        totalSupply_     = bound(totalSupply_,     0, 1e30);
+        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        assetsToDeposit_ = bound(assetsToDeposit_, 0, 1e30);
 
         _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
 
         if (totalSupply_ != 0 && totalAssets_ == 0) {
-            vm.expectRevert(ZERO_DIVISION);
+            vm.expectRevert(stdError.divisionError);
         }
 
         uint256 sharesToMint_ = pool.previewDeposit(assetsToDeposit_);
@@ -1153,9 +1153,9 @@ contract PreviewMintTests is TestBase {
     }
 
     function testFuzz_previewMint(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToMint_) public {
-        totalSupply_  = constrictToRange(totalSupply_,  0, 1e30);
-        totalAssets_  = constrictToRange(totalAssets_,  0, 1e30);
-        sharesToMint_ = constrictToRange(sharesToMint_, 0, 1e30);
+        totalSupply_  = bound(totalSupply_,  0, 1e30);
+        totalAssets_  = bound(totalAssets_,  0, 1e30);
+        sharesToMint_ = bound(sharesToMint_, 0, 1e30);
 
         _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
 
@@ -1213,10 +1213,10 @@ contract ConvertToExitAssetsTests is TestBase {
     }
 
     function testFuzz_convertToExitAssets(uint256 totalSupply, uint256 totalAssets, uint256 unrealizedLosses, uint256 shares) external {
-        totalSupply      = constrictToRange(totalSupply,      1, 1e29);
-        totalAssets      = constrictToRange(totalAssets,      0, 1e29);
-        unrealizedLosses = constrictToRange(unrealizedLosses, 0, totalAssets);
-        shares           = constrictToRange(shares,           1, 1e29);
+        totalSupply      = bound(totalSupply,      1, 1e29);
+        totalAssets      = bound(totalAssets,      0, 1e29);
+        unrealizedLosses = bound(unrealizedLosses, 0, totalAssets);
+        shares           = bound(shares,           1, 1e29);
 
         _deposit(address(pool), address(poolManager), address(this), totalSupply);  // Set totalSupply
 
@@ -1446,9 +1446,9 @@ contract ConvertToAssetsTests is TestBase {
     }
 
     function testFuzz_convertToAssets(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToConvert_) public {
-        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
-        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
-        sharesToConvert_ = constrictToRange(sharesToConvert_, 0, 1e30);
+        totalSupply_     = bound(totalSupply_,     0, 1e30);
+        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        sharesToConvert_ = bound(sharesToConvert_, 0, 1e30);
 
         _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
 
@@ -1475,13 +1475,13 @@ contract ConvertToSharesTests is TestBase {
     function test_convertToShares_worthlessShares() public {
         _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.convertToShares(0);
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.convertToShares(1);
 
-        vm.expectRevert(ZERO_DIVISION);
+        vm.expectRevert(stdError.divisionError);
         pool.convertToShares(2);
     }
 
@@ -1518,14 +1518,14 @@ contract ConvertToSharesTests is TestBase {
     }
 
     function testFuzz_convertToShares(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToConvert_) public {
-        totalSupply_     = constrictToRange(totalSupply_,     0, 1e30);
-        totalAssets_     = constrictToRange(totalAssets_,     0, 1e30);
-        assetsToConvert_ = constrictToRange(assetsToConvert_, 0, 1e30);
+        totalSupply_     = bound(totalSupply_,     0, 1e30);
+        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        assetsToConvert_ = bound(assetsToConvert_, 0, 1e30);
 
         _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
 
         if (totalSupply_ != 0 && totalAssets_ == 0) {
-            vm.expectRevert(ZERO_DIVISION);
+            vm.expectRevert(stdError.divisionError);
         }
 
         uint256 shares_ = pool.convertToShares(assetsToConvert_);

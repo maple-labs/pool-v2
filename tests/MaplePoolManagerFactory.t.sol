@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test }      from "../modules/forge-std/src/Test.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
@@ -14,9 +14,9 @@ import { MockGlobals } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
-contract TestBase is TestUtils, GlobalsBootstrapper {
+contract TestBase is Test, GlobalsBootstrapper {
 
-    address internal PD = address(new Address());
+    address internal PD = makeAddr("PD");
 
     MockERC20               internal asset;
     MaplePoolManagerFactory internal factory;
@@ -46,7 +46,7 @@ contract TestBase is TestUtils, GlobalsBootstrapper {
 contract PoolManagerFactoryTest is TestBase {
 
     function test_createInstance() external {
-        address migrationAdmin = address(new Address());
+        address migrationAdmin = makeAddr("migrationAdmin");
 
         uint256 bootstrapMint = 200;
 
