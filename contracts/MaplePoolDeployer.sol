@@ -39,6 +39,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           withdrawalManagerFactory_,
         address[]  memory loanManagerFactories_,
         address           asset_,
+        address           poolPermissionManager_,
         string     memory name_,
         string     memory symbol_,
         uint256[7] memory configParams_
@@ -52,6 +53,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         require(globals_.isInstanceOf("POOL_MANAGER_FACTORY",       poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
         require(globals_.isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
+        require(globals_.isInstanceOf("POOL_PERMISSION_MANAGER",    poolPermissionManager_),    "PD:DP:INVALID_PPM");
 
         // Deploy Pool Manager (and Pool).
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
@@ -85,6 +87,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
         IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
+        IPoolManagerLike(poolManager_).setPoolPermissionManager(poolPermissionManager_);
         IPoolManagerLike(poolManager_).setWithdrawalManager(withdrawalManager_);
         IPoolManagerLike(poolManager_).completeConfiguration();
     }

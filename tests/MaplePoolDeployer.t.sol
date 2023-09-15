@@ -11,7 +11,7 @@ import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManager
 
 import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
 
-import { MockGlobals, MockMigrator, MockProxied } from "./mocks/Mocks.sol";
+import { MockGlobals, MockMigrator, MockPoolPermissionManager, MockProxied } from "./mocks/Mocks.sol";
 
 import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
 
@@ -21,6 +21,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
     address poolDelegate;
     address poolDeployer;
     address poolManagerFactory;
+    address poolPermissionManager;
     address withdrawalManagerFactory;
 
     string name   = "Pool";
@@ -52,6 +53,8 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
 
         poolManagerFactory       = address(new MapleProxyFactory(globals));
         withdrawalManagerFactory = address(new MapleProxyFactory(globals));
+
+        poolPermissionManager = address(new MockPoolPermissionManager());
 
         vm.startPrank(GOVERNOR);
 
@@ -90,6 +93,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             asset,
+            poolPermissionManager,
             name,
             symbol,
             configParams
@@ -108,6 +112,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             asset,
+            poolPermissionManager,
             name,
             symbol,
             configParams
@@ -142,6 +147,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             asset,
+            poolPermissionManager,
             name,
             symbol,
             configParams
@@ -191,6 +197,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             withdrawalManagerFactory,
             loanManagerFactories,
             asset,
+            poolPermissionManager,
             name,
             symbol,
             noCoverConfigParams

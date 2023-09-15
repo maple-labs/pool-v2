@@ -35,13 +35,6 @@ interface IMaplePoolManagerStorage {
     function isLoanManager(address loan_) external view returns (bool isLoanManager_);
 
     /**
-     *  @dev    Returns whether or not the given address is a valid lender.
-     *  @param  lender_        The address of the lender.
-     *  @return isValidLender_ True if the address is a valid lender.
-     */
-    function isValidLender(address lender_) external view returns (bool isValidLender_);
-
-    /**
      *  @dev    Gets the liquidity cap for the pool.
      *  @return liquidityCap_ The liquidity cap for the pool.
      */
@@ -53,12 +46,6 @@ interface IMaplePoolManagerStorage {
      *  @return loanManager_ The address in the list.
      */
     function loanManagerList(uint256 index_) external view returns (address loanManager_);
-
-    /**
-     *  @dev    Returns whether or not a pool is open to public deposits.
-     *  @return openToPublic_ True if the pool is open to public deposits.
-     */
-    function openToPublic() external view returns (bool openToPublic_);
 
     /**
      *  @dev    Gets the address of the pending pool delegate.
@@ -83,6 +70,12 @@ interface IMaplePoolManagerStorage {
      *  @return poolDelegateCover_ The address of the pool delegate cover.
      */
     function poolDelegateCover() external view returns (address poolDelegateCover_);
+
+    /**
+     *  @dev    Gets the address of the pool delegate cover.
+     *  @return poolPermissionManager_ The address of the pool permission manager.
+     */
+    function poolPermissionManager() external view returns (address poolPermissionManager_);
 
     /**
      *  @dev    Gets the address of the withdrawal manager.

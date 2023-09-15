@@ -137,11 +137,19 @@ interface IPoolManagerLike {
 
     function setLiquidityCap(uint256 liquidityCap_) external;
 
+    function setPoolPermissionManager(address poolPermissionManager_) external;
+
     function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);
 
     function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface IPoolPermissionManagerLike {
+
+    function hasPermission(address poolManager, address caller, bytes32 functionId) external view returns (bool allowed);
 
 }
 

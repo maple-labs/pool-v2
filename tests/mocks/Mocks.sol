@@ -491,6 +491,20 @@ contract MockPoolManagerMigratorInvalidPoolDelegateCover is MaplePoolManagerStor
 
 }
 
+contract MockPoolPermissionManager {
+
+    bool _allowed;
+
+    function hasPermission(address, address, bytes32) external view returns (bool allowed_) {
+        allowed_ = _allowed;
+    }
+    
+    function __setAllowed(bool allowed_) external {
+        _allowed = allowed_;
+    }
+
+}
+
 contract MockMigrator {
 
     fallback() external {

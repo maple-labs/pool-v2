@@ -13,6 +13,10 @@ contract MaplePoolManagerHarness is MaplePoolManager {
         isLoanManager[loanManager_] = isLoanManager_;
     }
 
+    function __setPoolPermissionManager(address poolPermissionManager_) external {
+        poolPermissionManager = poolPermissionManager_;
+    }
+
     function __pushToLoanManagerList(address loanManager_) external {
         loanManagerList.push(loanManager_);
     }

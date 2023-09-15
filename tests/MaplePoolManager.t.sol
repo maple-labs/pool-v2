@@ -17,6 +17,7 @@ import {
     MockLoanManager,
     MockPoolManagerMigrator,
     MockPoolManagerMigratorInvalidPoolDelegateCover,
+    MockPoolPermissionManager,
     MockWithdrawalManager
 } from "./mocks/Mocks.sol";
 
@@ -28,10 +29,11 @@ contract TestBase is Test, GlobalsBootstrapper {
 
     address internal POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
-    MockERC20     internal asset;
-    MockERC20Pool internal pool;
-    MockFactory   internal liquidatorFactory;
-    MockFactory   internal withdrawalManagerFactory;
+    MockERC20                 internal asset;
+    MockERC20Pool             internal pool;
+    MockFactory               internal liquidatorFactory;
+    MockFactory               internal withdrawalManagerFactory;
+    MockPoolPermissionManager internal mockPoolPermissionManager;
 
     MaplePoolManagerHarness internal poolManager;
     MaplePoolManagerFactory internal factory;
@@ -66,6 +68,11 @@ contract TestBase is Test, GlobalsBootstrapper {
             arguments,
             keccak256(abi.encode(POOL_DELEGATE))
         ));
+
+        mockPoolPermissionManager = new MockPoolPermissionManager();
+        mockPoolPermissionManager.__setAllowed(true);
+
+        poolManager.__setPoolPermissionManager(address(mockPoolPermissionManager));
 
         withdrawalManagerFactory = new MockFactory();
         withdrawalManager        = address(new MockWithdrawalManager());
@@ -361,36 +368,6 @@ contract SetActive_SetterTests is TestBase {
     }
 }
 
-contract SetAllowedLender_SetterTests is TestBase {
-
-    function test_setAllowedLender_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.prank(address(globals));
-        vm.expectRevert("PM:PAUSED");
-        poolManager.setAllowedLender(address(this), true);
-    }
-
-    function test_setAllowedLender_notPoolDelegate() external {
-        vm.expectRevert("PM:NOT_PD");
-        poolManager.setAllowedLender(address(this), true);
-    }
-
-    function test_setAllowedLender_success() external {
-        assertTrue(!poolManager.isValidLender(address(this)));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(address(this), true);
-
-        assertTrue(poolManager.isValidLender(address(this)));
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(address(this), false);
-
-        assertTrue(!poolManager.isValidLender(address(this)));
-    }
-}
-
 contract SetLiquidityCap_SetterTests is TestBase {
 
     function test_setLiquidityCap_paused() external {
@@ -518,31 +495,6 @@ contract SetIsLoanManager_SetterTests is TestBase {
         assertTrue(poolManager.isLoanManager(loanManager2));
     }
 
-}
-
-contract SetOpenToPublic_SetterTests is TestBase {
-
-    function test_setOpenToPublic_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PAUSED");
-        poolManager.setOpenToPublic();
-    }
-
-    function test_setOpenToPublic_notPoolDelegate() external {
-        vm.expectRevert("PM:NOT_PD");
-        poolManager.setOpenToPublic();
-    }
-
-    function test_setOpenToPublic_success() external {
-        assertTrue(!poolManager.openToPublic());
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        assertTrue(poolManager.openToPublic());
-    }
 }
 
 contract TriggerDefault is TestBase {
@@ -1019,30 +971,7 @@ contract CanCallTests is TestBase {
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:D:NOT_ACTIVE");
-    }
-
-    function test_canCall_deposit_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:deposit");
-        address receiver_   = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(1_000e6, receiver_);
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:D:LENDER_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
+        assertEq(errorMessage_, "P:NOT_ACTIVE");
     }
 
     function test_canCall_deposit_lenderNotAllowed() external {
@@ -1052,15 +981,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(1_000e6, receiver_);
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:D:LENDER_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(receiver_, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1073,7 +1003,6 @@ contract CanCallTests is TestBase {
         address receiver_   = address(this);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
         poolManager.setLiquidityCap(1_000e6);
         vm.stopPrank();
 
@@ -1082,7 +1011,7 @@ contract CanCallTests is TestBase {
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:D:DEPOSIT_GT_LIQ_CAP");
+        assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
     }
 
     function test_canCall_depositWithPermit_notActive() external {
@@ -1097,30 +1026,7 @@ contract CanCallTests is TestBase {
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:DWP:NOT_ACTIVE");
-    }
-
-    function test_canCall_depositWithPermit_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:depositWithPermit");
-        address receiver_   = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:DWP:LENDER_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
+        assertEq(errorMessage_, "P:NOT_ACTIVE");
     }
 
     function test_canCall_depositWithPermit_lenderNotAllowed() external {
@@ -1130,15 +1036,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:DWP:LENDER_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(receiver_, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1150,17 +1057,15 @@ contract CanCallTests is TestBase {
         bytes32 functionId_ = bytes32("P:depositWithPermit");
         address receiver_   = address(this);
 
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
+        vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1_000e6);
-        vm.stopPrank();
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:DWP:DEPOSIT_GT_LIQ_CAP");
+        assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
     }
 
     function test_canCall_mint_notActive() external {
@@ -1175,30 +1080,7 @@ contract CanCallTests is TestBase {
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:M:NOT_ACTIVE");
-    }
-
-    function test_canCall_mint_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:mint");
-        address receiver_   = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(1_000e6, receiver_);
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:M:LENDER_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
+        assertEq(errorMessage_, "P:NOT_ACTIVE");
     }
 
     function test_canCall_mint_lenderNotAllowed() external {
@@ -1208,15 +1090,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(1_000e6, receiver_);
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:M:LENDER_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(receiver_, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1228,17 +1111,15 @@ contract CanCallTests is TestBase {
         bytes32 functionId_ = bytes32("P:mint");
         address receiver_   = address(this);
 
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
+        vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1_000e6);
-        vm.stopPrank();
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_);
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:M:DEPOSIT_GT_LIQ_CAP");
+        assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
     }
 
     function test_canCall_mintWithPermit_notActive() external {
@@ -1253,30 +1134,7 @@ contract CanCallTests is TestBase {
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:MWP:NOT_ACTIVE");
-    }
-
-    function test_canCall_mintWithPermit_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:mintWithPermit");
-        address receiver_   = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:MWP:LENDER_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
+        assertEq(errorMessage_, "P:NOT_ACTIVE");
     }
 
     function test_canCall_mintWithPermit_lenderNotAllowed() external {
@@ -1286,15 +1144,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:MWP:LENDER_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(receiver_, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1306,17 +1165,15 @@ contract CanCallTests is TestBase {
         bytes32 functionId_ = bytes32("P:mintWithPermit");
         address receiver_   = address(this);
 
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
+        vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1_000e6);
-        vm.stopPrank();
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:MWP:DEPOSIT_GT_LIQ_CAP");
+        assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
     }
 
     function test_canCall_redeem() external {
@@ -1333,7 +1190,7 @@ contract CanCallTests is TestBase {
     function test_canCall_removeShares() external {
         bytes32 functionId_ = bytes32("P:removeShares");
 
-        bytes memory params = abi.encode(1_000e6);
+        bytes memory params = abi.encode(1_000e6, address(1));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
 
@@ -1344,7 +1201,7 @@ contract CanCallTests is TestBase {
     function test_canCall_requestRedeem() external {
         bytes32 functionId_ = bytes32("P:requestRedeem");
 
-        bytes memory params = abi.encode(1_000e6);
+        bytes memory params = abi.encode(1_000e6, address(1));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
 
@@ -1355,32 +1212,9 @@ contract CanCallTests is TestBase {
     function test_canCall_requestWithdraw() external {
         bytes32 functionId_ = bytes32("P:requestWithdraw");
 
-        bytes memory params = abi.encode(1_000e6);
+        bytes memory params = abi.encode(1_000e6, address(1));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
-    }
-
-    function test_canCall_transfer_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:transfer");
-        address recipient_  = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:T:RECIPIENT_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1393,38 +1227,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(recipient_, uint256(1_000e6));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:T:RECIPIENT_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(recipient_, true);
-
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(canCall_);
-        assertEq(errorMessage_, "");
-    }
-
-    function test_canCall_transferFrom_notOpenToPublic() external {
-        bytes32 functionId_ = bytes32("P:transferFrom");
-        address recipient_  = address(this);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setLiquidityCap(type(uint256).max);
-
-        bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
-
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
-
-        assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:TF:RECIPIENT_NOT_ALLOWED");
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setOpenToPublic();
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1439,15 +1251,16 @@ contract CanCallTests is TestBase {
         vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(type(uint256).max);
 
+        mockPoolPermissionManager.__setAllowed(false);
+
         bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
-        assertEq(errorMessage_, "P:TF:RECIPIENT_NOT_ALLOWED");
+        assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(recipient_, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
 
@@ -1458,7 +1271,7 @@ contract CanCallTests is TestBase {
     function test_canCall_withdraw() external {
         bytes32 functionId_ = bytes32("P:withdraw");
 
-        bytes memory params = abi.encode(1_000e6);
+        bytes memory params = abi.encode(1_000e6, address(1), address(2));
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
 
@@ -1798,34 +1611,25 @@ contract MaxDepositTests is TestBase {
         asset.burn(address(pool), 1_000_000e18);
     }
 
-    function test_maxDeposit_privatePool() external {
+    function test_maxDeposit_withPermission() external {
         address lp = makeAddr("lp");
 
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(1);
 
-        assertEq(poolManager.maxDeposit(lp), 0);
-
-        poolManager.setAllowedLender(lp, true);
-
         assertEq(poolManager.maxDeposit(lp), 1);
 
-        poolManager.setAllowedLender(lp, false);
+        mockPoolPermissionManager.__setAllowed(false);
 
         assertEq(poolManager.maxDeposit(lp), 0);
     }
 
-    function test_maxDeposit_publicPool() external {
+    function test_maxDeposit_withoutPermission() external {
         address lp = makeAddr("lp");
 
-        vm.startPrank(POOL_DELEGATE);
-
+        vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(1);
-
-        assertEq(poolManager.maxDeposit(lp), 0);
-
-        poolManager.setOpenToPublic();
 
         assertEq(poolManager.maxDeposit(lp), 1);
     }
@@ -1837,7 +1641,6 @@ contract MaxDepositTests is TestBase {
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(1);
-        poolManager.setOpenToPublic();
 
         asset.mint(address(pool), 1);  // Set totalAssets to 1
 
@@ -1864,7 +1667,6 @@ contract MaxDepositTests is TestBase {
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(liquidityCap);
-        poolManager.setOpenToPublic();
 
         asset.mint(address(pool), totalAssets);
 
@@ -1886,25 +1688,18 @@ contract MaxMintTests is TestBase {
     }
 
     function _doInitialDeposit() internal {
-        address lp = address(this);
-
-        vm.startPrank(POOL_DELEGATE);
-
+        vm.prank(POOL_DELEGATE);
         poolManager.setLiquidityCap(100);
-        poolManager.setAllowedLender(lp, true);
-
-        vm.stopPrank();
 
         // Set a non-zero totalAssets and totalSupply at 1:1
         asset.mint(address(this), 100);
         asset.approve(address(pool), 100);
         pool.deposit(100, address(this));
 
-        vm.prank(POOL_DELEGATE);
-        poolManager.setAllowedLender(lp, false);
+        mockPoolPermissionManager.__setAllowed(false);
     }
 
-    function test_maxMint_privatePool() external {
+    function test_maxMint_withPermission() external {
         _doInitialDeposit();
 
         address lp = makeAddr("lp");
@@ -1915,16 +1710,16 @@ contract MaxMintTests is TestBase {
 
         assertEq(poolManager.maxMint(lp), 0);
 
-        poolManager.setAllowedLender(lp, true);
+        mockPoolPermissionManager.__setAllowed(true);
 
         assertEq(poolManager.maxMint(lp), 1);
 
-        poolManager.setAllowedLender(lp, false);
+        mockPoolPermissionManager.__setAllowed(false);
 
         assertEq(poolManager.maxMint(lp), 0);
     }
 
-    function test_maxMint_publicPool() external {
+    function test_maxMint_withoutPermission() external {
         _doInitialDeposit();
 
         address lp = makeAddr("lp");
@@ -1935,7 +1730,7 @@ contract MaxMintTests is TestBase {
 
         assertEq(poolManager.maxMint(lp), 0);
 
-        poolManager.setOpenToPublic();
+        mockPoolPermissionManager.__setAllowed(true);
 
         assertEq(poolManager.maxMint(lp), 1);
     }
@@ -1946,10 +1741,11 @@ contract MaxMintTests is TestBase {
         address lp1 = makeAddr("lp1");
         address lp2 = makeAddr("lp2");
 
+        mockPoolPermissionManager.__setAllowed(true);
+
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(100);
-        poolManager.setOpenToPublic();
 
         assertEq(poolManager.maxMint(lp1), 0);
         assertEq(poolManager.maxMint(lp2), 0);
@@ -1976,10 +1772,11 @@ contract MaxMintTests is TestBase {
         address lp1 = makeAddr("lp1");
         address lp2 = makeAddr("lp2");
 
+        mockPoolPermissionManager.__setAllowed(true);
+
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(200);
-        poolManager.setOpenToPublic();
 
         assertEq(poolManager.maxMint(lp1), 100);
         assertEq(poolManager.maxMint(lp2), 100);
@@ -2003,7 +1800,6 @@ contract MaxMintTests is TestBase {
         vm.startPrank(POOL_DELEGATE);
 
         poolManager.setLiquidityCap(liquidityCap);
-        poolManager.setOpenToPublic();
 
         vm.stopPrank();
 

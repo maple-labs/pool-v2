@@ -18,14 +18,18 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
     bool public override active;
     bool public override configured;
-    bool public override openToPublic;
+    
+    bool __deprecated_openToPublic;
 
     uint256 public override liquidityCap;
     uint256 public override delegateManagementFeeRate;
 
     mapping(address => bool) public override isLoanManager;
-    mapping(address => bool) public override isValidLender;
+
+    mapping(address => bool) __deprecated_isValidLender;
 
     address[] public override loanManagerList;
+
+    address public override poolPermissionManager;
 
 }
