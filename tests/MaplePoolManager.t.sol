@@ -1373,7 +1373,7 @@ contract CanCallTests is TestBase {
         address caller     = makeAddr("caller");
         bytes32 functionId = bytes32("Fake Function");
 
-        bytes memory data = new bytes(0);
+        bytes memory data = abi.encode(caller, caller);
 
         ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId, caller, data);
 

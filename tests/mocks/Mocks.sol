@@ -498,6 +498,10 @@ contract MockPoolPermissionManager {
     function hasPermission(address, address, bytes32) external view returns (bool allowed_) {
         allowed_ = _allowed;
     }
+
+    function hasPermission(address, address[] calldata, bytes32) external view returns (bool allowed_) {
+        allowed_ = _allowed;
+    }
     
     function __setAllowed(bool allowed_) external {
         _allowed = allowed_;

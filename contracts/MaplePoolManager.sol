@@ -362,58 +362,39 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** View Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_)
+    function canCall(bytes32 functionId_, address caller_, bytes calldata data_)
         external view override returns (bool canCall_, string memory errorMessage_)
     {
-        // NOTE: `caller_` param not named to avoid compiler warning.
-
         if (IGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
 
-        address lender_ = caller_;
-        uint256 assets_;
+        uint256[3] memory params_ = _decodeParameters(data_);
 
-        if (functionId_ == "P:deposit") {
-            ( assets_, lender_) = abi.decode(data_, (uint256, address));
-        }
+        uint256 assets_ = params_[0];
+        address lender_ = _address(params_[1]);
 
-        if (functionId_ == "P:depositWithPermit") {
-            ( assets_, lender_, , , , ) = abi.decode(data_, (uint256, address, uint256, uint8, bytes32, bytes32));
-        }
+        // For mint functions there's a need to convert shares into assets.
+        if (functionId_ == "P:mint" || functionId_ == "P:mintWithPermit") assets_ = IPoolLike(pool).previewMint(params_[0]);
 
-        if (functionId_ == "P:mint") {
-            uint256 shares_ = 0;
-            ( shares_, lender_ ) = abi.decode(data_, (uint256, address));
-            assets_ = IPoolLike(pool).previewMint(shares_);
-        }
+        // Redeem and withdraw require getting the third word from the calldata.
+        if ( functionId_ == "P:redeem" || functionId_ == "P:withdraw") lender_ = _address(params_[2]);
 
-        if (functionId_ == "P:mintWithPermit") {
-            uint256 shares_ = 0;
-            ( shares_, lender_ , , , , , ) = abi.decode(data_, (uint256, address, uint256, uint256, uint8, bytes32, bytes32));
-            assets_ = IPoolLike(pool).previewMint(shares_);
-        }
+        // Transfers need to check both the sender and the recipient.
+        if (functionId_ == "P:transfer" || functionId_ == "P:transferFrom") {
+            address[] memory lenders_ = new address[](2);
 
-        if (functionId_ == "P:transfer") {
-            ( lender_, ) = abi.decode(data_, (address, uint256)); 
-        }
+            ( lenders_[0], lenders_[1] ) = functionId_ == "P:transfer" ?
+                (caller_,              _address(params_[0])) :
+                (_address(params_[0]), _address(params_[1]));
 
-        if (functionId_ == "P:transferFrom") {
-            ( , lender_, ) = abi.decode(data_, (address, address, uint256)); 
-        }
+            // Check both lenders in a single call.
+            if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lenders_, functionId_)) {
+                return (false, "PM:CC:NOT_ALLOWED");
+            }
 
-        if (
-            functionId_ == "P:removeShares"    ||
-            functionId_ == "P:requestRedeem"   ||
-            functionId_ == "P:requestWithdraw"
-        ) {
-            ( , lender_) = abi.decode(data_, (uint256, address));
-        }
-
-        if ( functionId_ == "P:redeem" || functionId_ == "P:withdraw") {
-            ( , , lender_) = abi.decode(data_, (uint256, address, address));
-        }
-
-        if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lender_, functionId_)) {
-            return (false, "PM:CC:NOT_ALLOWED");
+        } else {
+            if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lender_, functionId_)) {
+                return (false, "PM:CC:NOT_ALLOWED");
+            }
         }
 
         if (
@@ -430,10 +411,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
             functionId_ == "P:deposit"           ||
             functionId_ == "P:depositWithPermit" ||
             functionId_ == "P:mint"              ||
-            functionId_ == "P:mintWithPermit"   
-        ) {
-            return _canDeposit(assets_, "P:");
-        }
+            functionId_ == "P:mintWithPermit"
+        ) return _canDeposit(assets_);
 
         return (false, "PM:CC:INVALID_FUNCTION_ID");
     }
@@ -562,19 +541,24 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Internal Functions                                                                                                             ***/
     /**************************************************************************************************************************************/
 
-    function _canDeposit(uint256 assets_, string memory errorPrefix_)
-        internal view returns (bool canDeposit_, string memory errorMessage_)
-    {
-        if (!active)                                return (false, _formatErrorMessage(errorPrefix_, "NOT_ACTIVE"));
-        if (assets_ + totalAssets() > liquidityCap) return (false, _formatErrorMessage(errorPrefix_, "DEPOSIT_GT_LIQ_CAP"));
+    function _address(uint256 word_) internal pure returns (address address_) {
+        address_ = address(uint160(word_));
+    }
+
+    function _canDeposit(uint256 assets_) internal view returns (bool canDeposit_, string memory errorMessage_) {
+        if (!active)                                return (false, "P:NOT_ACTIVE");
+        if (assets_ + totalAssets() > liquidityCap) return (false, "P:DEPOSIT_GT_LIQ_CAP");
 
         return (true, "");
     }
 
-    function _formatErrorMessage(string memory errorPrefix_, string memory partialError_)
-        internal pure returns (string memory errorMessage_)
-    {
-        errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
+    // @audit Can this approach be gamed if extra data is appended?
+    function _decodeParameters(bytes calldata data_) internal pure returns (uint256[3] memory words) {
+        if (data_.length > 64)  {
+            ( words[0], words[1], words[2] ) = abi.decode(data_, (uint256, uint256, uint256));
+        } else {
+            ( words[0], words[1] ) = abi.decode(data_, (uint256, uint256));
+        }
     }
 
     function _getMaxAssets(address receiver_, uint256 totalAssets_, bytes32 functionId_) internal view returns (uint256 maxAssets_) {

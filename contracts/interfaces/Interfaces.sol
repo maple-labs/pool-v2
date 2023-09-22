@@ -151,6 +151,8 @@ interface IPoolPermissionManagerLike {
 
     function hasPermission(address poolManager, address caller, bytes32 functionId) external view returns (bool allowed);
 
+    function hasPermission(address poolManager, address[] calldata caller, bytes32 functionId) external view returns (bool allowed);
+
 }
 
 interface IWithdrawalManagerLike {
