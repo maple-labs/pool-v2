@@ -39,6 +39,8 @@ interface IGlobalsLike {
 
     function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
+    function operationalAdmin() external view returns (address operationalAdmin_);
+
     function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
     function securityAdmin() external view returns (address securityAdmin_);

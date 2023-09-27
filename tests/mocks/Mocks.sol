@@ -56,6 +56,7 @@ contract MockGlobals {
     address public governor;
     address public mapleTreasury;
     address public migrationAdmin;
+    address public operationalAdmin;
     address public securityAdmin;
 
     bool public protocolPaused;
@@ -82,22 +83,6 @@ contract MockGlobals {
 
     function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
         isValid_ = _isValidScheduledCall;
-    }
-
-    function __setFailTransferOwnedPoolManager(bool fail_) external {
-        _failTransferOwnedPoolManager = fail_;
-    }
-
-    function __setIsValidScheduledCall(bool isValid_) external {
-        _isValidScheduledCall = isValid_;
-    }
-
-    function __setOwnedPoolManager(address owner_, address poolManager_) external {
-        ownedPoolManager[owner_] = poolManager_;
-    }
-
-    function __setBootstrapMint(uint256 bootstrapMint_) external {
-        _bootstrapMint = bootstrapMint_;
     }
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
@@ -166,8 +151,28 @@ contract MockGlobals {
 
     function unscheduleCall(address, bytes32, bytes calldata) external {}
 
+    function __setBootstrapMint(uint256 bootstrapMint_) external {
+        _bootstrapMint = bootstrapMint_;
+    }
+
+    function __setFailTransferOwnedPoolManager(bool fail_) external {
+        _failTransferOwnedPoolManager = fail_;
+    }
+
     function __setFunctionPaused(bool paused_) external {
         _isFunctionPaused = paused_;
+    }
+
+    function __setIsValidScheduledCall(bool isValid_) external {
+        _isValidScheduledCall = isValid_;
+    }
+    
+    function __setOperationalAdmin(address admin_) external {
+        operationalAdmin = admin_;
+    }
+
+    function __setOwnedPoolManager(address owner_, address poolManager_) external {
+        ownedPoolManager[owner_] = poolManager_;
     }
 
     function __setSecurityAdmin(address securityAdmin_) external {

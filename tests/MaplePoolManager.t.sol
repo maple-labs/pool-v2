@@ -499,9 +499,10 @@ contract SetIsLoanManager_SetterTests is TestBase {
 
 contract TriggerDefault is TestBase {
 
-    address internal AUCTIONEER = makeAddr("AUCTIONEER");
-    address internal BORROWER   = makeAddr("BORROWER");
-    address internal LP         = makeAddr("LP");
+    address internal AUCTIONEER        = makeAddr("AUCTIONEER");
+    address internal BORROWER          = makeAddr("BORROWER");
+    address internal LP                = makeAddr("LP");
+    address internal OPERATIONAL_ADMIN = makeAddr("OPERATIONAL_ADMIN");
 
     address internal loan;
     address internal poolDelegateCover;
@@ -550,7 +551,7 @@ contract TriggerDefault is TestBase {
     }
 
     function test_triggerDefault_notAuthorized() external {
-        vm.expectRevert("PM:NOT_PD_OR_GOV");
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
@@ -577,13 +578,21 @@ contract TriggerDefault is TestBase {
         poolManager.triggerDefault(address(loan), address(liquidatorFactory));
     }
 
+    function test_triggerDefault_success_asOperationalAdmin() external {
+        MockGlobals(globals).__setOperationalAdmin(OPERATIONAL_ADMIN);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    }
+
 }
 
 contract FinishCollateralLiquidation is TestBase {
 
-    address internal BORROWER = makeAddr("BORROWER");
-    address internal LOAN     = makeAddr("LOAN");
-    address internal LP       = makeAddr("LP");
+    address internal BORROWER          = makeAddr("BORROWER");
+    address internal LOAN              = makeAddr("LOAN");
+    address internal LP                = makeAddr("LP");
+    address internal OPERATIONAL_ADMIN = makeAddr("OPERATIONAL_ADMIN");
 
     address internal loan;
     address internal poolDelegateCover;
@@ -645,7 +654,7 @@ contract FinishCollateralLiquidation is TestBase {
 
         loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
 
-        vm.expectRevert("PM:NOT_PD_OR_GOV");
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
         poolManager.finishCollateralLiquidation(loan);
     }
 
@@ -686,6 +695,30 @@ contract FinishCollateralLiquidation is TestBase {
         loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
 
         vm.prank(GOVERNOR);
+        poolManager.finishCollateralLiquidation(loan);
+
+        assertEq(poolManager.unrealizedLosses(),                0);
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
+    }
+
+    function test_finishCollateralLiquidation_success_noCover_asOperationalAdmin() external {
+        MockGlobals(globals).__setOperationalAdmin(OPERATIONAL_ADMIN);
+
+        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
+
+        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(poolManager.unrealizedLosses(),                0);
+
+        loanManager.__setTriggerDefaultReturn(2_000e18);
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+
+        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+
+        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
+
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.finishCollateralLiquidation(loan);
 
         assertEq(poolManager.unrealizedLosses(),                0);

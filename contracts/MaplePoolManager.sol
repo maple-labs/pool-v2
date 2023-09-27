@@ -78,8 +78,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         _;
     }
 
-    modifier onlyPoolDelegateOrGovernor() {
-        _revertIfNeitherPoolDelegateNorGovernor();
+    modifier onlyPoolDelegateOrProtocolAdmins() {
+        _revertIfNeitherPoolDelegateNorProtocolAdmins();
         _;
     }
 
@@ -257,7 +257,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Loan Default Functions                                                                                                         ***/
     /**************************************************************************************************************************************/
 
-    function finishCollateralLiquidation(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrGovernor {
+    function finishCollateralLiquidation(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins {
         ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(_getLoanManager(loan_)).finishCollateralLiquidation(loan_);
 
         _handleCover(losses_, platformFees_);
@@ -266,7 +266,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function triggerDefault(address loan_, address liquidatorFactory_)
-        external override whenNotPaused nonReentrant onlyPoolDelegateOrGovernor
+        external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins
     {
         require(IGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_), "PM:TD:NOT_FACTORY");
 
@@ -591,8 +591,13 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         require(msg.sender == poolDelegate, "PM:NOT_PD");
     }
 
-    function _revertIfNeitherPoolDelegateNorGovernor() internal view {
-        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:NOT_PD_OR_GOV");
+    function _revertIfNeitherPoolDelegateNorProtocolAdmins() internal view {
+        require(
+            msg.sender == poolDelegate || 
+            msg.sender == governor()   ||
+            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            "PM:NOT_PD_OR_GOV_OR_OA"
+        );
     }
 
     function _revertIfPaused() internal view {
