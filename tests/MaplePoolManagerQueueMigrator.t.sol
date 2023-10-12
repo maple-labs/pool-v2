@@ -9,7 +9,7 @@ import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManager
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 import { MaplePoolManagerWMMigrator }  from "../contracts/proxy/MaplePoolManagerWMMigrator.sol";
 
-import { MockGlobals, MockPoolPermissionManager } from "./mocks/Mocks.sol";
+import { MockFactory, MockGlobals, MockWithdrawalManager } from "./mocks/Mocks.sol";
 
 contract MaplePoolManagerWMMigratorTests is Test {
 
@@ -20,10 +20,11 @@ contract MaplePoolManagerWMMigratorTests is Test {
     address implementationV2;
     address initializer;
     address migrator;
-    address withdrawalManager;
 
-    MockERC20                 asset;
-    MockGlobals               globals;
+    MockERC20             asset;
+    MockFactory           withdrawalManagerfactory;
+    MockGlobals           globals;
+    MockWithdrawalManager withdrawalManager;
 
     MaplePoolManager        poolManager;
     MaplePoolManagerFactory factory;
@@ -31,20 +32,23 @@ contract MaplePoolManagerWMMigratorTests is Test {
     function setUp() public virtual {
         governor          = makeAddr("governor");
         poolDelegate      = makeAddr("poolDelegate");
-        withdrawalManager = makeAddr("withdrawalManager");
 
         implementationV1 = address(new MaplePoolManager());
         implementationV2 = address(new MaplePoolManager());
         initializer      = address(new MaplePoolManagerInitializer());
         migrator         = address(new MaplePoolManagerWMMigrator());
 
-        asset   = new MockERC20("USD Coin", "USDC", 6);
-        globals = new MockGlobals(governor);
+        asset                    = new MockERC20("USD Coin", "USDC", 6);
+        globals                  = new MockGlobals(governor);
+        withdrawalManager        = new MockWithdrawalManager();
+        withdrawalManagerfactory = new MockFactory();
 
         globals.setValidPoolDeployer(address(this), true);
         globals.setValidPoolAsset(address(asset), true);
         globals.setValidPoolDelegate(poolDelegate, true);
         globals.__setIsValidScheduledCall(true);
+
+        withdrawalManager.__setFactory(address(withdrawalManagerfactory));
 
         factory = new MaplePoolManagerFactory(address(globals));
 
@@ -61,14 +65,6 @@ contract MaplePoolManagerWMMigratorTests is Test {
         ));
     }
 
-    function test_migrator_invalidInstance() external {
-        globals.setValidInstance("WITHDRAWAL_MANAGER", address(withdrawalManager), false);
-
-        vm.prank(poolDelegate);
-        vm.expectRevert("MPF:UI:FAILED");
-        poolManager.upgrade(300, abi.encode(address(withdrawalManager)));
-    }
-
     function test_migrator_invalidPoolManager() external {
         globals.setValidInstance("QUEUE_POOL_MANAGER", address(poolManager), false);
 
@@ -77,9 +73,31 @@ contract MaplePoolManagerWMMigratorTests is Test {
         poolManager.upgrade(300, abi.encode(address(withdrawalManager)));
     }
 
+    function test_migrator_invalidFactory() external {
+        globals.setValidInstance("QUEUE_POOL_MANAGER",               address(poolManager),              true);
+        globals.setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerfactory), false);
+
+        vm.prank(poolDelegate);
+        vm.expectRevert("MPF:UI:FAILED");
+        poolManager.upgrade(300, abi.encode(address(withdrawalManager)));
+    }
+
+    function test_migrator_invalidInstance() external {
+        globals.setValidInstance("QUEUE_POOL_MANAGER",               address(poolManager),              true);
+        globals.setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerfactory), true);
+
+        withdrawalManagerfactory.__setIsInstance(address(withdrawalManager), false);
+
+        vm.prank(poolDelegate);
+        vm.expectRevert("MPF:UI:FAILED");
+        poolManager.upgrade(300, abi.encode(address(withdrawalManager)));
+    }
+
     function test_migrator_success() external {
-        globals.setValidInstance("WITHDRAWAL_MANAGER", address(withdrawalManager), true);
-        globals.setValidInstance("QUEUE_POOL_MANAGER", address(poolManager),       true);
+        globals.setValidInstance("QUEUE_POOL_MANAGER",               address(poolManager),              true);
+        globals.setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerfactory), true);
+
+        withdrawalManagerfactory.__setIsInstance(address(withdrawalManager), true);
 
         assertEq(factory.versionOf(poolManager.implementation()), 200);
 

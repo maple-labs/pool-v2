@@ -73,6 +73,8 @@ interface ILoanLike {
 
 interface IMapleProxyFactoryLike {
 
+    function isInstance(address instance_) external view returns (bool isInstance_);
+
     function mapleGlobals() external view returns (address mapleGlobals_);
 
 }
@@ -160,6 +162,8 @@ interface IPoolPermissionManagerLike {
 interface IWithdrawalManagerLike {
 
     function addShares(uint256 shares_, address owner_) external;
+
+    function factory() external view returns (address factory_);
 
     function isInExitWindow(address owner_) external view returns (bool isInExitWindow_);
 
