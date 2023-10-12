@@ -31,7 +31,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
 
     address[] loanManagerFactories;
 
-    uint256[7] configParams = [
+    uint256[7] configParamsCycle = [
         1_000_000e18,
         0.1e6,
         coverAmountRequired,
@@ -39,6 +39,13 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
         1 days,
         0,
         block.timestamp + 10 days
+    ];
+
+    uint256[4] configParamsQueue = [
+        1_000_000e18,
+        0.1e6,
+        coverAmountRequired,
+        0
     ];
 
     function setUp() public virtual {
@@ -96,7 +103,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             poolPermissionManager,
             name,
             symbol,
-            configParams
+            configParamsCycle
         );
     }
 
@@ -115,7 +122,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             poolPermissionManager,
             name,
             symbol,
-            configParams
+            configParamsCycle
         );
     }
 
@@ -138,7 +145,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             asset,
             name,
             symbol,
-            configParams
+            configParamsCycle
         );
 
         vm.prank(poolDelegate);
@@ -150,7 +157,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             poolPermissionManager,
             name,
             symbol,
-            configParams
+            configParamsCycle
         );
 
         assertEq(poolManager_,                                        expectedPoolManager_);
@@ -164,7 +171,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
     }
 
     function test_deployPool_success_withoutCoverRequired() external {
-        uint256[7] memory noCoverConfigParams = [
+        uint256[7] memory noCoverConfigParamsCycle = [
             uint256(1_000_000e18),
             0.1e6,
             0,
@@ -188,7 +195,7 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             asset,
             name,
             symbol,
-            configParams
+            configParamsCycle
         );
 
         vm.prank(poolDelegate);
@@ -200,7 +207,51 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
             poolPermissionManager,
             name,
             symbol,
-            noCoverConfigParams
+            noCoverConfigParamsCycle
+        );
+
+        assertEq(poolManager_,                                        expectedPoolManager_);
+        assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
+        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
+        assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
+
+        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
+            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        }
+    }
+
+    function test_deployPool_success_withCoverRequired_queueWM() external {
+        vm.prank(poolDelegate);
+        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
+
+        (
+            address          expectedPoolManager_,
+            address          expectedPool_,
+            address          expectedPoolDelegateCover_,
+            address          expectedWithdrawalManager_,
+            address[] memory expectedLoanManagers_
+        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
+            poolDelegate,
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            loanManagerFactories,
+            asset,
+            name,
+            symbol,
+            configParamsQueue
+        );
+
+        vm.prank(poolDelegate);
+        address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            loanManagerFactories,
+            asset,
+            poolPermissionManager,
+            name,
+            symbol,
+            configParamsQueue
         );
 
         assertEq(poolManager_,                                        expectedPoolManager_);
