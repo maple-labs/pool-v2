@@ -147,7 +147,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         pendingPoolDelegate = address(0);
     }
 
-    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyPoolDelegate {
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
         pendingPoolDelegate = pendingPoolDelegate_;
 
         emit PendingDelegateSet(poolDelegate, pendingPoolDelegate_);
@@ -593,7 +593,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _revertIfNeitherPoolDelegateNorProtocolAdmins() internal view {
         require(
-            msg.sender == poolDelegate || 
+            msg.sender == poolDelegate ||
             msg.sender == governor()   ||
             msg.sender == IGlobalsLike(globals()).operationalAdmin(),
             "PM:NOT_PD_OR_GOV_OR_OA"

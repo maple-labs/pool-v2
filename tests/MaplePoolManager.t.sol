@@ -314,15 +314,33 @@ contract SetPendingPoolDelegate_SetterTests is TestBase {
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_notPoolDelegate() external {
-        vm.expectRevert("PM:NOT_PD");
+    function test_setPendingPoolDelegate_notPoolDelegateOrProtocolAdmins() external {
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_success() external {
+    function test_setPendingPoolDelegate_asPoolDelegate_success() external {
         assertEq(poolManager.pendingPoolDelegate(), address(0));
 
         vm.prank(POOL_DELEGATE);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+    }
+
+    function test_setPendingPoolDelegate_asGovernor_success() external {
+        assertEq(poolManager.pendingPoolDelegate(), address(0));
+
+        vm.prank(GOVERNOR);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+    }
+
+    function test_setPendingPoolDelegate_asOperationalAdmin_success() external {
+        assertEq(poolManager.pendingPoolDelegate(), address(0));
+
+        vm.prank(MockGlobals(globals).operationalAdmin());
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
 
         assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
