@@ -552,7 +552,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         return (true, "");
     }
 
-    // @audit Can this approach be gamed if extra data is appended?
     function _decodeParameters(bytes calldata data_) internal pure returns (uint256[3] memory words) {
         if (data_.length > 64)  {
             ( words[0], words[1], words[2] ) = abi.decode(data_, (uint256, uint256, uint256));
