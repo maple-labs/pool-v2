@@ -1,17 +1,21 @@
 name: pool-v2
-version: 2.0.0
+version: 3.0.0
 source: contracts
 packages:
-  - path: contracts/proxy/PoolManagerFactory.sol
-    contractName: PoolManagerFactory
-  - path: contracts/proxy/PoolManagerInitializer.sol
-    contractName: PoolManagerInitializer
-  - path: contracts/Pool.sol
-    contractName: Pool
-  - path: contracts/PoolDelegateCover.sol
-    contractName: PoolDelegateCover
+  - path: contracts/proxy/MaplePoolManagerFactory.sol
+    contractName: MaplePoolManagerFactory
+  - path: contracts/proxy/MaplePoolManagerInitializer.sol
+    contractName: MaplePoolManagerInitializer
+  - path: contracts/proxy/MaplePoolManagerMigrator.sol
+    contractName: MaplePoolManagerMigrator
+  - path: contracts/proxy/MaplePoolManagerWMMigrator.sol
+    contractName: MaplePoolManagerWMMigrator
+  - path: contracts/MaplePool.sol
+    contractName: MaplePool
+  - path: contracts/MaplePoolDelegateCover.sol
+    contractName: MaplePoolDelegateCover
   - path: contracts/PoolDeployer.sol
-    contractName: PoolDeployer
-  - path: contracts/PoolManager.sol
-    contractName: PoolManager
+    contractName: MaplePoolDeployer
+  - path: contracts/MaplePoolManager.sol
+    contractName: MaplePoolManager
 customDescription: Pool Artifacts and ABIs
