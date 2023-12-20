@@ -1,17 +1,11 @@
-install:
-	@git submodule update --init --recursive
-
-update:
-	@forge update
-
 build:
-	@scripts/build.sh -p default
+	@scripts/build.sh -p production
 
 release:
 	@scripts/release.sh
 
+size:
+	@scripts/check-sizes.sh
+
 test:
 	@scripts/test.sh -p default
-
-clean:
-	@forge clean

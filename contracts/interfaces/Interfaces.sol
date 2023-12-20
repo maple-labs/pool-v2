@@ -39,6 +39,8 @@ interface IGlobalsLike {
 
     function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
+    function operationalAdmin() external view returns (address operationalAdmin_);
+
     function ownedPoolManager(address poolDelegate_) external view returns (address poolManager_);
 
     function securityAdmin() external view returns (address securityAdmin_);
@@ -70,6 +72,8 @@ interface ILoanLike {
 }
 
 interface IMapleProxyFactoryLike {
+
+    function isInstance(address instance_) external view returns (bool isInstance_);
 
     function mapleGlobals() external view returns (address mapleGlobals_);
 
@@ -137,6 +141,8 @@ interface IPoolManagerLike {
 
     function setLiquidityCap(uint256 liquidityCap_) external;
 
+    function setPoolPermissionManager(address poolPermissionManager_) external;
+
     function setWithdrawalManager(address withdrawalManager_) external;
 
     function totalAssets() external view returns (uint256 totalAssets_);
@@ -145,9 +151,19 @@ interface IPoolManagerLike {
 
 }
 
+interface IPoolPermissionManagerLike {
+
+    function hasPermission(address poolManager, address caller, bytes32 functionId) external view returns (bool allowed);
+
+    function hasPermission(address poolManager, address[] calldata caller, bytes32 functionId) external view returns (bool allowed);
+
+}
+
 interface IWithdrawalManagerLike {
 
     function addShares(uint256 shares_, address owner_) external;
+
+    function factory() external view returns (address factory_);
 
     function isInExitWindow(address owner_) external view returns (bool isInExitWindow_);
 

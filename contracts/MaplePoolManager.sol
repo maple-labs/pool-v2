@@ -6,7 +6,7 @@ import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/
 import { IMapleProxied }         from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { PoolManagerStorage } from "./proxy/PoolManagerStorage.sol";
+import { MaplePoolManagerStorage } from "./proxy/MaplePoolManagerStorage.sol";
 
 import {
     IERC20Like,
@@ -15,19 +15,21 @@ import {
     ILoanManagerLike,
     IPoolDelegateCoverLike,
     IPoolLike,
+    IPoolPermissionManagerLike,
     IWithdrawalManagerLike
 } from "./interfaces/Interfaces.sol";
 
-import { IPoolManager } from "./interfaces/IPoolManager.sol";
+import { IMaplePoolManager } from "./interfaces/IMaplePoolManager.sol";
 
 /*
 
-    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
-    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
-    ██╔████╔██║███████║██████╔╝██║     █████╗
-    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
-    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
-    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+   ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
+   ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
+   ██╔████╔██║███████║██████╔╝██║     █████╗
+   ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
+   ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
+   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+
 
    ██████╗  ██████╗  ██████╗ ██╗         ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗
    ██╔══██╗██╔═══██╗██╔═══██╗██║         ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
@@ -38,7 +40,7 @@ import { IPoolManager } from "./interfaces/IPoolManager.sol";
 
 */
 
-contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage {
+contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePoolManagerStorage {
 
     uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision.
 
@@ -76,8 +78,8 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         _;
     }
 
-    modifier onlyPoolDelegateOrGovernor() {
-        _revertIfNeitherPoolDelegateNorGovernor();
+    modifier onlyPoolDelegateOrProtocolAdmins() {
+        _revertIfNeitherPoolDelegateNorProtocolAdmins();
         _;
     }
 
@@ -145,7 +147,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         pendingPoolDelegate = address(0);
     }
 
-    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyPoolDelegate {
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
         pendingPoolDelegate = pendingPoolDelegate_;
 
         emit PendingDelegateSet(poolDelegate, pendingPoolDelegate_);
@@ -182,10 +184,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LoanManagerAdded(loanManager_);
     }
 
-    function setAllowedLender(address lender_, bool isValid_) external override whenNotPaused onlyPoolDelegate {
-        emit AllowedLenderSet(lender_, isValidLender[lender_] = isValid_);
-    }
-
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
         external override whenNotPaused onlyPoolDelegateOrNotConfigured
     {
@@ -210,12 +208,6 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
-    function setOpenToPublic() external override whenNotPaused onlyPoolDelegate {
-        openToPublic = true;
-
-        emit OpenToPublic();
-    }
-
     function setWithdrawalManager(address withdrawalManager_) external override whenNotPaused onlyIfNotConfigured {
         address factory_ = IMapleProxied(withdrawalManager_).factory();
 
@@ -223,6 +215,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                  "PM:SWM:INVALID_INSTANCE");
 
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);
+    }
+
+    function setPoolPermissionManager(address poolPermissionManager_) external override whenNotPaused onlyPoolDelegateOrNotConfigured {
+        require(IGlobalsLike(globals()).isInstanceOf("POOL_PERMISSION_MANAGER", poolPermissionManager_), "PM:SPPM:INVALID_INSTANCE");
+
+        emit PoolPermissionManagerSet(poolPermissionManager = poolPermissionManager_);
     }
 
     /**************************************************************************************************************************************/
@@ -259,7 +257,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Loan Default Functions                                                                                                         ***/
     /**************************************************************************************************************************************/
 
-    function finishCollateralLiquidation(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrGovernor {
+    function finishCollateralLiquidation(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins {
         ( uint256 losses_, uint256 platformFees_ ) = ILoanManagerLike(_getLoanManager(loan_)).finishCollateralLiquidation(loan_);
 
         _handleCover(losses_, platformFees_);
@@ -268,7 +266,7 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function triggerDefault(address loan_, address liquidatorFactory_)
-        external override whenNotPaused nonReentrant onlyPoolDelegateOrGovernor
+        external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins
     {
         require(IGlobalsLike(globals()).isInstanceOf("LIQUIDATOR_FACTORY", liquidatorFactory_), "PM:TD:NOT_FACTORY");
 
@@ -364,57 +362,57 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** View Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function canCall(bytes32 functionId_, address, bytes memory data_)
+    function canCall(bytes32 functionId_, address caller_, bytes calldata data_)
         external view override returns (bool canCall_, string memory errorMessage_)
     {
-        // NOTE: `caller_` param not named to avoid compiler warning.
-
         if (IGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
+
+        uint256[3] memory params_ = _decodeParameters(data_);
+
+        uint256 assets_ = params_[0];
+        address lender_ = _address(params_[1]);
+
+        // For mint functions there's a need to convert shares into assets.
+        if (functionId_ == "P:mint" || functionId_ == "P:mintWithPermit") assets_ = IPoolLike(pool).previewMint(params_[0]);
+
+        // Redeem and withdraw require getting the third word from the calldata.
+        if ( functionId_ == "P:redeem" || functionId_ == "P:withdraw") lender_ = _address(params_[2]);
+
+        // Transfers need to check both the sender and the recipient.
+        if (functionId_ == "P:transfer" || functionId_ == "P:transferFrom") {
+            address[] memory lenders_ = new address[](2);
+
+            ( lenders_[0], lenders_[1] ) = functionId_ == "P:transfer" ?
+                (caller_,              _address(params_[0])) :
+                (_address(params_[0]), _address(params_[1]));
+
+            // Check both lenders in a single call.
+            if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lenders_, functionId_)) {
+                return (false, "PM:CC:NOT_ALLOWED");
+            }
+
+        } else {
+            if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lender_, functionId_)) {
+                return (false, "PM:CC:NOT_ALLOWED");
+            }
+        }
 
         if (
             functionId_ == "P:redeem"          ||
             functionId_ == "P:withdraw"        ||
             functionId_ == "P:removeShares"    ||
             functionId_ == "P:requestRedeem"   ||
-            functionId_ == "P:requestWithdraw"
+            functionId_ == "P:requestWithdraw" ||
+            functionId_ == "P:transfer"        ||
+            functionId_ == "P:transferFrom"
         ) return (true, "");
 
-        if (functionId_ == "P:deposit") {
-            ( uint256 assets_, address receiver_ ) = abi.decode(data_, (uint256, address));
-            return _canDeposit(assets_, receiver_, "P:D:");
-        }
-
-        if (functionId_ == "P:depositWithPermit") {
-            ( uint256 assets_, address receiver_, , , , ) = abi.decode(data_, (uint256, address, uint256, uint8, bytes32, bytes32));
-            return _canDeposit(assets_, receiver_, "P:DWP:");
-        }
-
-        if (functionId_ == "P:mint") {
-            ( uint256 shares_, address receiver_ ) = abi.decode(data_, (uint256, address));
-            return _canDeposit(IPoolLike(pool).previewMint(shares_), receiver_, "P:M:");
-        }
-
-        if (functionId_ == "P:mintWithPermit") {
-            (
-                uint256 shares_,
-                address receiver_,
-                ,
-                ,
-                ,
-                ,
-            ) = abi.decode(data_, (uint256, address, uint256, uint256, uint8, bytes32, bytes32));
-            return _canDeposit(IPoolLike(pool).previewMint(shares_), receiver_, "P:MWP:");
-        }
-
-        if (functionId_ == "P:transfer") {
-            ( address recipient_, ) = abi.decode(data_, (address, uint256));
-            return _canTransfer(recipient_, "P:T:");
-        }
-
-        if (functionId_ == "P:transferFrom") {
-            ( , address recipient_, ) = abi.decode(data_, (address, address, uint256));
-            return _canTransfer(recipient_, "P:TF:");
-        }
+        if (
+            functionId_ == "P:deposit"           ||
+            functionId_ == "P:depositWithPermit" ||
+            functionId_ == "P:mint"              ||
+            functionId_ == "P:mintWithPermit"
+        ) return _canDeposit(assets_);
 
         return (false, "PM:CC:INVALID_FUNCTION_ID");
     }
@@ -468,12 +466,12 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     }
 
     function maxDeposit(address receiver_) external view virtual override returns (uint256 maxAssets_) {
-        maxAssets_ = _getMaxAssets(receiver_, totalAssets());
+        maxAssets_ = _getMaxAssets(receiver_, totalAssets(), "P:deposit");
     }
 
     function maxMint(address receiver_) external view virtual override returns (uint256 maxShares_) {
         uint256 totalAssets_ = totalAssets();
-        uint256 maxAssets_   = _getMaxAssets(receiver_, totalAssets_);
+        uint256 maxAssets_   = _getMaxAssets(receiver_, totalAssets_, "P:mint");
 
         maxShares_ = IPoolLike(pool).previewDeposit(maxAssets_);
     }
@@ -543,32 +541,27 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
     /*** Internal Functions                                                                                                             ***/
     /**************************************************************************************************************************************/
 
-    function _canDeposit(uint256 assets_, address receiver_, string memory errorPrefix_)
-        internal view returns (bool canDeposit_, string memory errorMessage_)
-    {
-        if (!active)                                    return (false, _formatErrorMessage(errorPrefix_, "NOT_ACTIVE"));
-        if (!openToPublic && !isValidLender[receiver_]) return (false, _formatErrorMessage(errorPrefix_, "LENDER_NOT_ALLOWED"));
-        if (assets_ + totalAssets() > liquidityCap)     return (false, _formatErrorMessage(errorPrefix_, "DEPOSIT_GT_LIQ_CAP"));
+    function _address(uint256 word_) internal pure returns (address address_) {
+        address_ = address(uint160(word_));
+    }
+
+    function _canDeposit(uint256 assets_) internal view returns (bool canDeposit_, string memory errorMessage_) {
+        if (!active)                                return (false, "P:NOT_ACTIVE");
+        if (assets_ + totalAssets() > liquidityCap) return (false, "P:DEPOSIT_GT_LIQ_CAP");
 
         return (true, "");
     }
 
-    function _canTransfer(address recipient_, string memory errorPrefix_)
-        internal view returns (bool canTransfer_, string memory errorMessage_)
-    {
-        if (!openToPublic && !isValidLender[recipient_]) return (false, _formatErrorMessage(errorPrefix_, "RECIPIENT_NOT_ALLOWED"));
-
-        return (true, "");
+    function _decodeParameters(bytes calldata data_) internal pure returns (uint256[3] memory words) {
+        if (data_.length > 64)  {
+            ( words[0], words[1], words[2] ) = abi.decode(data_, (uint256, uint256, uint256));
+        } else {
+            ( words[0], words[1] ) = abi.decode(data_, (uint256, uint256));
+        }
     }
 
-    function _formatErrorMessage(string memory errorPrefix_, string memory partialError_)
-        internal pure returns (string memory errorMessage_)
-    {
-        errorMessage_ = string(abi.encodePacked(errorPrefix_, partialError_));
-    }
-
-    function _getMaxAssets(address receiver_, uint256 totalAssets_) internal view returns (uint256 maxAssets_) {
-        bool    depositAllowed_ = openToPublic || isValidLender[receiver_];
+    function _getMaxAssets(address receiver_, uint256 totalAssets_, bytes32 functionId_) internal view returns (uint256 maxAssets_) {
+        bool    depositAllowed_ = IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this),  receiver_, functionId_);
         uint256 liquidityCap_   = liquidityCap;
         maxAssets_              = liquidityCap_ > totalAssets_ && depositAllowed_ ? liquidityCap_ - totalAssets_ : 0;
     }
@@ -597,8 +590,13 @@ contract PoolManager is IPoolManager, MapleProxiedInternals, PoolManagerStorage 
         require(msg.sender == poolDelegate, "PM:NOT_PD");
     }
 
-    function _revertIfNeitherPoolDelegateNorGovernor() internal view {
-        require(msg.sender == poolDelegate || msg.sender == governor(), "PM:NOT_PD_OR_GOV");
+    function _revertIfNeitherPoolDelegateNorProtocolAdmins() internal view {
+        require(
+            msg.sender == poolDelegate ||
+            msg.sender == governor()   ||
+            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            "PM:NOT_PD_OR_GOV_OR_OA"
+        );
     }
 
     function _revertIfPaused() internal view {

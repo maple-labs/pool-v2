@@ -3,11 +3,11 @@ pragma solidity 0.8.7;
 
 import { IMapleProxyFactory, MapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
-import { IPoolManagerFactory } from "../interfaces/IPoolManagerFactory.sol";
+import { IMaplePoolManagerFactory } from "../interfaces/IMaplePoolManagerFactory.sol";
 
 import { IGlobalsLike } from "../interfaces/Interfaces.sol";
 
-contract PoolManagerFactory is IPoolManagerFactory, MapleProxyFactory {
+contract MaplePoolManagerFactory is IMaplePoolManagerFactory, MapleProxyFactory {
 
     constructor(address globals_) MapleProxyFactory(globals_) { }
 

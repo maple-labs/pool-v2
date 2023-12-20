@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { PoolManager } from "../../contracts/PoolManager.sol";
+import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol";
 
-contract PoolManagerHarness is PoolManager {
+contract MaplePoolManagerHarness is MaplePoolManager {
 
     function __handleCover(uint256 losses_, uint256 platformFees_) external {
         _handleCover(losses_, platformFees_);
@@ -11,6 +11,10 @@ contract PoolManagerHarness is PoolManager {
 
     function __setIsLoanManager(address loanManager_, bool isLoanManager_) external {
         isLoanManager[loanManager_] = isLoanManager_;
+    }
+
+    function __setPoolPermissionManager(address poolPermissionManager_) external {
+        poolPermissionManager = poolPermissionManager_;
     }
 
     function __pushToLoanManagerList(address loanManager_) external {

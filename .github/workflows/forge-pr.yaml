@@ -4,6 +4,7 @@ on: [pull_request]
 
 jobs:
   test:
+    name: Test with "deep" profile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -39,11 +40,32 @@ jobs:
     - name: Generate coverage report
       run: |
         forge coverage --report lcov
+        sudo apt-get install lcov
+        lcov --remove lcov.info -o lcov.info 'tests/*'
     - name: Report code coverage
       uses: zgosalvez/github-actions-report-lcov@v1
       with:
         coverage-files: lcov.info
-        minimum-coverage: 60
+        minimum-coverage: 90
         artifact-name: code-coverage-report
         github-token: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./
+
+  size_check:
+    name: Check contracts sizes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+
+      - name: Check contract sizes
+        run: ./scripts/check-sizes.sh

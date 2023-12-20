@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-
+import { Test }        from "../../modules/forge-std/src/Test.sol";
 import { MockGlobals } from "../mocks/Mocks.sol";
 
 /**
  *  @dev Used to setup the MockGlobals contract for test contracts.
  */
-contract GlobalsBootstrapper is TestUtils {
+contract GlobalsBootstrapper is Test {
 
-    address internal GOVERNOR = address(new Address());
-    address internal TREASURY = address(new Address());
+    address internal GOVERNOR = makeAddr("GOVERNOR");
+    address internal TREASURY = makeAddr("TREASURY");
 
     address internal globals;
 

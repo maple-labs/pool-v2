@@ -5,7 +5,7 @@ version=$(cat ./configs/package.yaml | grep "version: " | sed -r 's/.{9}//')
 name=$(cat ./configs/package.yaml | grep "name: " | sed -r 's/.{6}//')
 customDescription=$(cat ./configs/package.yaml | grep "customDescription: " | sed -r 's/.{19}//')
 
-./scripts/build.sh
+./scripts/build.sh -p production
 
 rm -rf ./package
 mkdir -p package

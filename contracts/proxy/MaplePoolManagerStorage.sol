@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { IPoolManagerStorage } from "../interfaces/IPoolManagerStorage.sol";
+import { IMaplePoolManagerStorage } from "../interfaces/IMaplePoolManagerStorage.sol";
 
-abstract contract PoolManagerStorage is IPoolManagerStorage {
+abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
     uint256 internal _locked;  // Used when checking for reentrancy.
 
@@ -18,14 +18,18 @@ abstract contract PoolManagerStorage is IPoolManagerStorage {
 
     bool public override active;
     bool public override configured;
-    bool public override openToPublic;
+    
+    bool __deprecated_openToPublic;
 
     uint256 public override liquidityCap;
     uint256 public override delegateManagementFeeRate;
 
     mapping(address => bool) public override isLoanManager;
-    mapping(address => bool) public override isValidLender;
+
+    mapping(address => bool) __deprecated_isValidLender;
 
     address[] public override loanManagerList;
+
+    address public override poolPermissionManager;
 
 }

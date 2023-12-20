@@ -2,13 +2,13 @@
 pragma solidity 0.8.7;
 
 import { IGlobalsLike, IMapleProxyFactoryLike } from "../interfaces/Interfaces.sol";
-import { IPoolManagerInitializer }              from "../interfaces/IPoolManagerInitializer.sol";
+import { IMaplePoolManagerInitializer }         from "../interfaces/IMaplePoolManagerInitializer.sol";
 
-import { Pool }               from "../Pool.sol";
-import { PoolDelegateCover }  from "../PoolDelegateCover.sol";
-import { PoolManagerStorage } from "./PoolManagerStorage.sol";
+import { MaplePool }               from "../MaplePool.sol";
+import { MaplePoolDelegateCover }  from "../MaplePoolDelegateCover.sol";
+import { MaplePoolManagerStorage } from "./MaplePoolManagerStorage.sol";
 
-contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
+contract MaplePoolManagerInitializer is IMaplePoolManagerInitializer, MaplePoolManagerStorage {
 
     function decodeArguments(bytes calldata encodedArguments_) public pure override
         returns (
@@ -75,7 +75,7 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
         require(initialSupply_ == 0 || migrationAdmin_ != address(0), "PMI:I:INVALID_POOL_PARAMS");
 
         pool = address(
-            new Pool(
+            new MaplePool(
                 address(this),
                 asset_,
                 migrationAdmin_,
@@ -86,7 +86,7 @@ contract PoolManagerInitializer is IPoolManagerInitializer, PoolManagerStorage {
             )
         );
 
-        poolDelegateCover = address(new PoolDelegateCover(address(this), asset));
+        poolDelegateCover = address(new MaplePoolDelegateCover(address(this), asset));
 
         emit Initialized(poolDelegate_, asset_, address(pool));
     }

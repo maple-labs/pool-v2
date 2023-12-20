@@ -5,10 +5,10 @@ import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contrac
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { ERC20Helper }           from "../../modules/erc20-helper/src/ERC20Helper.sol";
 
-import { Pool }        from "../../contracts/Pool.sol";         // TODO: This should not be used in mocks.
-import { PoolManager } from "../../contracts/PoolManager.sol";  // TODO: This should not be used in mocks.
+import { MaplePool }        from "../../contracts/MaplePool.sol";         // TODO: This should not be used in mocks.
+import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol";  // TODO: This should not be used in mocks.
 
-import { PoolManagerStorage } from "../../contracts/proxy/PoolManagerStorage.sol";  // TODO: This should not be used in mocks.
+import { MaplePoolManagerStorage } from "../../contracts/proxy/MaplePoolManagerStorage.sol";  // TODO: This should not be used in mocks.
 
 contract MockProxied is MapleProxiedInternals {
 
@@ -23,10 +23,10 @@ contract MockProxied is MapleProxiedInternals {
     function migrate(address migrator_, bytes calldata arguments_) external {}
 }
 
-contract MockERC20Pool is Pool {
+contract MockERC20Pool is MaplePool {
 
     constructor(address manager_, address asset_, string memory name_, string memory symbol_)
-        Pool(manager_, asset_, address(0), 0, 0, name_, symbol_) {
+        MaplePool(manager_, asset_, address(0), 0, 0, name_, symbol_) {
             MockERC20(asset_).approve(manager_, type(uint256).max);
     }
 
@@ -56,6 +56,7 @@ contract MockGlobals {
     address public governor;
     address public mapleTreasury;
     address public migrationAdmin;
+    address public operationalAdmin;
     address public securityAdmin;
 
     bool public protocolPaused;
@@ -82,22 +83,6 @@ contract MockGlobals {
 
     function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
         isValid_ = _isValidScheduledCall;
-    }
-
-    function __setFailTransferOwnedPoolManager(bool fail_) external {
-        _failTransferOwnedPoolManager = fail_;
-    }
-
-    function __setIsValidScheduledCall(bool isValid_) external {
-        _isValidScheduledCall = isValid_;
-    }
-
-    function __setOwnedPoolManager(address owner_, address poolManager_) external {
-        ownedPoolManager[owner_] = poolManager_;
-    }
-
-    function __setBootstrapMint(uint256 bootstrapMint_) external {
-        _bootstrapMint = bootstrapMint_;
     }
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
@@ -166,8 +151,28 @@ contract MockGlobals {
 
     function unscheduleCall(address, bytes32, bytes calldata) external {}
 
+    function __setBootstrapMint(uint256 bootstrapMint_) external {
+        _bootstrapMint = bootstrapMint_;
+    }
+
+    function __setFailTransferOwnedPoolManager(bool fail_) external {
+        _failTransferOwnedPoolManager = fail_;
+    }
+
     function __setFunctionPaused(bool paused_) external {
         _isFunctionPaused = paused_;
+    }
+
+    function __setIsValidScheduledCall(bool isValid_) external {
+        _isValidScheduledCall = isValid_;
+    }
+    
+    function __setOperationalAdmin(address admin_) external {
+        operationalAdmin = admin_;
+    }
+
+    function __setOwnedPoolManager(address owner_, address poolManager_) external {
+        ownedPoolManager[owner_] = poolManager_;
     }
 
     function __setSecurityAdmin(address securityAdmin_) external {
@@ -308,14 +313,14 @@ contract MockOpenTermLoanManager is MockLoanManager {
 
 }
 
-// TODO: There most definitely is a better way to mock PoolManager.
+// TODO: There most definitely is a better way to mock MaplePoolManager.
 /**
- *  @dev Needs to inherit PoolManagerStorage to match real PoolManager storage layout,
- *       since this contract is used to etch over the real PoolManager implementation in tests,
- *       and is therefore used as the implementation contract for the PoolManager proxy.
+ *  @dev Needs to inherit MaplePoolManagerStorage to match real MaplePoolManager storage layout,
+ *       since this contract is used to etch over the real MaplePoolManager implementation in tests,
+ *       and is therefore used as the implementation contract for the MaplePoolManager proxy.
  *       By matching the storage layout, we avoid unexpected modifications of storage variables in this contract.
  */
-contract MockPoolManager is MockProxied, PoolManagerStorage {
+contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
 
     bool internal _canCall;
 
@@ -367,7 +372,7 @@ contract MockPoolManager is MockProxied, PoolManagerStorage {
 
     function requestRedeem(uint256 shares_, address owner_, address sender_) external view {
         if (sender_ != owner_ && shares_ == 0) {
-            require(Pool(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
+            require(MaplePool(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
         }
     }
 
@@ -420,7 +425,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     function transfer(address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
-            Pool(pool).deposit(0, address(0));
+            MaplePool(pool).deposit(0, address(0));
         } else {
             success_ = super.transfer(recipient_, amount_);
         }
@@ -428,7 +433,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     function transferFrom(address owner_, address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
-            Pool(pool).deposit(0, address(0));
+            MaplePool(pool).deposit(0, address(0));
         } else {
             success_ = super.transferFrom(owner_, recipient_, amount_);
         }
@@ -475,7 +480,7 @@ contract MockRevertingERC20 {
 
 }
 
-contract MockPoolManagerMigrator is PoolManagerStorage {
+contract MockPoolManagerMigrator is MaplePoolManagerStorage {
 
     fallback() external {
         poolDelegate = abi.decode(msg.data, (address));
@@ -483,10 +488,28 @@ contract MockPoolManagerMigrator is PoolManagerStorage {
 
 }
 
-contract MockPoolManagerMigratorInvalidPoolDelegateCover is PoolManagerStorage {
+contract MockPoolManagerMigratorInvalidPoolDelegateCover is MaplePoolManagerStorage {
 
     fallback() external {
         poolDelegateCover = address(0);
+    }
+
+}
+
+contract MockPoolPermissionManager {
+
+    bool _allowed;
+
+    function hasPermission(address, address, bytes32) external view returns (bool allowed_) {
+        allowed_ = _allowed;
+    }
+
+    function hasPermission(address, address[] calldata, bytes32) external view returns (bool allowed_) {
+        allowed_ = _allowed;
+    }
+    
+    function __setAllowed(bool allowed_) external {
+        _allowed = allowed_;
     }
 
 }

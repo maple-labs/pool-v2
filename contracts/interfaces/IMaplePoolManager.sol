@@ -3,20 +3,13 @@ pragma solidity 0.8.7;
 
 import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
-import { IPoolManagerStorage } from "./IPoolManagerStorage.sol";
+import { IMaplePoolManagerStorage } from "./IMaplePoolManagerStorage.sol";
 
-interface IPoolManager is IMapleProxied, IPoolManagerStorage {
+interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**************************************************************************************************************************************/
     /*** Events                                                                                                                         ***/
     /**************************************************************************************************************************************/
-
-    /**
-     *  @dev   Emitted when a new allowed lender is called.
-     *  @param lender_ The address of the new lender.
-     *  @param isValid_ Whether the new lender is valid.
-     */
-    event AllowedLenderSet(address indexed lender_, bool isValid_);
 
     /**
      *  @dev   Emitted when a collateral liquidations is finished.
@@ -76,11 +69,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     event LoanManagerAdded(address indexed loanManager_);
 
     /**
-     *  @dev Emitted when a pool is open to public.
-     */
-    event OpenToPublic();
-
-    /**
      *  @dev   Emitted when the pending pool delegate accepts the ownership transfer.
      *  @param previousDelegate_ The address of the previous delegate.
      *  @param newDelegate_      The address of the new delegate.
@@ -98,6 +86,12 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
      *  @dev Emitted when the pool configuration is marked as complete.
      */
     event PoolConfigurationComplete();
+
+    /**
+     *  @dev   Emitted when the pool permission manager is set.
+     *  @param poolPermissionManager_ The address of the pool permission manager.
+     */
+    event PoolPermissionManagerSet(address indexed poolPermissionManager_);
 
     /**
      *  @dev   Emitted when a redemption of shares from the pool is processed.
@@ -179,13 +173,6 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setActive(bool active_) external;
 
     /**
-     *  @dev   Sets a new lender as valid or not.
-     *  @param lender_  The address of the new lender.
-     *  @param isValid_ Whether the new lender is valid.
-     */
-    function setAllowedLender(address lender_, bool isValid_) external;
-
-    /**
      *  @dev   Sets the value for the delegate management fee rate.
      *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
      */
@@ -205,9 +192,10 @@ interface IPoolManager is IMapleProxied, IPoolManagerStorage {
     function setLiquidityCap(uint256 liquidityCap_) external;
 
     /**
-     *  @dev Sets pool open to public depositors.
+     *  @dev   Sets the address of the pool permission manager.
+     *  @param poolPermission_ The address of the pool permission manager.
      */
-    function setOpenToPublic() external;
+    function setPoolPermissionManager(address poolPermission_) external;
 
     /**
      *  @dev   Sets the address of the withdrawal manager.
