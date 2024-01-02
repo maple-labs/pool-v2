@@ -90,7 +90,7 @@ contract TestBase is Test, GlobalsBootstrapper {
 
     // Returns a valid `permit` signature signed by this contract's `owner` address
     function _getValidPermitSignature(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_, uint256 ownerSk_)
-        internal returns (uint8 v_, bytes32 r_, bytes32 s_)
+        internal view returns (uint8 v_, bytes32 r_, bytes32 s_)
     {
         return vm.sign(ownerSk_, _getDigest(owner_, spender_, value_, nonce_, deadline_));
     }
