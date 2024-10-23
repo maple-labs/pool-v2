@@ -37,7 +37,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     function deployPool(
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -69,13 +69,13 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             keccak256(abi.encode(poolManager_))
         );
 
-        address[] memory loanManagers_ = new address[](loanManagerFactories_.length);
+        address[] memory strategies_ = new address[](strategyFactories_.length);
 
-        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
-            loanManagers_[i_] = IPoolManagerLike(poolManager_).addLoanManager(loanManagerFactories_[i_]);
+        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_]);
         }
 
-        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, loanManagers_);
+        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
 
         uint256 coverAmount_ = configParams_[2];
 
@@ -95,7 +95,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     function deployPool(
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -127,13 +127,13 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             keccak256(abi.encode(poolManager_))
         );
 
-        address[] memory loanManagers_ = new address[](loanManagerFactories_.length);
+        address[] memory strategies_ = new address[](strategyFactories_.length);
 
-        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
-            loanManagers_[i_] = IPoolManagerLike(poolManager_).addLoanManager(loanManagerFactories_[i_]);
+        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_]);
         }
 
-        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, loanManagers_);
+        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
 
         uint256 coverAmount_ = configParams_[2];
 
@@ -154,7 +154,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolDelegate_,
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -166,7 +166,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             address          pool_,
             address          poolDelegateCover_,
             address          withdrawalManager_,
-            address[] memory loanManagers_
+            address[] memory strategies_
         )
     {
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(
@@ -182,10 +182,10 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             keccak256(abi.encode(poolManager_))
         );
 
-        loanManagers_ = new address[](loanManagerFactories_.length);
+        strategies_ = new address[](strategyFactories_.length);
 
-        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
-            loanManagers_[i_] = IMapleProxyFactory(loanManagerFactories_[i_]).getInstanceAddress(
+        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
+            strategies_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
                 abi.encode(poolManager_),
                 keccak256(abi.encode(poolManager_, i_))
             );
@@ -196,7 +196,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolDelegate_,
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -208,7 +208,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             address          pool_,
             address          poolDelegateCover_,
             address          withdrawalManager_,
-            address[] memory loanManagers_
+            address[] memory strategies_
         )
     {
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(
@@ -224,10 +224,10 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             keccak256(abi.encode(poolManager_))
         );
 
-        loanManagers_ = new address[](loanManagerFactories_.length);
+        strategies_ = new address[](strategyFactories_.length);
 
-        for (uint256 i_; i_ < loanManagerFactories_.length; ++i_) {
-            loanManagers_[i_] = IMapleProxyFactory(loanManagerFactories_[i_]).getInstanceAddress(
+        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
+            strategies_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
                 abi.encode(poolManager_),
                 keccak256(abi.encode(poolManager_, i_))
             );

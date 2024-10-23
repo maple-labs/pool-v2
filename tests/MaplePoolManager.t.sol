@@ -463,54 +463,54 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerTestBase {
 
 }
 
-contract SetIsLoanManager_SetterTests is PoolManagerTestBase {
+contract SetIsStrategy_SetterTests is PoolManagerTestBase {
 
-    address loanManager1;
-    address loanManager2;
+    address strategy1;
+    address strategy2;
 
     function setUp() public override {
         super.setUp();
 
-        loanManager1 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-        loanManager2 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
+        strategy1 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
+        strategy2 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
 
-        poolManager.__setIsLoanManager(loanManager1, true);
-        poolManager.__setIsLoanManager(loanManager2, true);
-        poolManager.__pushToLoanManagerList(loanManager1);
-        poolManager.__pushToLoanManagerList(loanManager2);
+        poolManager.__setIsStrategy(strategy1, true);
+        poolManager.__setIsStrategy(strategy2, true);
+        poolManager.__pushToStrategyList(strategy1);
+        poolManager.__pushToStrategyList(strategy2);
     }
 
-    function test_setIsLoanManager_paused() external {
+    function test_setIsStrategy_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.expectRevert("PM:PAUSED");
-        poolManager.setIsLoanManager(loanManager2, false);
+        poolManager.setIsStrategy(strategy2, false);
     }
 
-    function test_setIsLoanManager_notPoolDelegate() external {
+    function test_setIsStrategy_notPoolDelegate() external {
         vm.expectRevert("PM:NOT_PD");
-        poolManager.setIsLoanManager(loanManager2, false);
+        poolManager.setIsStrategy(strategy2, false);
     }
 
-    function test_setIsLoanManager_invalidLM() external {
-        address invalidLoanManager = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
+    function test_setIsStrategy_invalidLM() external {
+        address invalidStrategy = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
 
         vm.startPrank(POOL_DELEGATE);
         vm.expectRevert("PM:SILM:INVALID_LM");
-        poolManager.setIsLoanManager(invalidLoanManager, false);
+        poolManager.setIsStrategy(invalidStrategy, false);
     }
 
-    function test_setIsLoanManager_success() external {
-        assertTrue(poolManager.isLoanManager(loanManager2));
+    function test_setIsStrategy_success() external {
+        assertTrue(poolManager.isStrategy(strategy2));
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.setIsLoanManager(loanManager2, false);
+        poolManager.setIsStrategy(strategy2, false);
 
-        assertTrue(!poolManager.isLoanManager(loanManager2));
+        assertTrue(!poolManager.isStrategy(strategy2));
 
-        poolManager.setIsLoanManager(loanManager2, true);
+        poolManager.setIsStrategy(strategy2, true);
 
-        assertTrue(poolManager.isLoanManager(loanManager2));
+        assertTrue(poolManager.isStrategy(strategy2));
     }
 
 }
@@ -554,8 +554,8 @@ contract TriggerDefault is PoolManagerTestBase {
         loanFactory.__setIsLoan(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.__setIsLoanManager(address(loanManager), true);
-        poolManager.__pushToLoanManagerList(address(loanManager));
+        poolManager.__setIsStrategy(address(loanManager), true);
+        poolManager.__pushToStrategyList(address(loanManager));
         poolManager.setWithdrawalManager(withdrawalManager);
         vm.stopPrank();
     }
@@ -647,8 +647,8 @@ contract FinishCollateralLiquidation is PoolManagerTestBase {
         loanFactory.__setIsLoan(loan, true);
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.__setIsLoanManager(address(loanManager), true);
-        poolManager.__pushToLoanManagerList(address(loanManager));
+        poolManager.__setIsStrategy(address(loanManager), true);
+        poolManager.__pushToStrategyList(address(loanManager));
         poolManager.setWithdrawalManager(withdrawalManager);
         vm.stopPrank();
     }
@@ -910,7 +910,7 @@ contract ProcessRedeemTests is PoolManagerTestBase {
 
 }
 
-contract AddLoanManager_SetterTests is PoolManagerTestBase {
+contract AddStrategy_SetterTests is PoolManagerTestBase {
 
     address loanManagerFactory;
 
@@ -922,46 +922,46 @@ contract AddLoanManager_SetterTests is PoolManagerTestBase {
         MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY", loanManagerFactory, true);
     }
 
-    function test_addLoanManager_paused() external {
+    function test_addStrategy_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
-        poolManager.addLoanManager(address(0));
+        poolManager.addStrategy(address(0));
     }
 
-    function test_addLoanManager_notPoolDelegate() external {
+    function test_addStrategy_notPoolDelegate() external {
         poolManager.__setConfigured(true);
 
         vm.expectRevert("PM:NO_AUTH");
-        poolManager.addLoanManager(address(0));
+        poolManager.addStrategy(address(0));
     }
 
-    function test_addLoanManager_invalidFactory() external {
+    function test_addStrategy_invalidFactory() external {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:ALM:INVALID_FACTORY");
-        poolManager.addLoanManager(address(0));
+        poolManager.addStrategy(address(0));
     }
 
-    function test_addLoanManager_success_whenNotConfigured() external {
-        address loanManager_ = poolManager.addLoanManager(loanManagerFactory);
+    function test_addStrategy_success_whenNotConfigured() external {
+        address strategy_ = poolManager.addStrategy(loanManagerFactory);
 
-        assertTrue(loanManager_ == poolManager.__getLoanManagerListValue(0));
-        assertTrue(poolManager.__getLoanManagerListValue(0) != address(0));
+        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
+        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
 
-        assertEq(poolManager.loanManagerListLength(), 1);
+        assertEq(poolManager.strategyListLength(), 1);
     }
 
-    function test_addLoanManager_success_asPoolDelegate() external {
+    function test_addStrategy_success_asPoolDelegate() external {
         poolManager.__setConfigured(true);
 
         vm.startPrank(POOL_DELEGATE);
-        address loanManager_ = poolManager.addLoanManager(loanManagerFactory);
+        address strategy_ = poolManager.addStrategy(loanManagerFactory);
 
-        assertTrue(loanManager_ == poolManager.__getLoanManagerListValue(0));
-        assertTrue(poolManager.__getLoanManagerListValue(0) != address(0));
+        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
+        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
 
-        assertEq(poolManager.loanManagerListLength(), 1);
+        assertEq(poolManager.strategyListLength(), 1);
     }
 
 }
@@ -1490,8 +1490,8 @@ contract HandleCoverTests is PoolManagerTestBase {
 
         loanManager = makeAddr("loanManager");
 
-        poolManager.__setIsLoanManager(loanManager, true);
-        poolManager.__pushToLoanManagerList(loanManager);
+        poolManager.__setIsStrategy(loanManager, true);
+        poolManager.__pushToStrategyList(loanManager);
     }
 
     function test_handleCover_noCover() external {
@@ -1890,23 +1890,23 @@ contract MaxWithdrawTests is PoolManagerTestBase {
 
 contract RequestFundsTests is PoolManagerTestBase {
 
-    address loanManager;
-    address loanManagerFactory;
+    address strategy;
+    address strategyFactory;
 
     function setUp() public override {
         super.setUp();
 
-        loanManager        = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-        loanManagerFactory = address(new MockFactory());
+        strategy        = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
+        strategyFactory = address(new MockFactory());
 
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       loanManagerFactory,                true);
+        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       strategyFactory,                true);
         MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
 
-        MockLoanManager(loanManager).__setFactory(loanManagerFactory);
+        MockLoanManager(strategy).__setFactory(strategyFactory);
 
-        poolManager.__setIsLoanManager(loanManager, true);
+        poolManager.__setIsStrategy(strategy, true);
 
-        MockFactory(loanManagerFactory).__setIsInstance(address(loanManager), true);
+        MockFactory(strategyFactory).__setIsInstance(address(strategy), true);
 
         vm.prank(POOL_DELEGATE);
         poolManager.setWithdrawalManager(withdrawalManager);
@@ -1916,45 +1916,45 @@ contract RequestFundsTests is PoolManagerTestBase {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.expectRevert("PM:PAUSED");
-        poolManager.requestFunds(loanManager, 1);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_zeroPrincipal() external {
         vm.expectRevert("PM:RF:INVALID_PRINCIPAL");
-        vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 0);
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 0);
     }
 
     function test_requestFunds_invalidFactory() external {
-        MockLoanManager(loanManager).__setFactory(address(0));
+        MockLoanManager(strategy).__setFactory(address(0));
 
         vm.expectRevert("PM:RF:INVALID_FACTORY");
-        vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 1);
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_invalidInstance() external {
-        MockFactory(loanManagerFactory).__setIsInstance(address(loanManager), false);
+        MockFactory(strategyFactory).__setIsInstance(address(strategy), false);
 
         vm.expectRevert("PM:RF:INVALID_INSTANCE");
-        vm.prank(loanManager);
-        poolManager.requestFunds(address(loanManager), 1);
+        vm.prank(strategy);
+        poolManager.requestFunds(address(strategy), 1);
     }
 
     function test_requestFunds_notLM() external {
-        poolManager.__setIsLoanManager(loanManager, false);
+        poolManager.__setIsStrategy(strategy, false);
 
         vm.expectRevert("PM:RF:NOT_LM");
-        vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 1);
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_zeroSupply() external {
         pool.burn(address(1), 1);
 
         vm.expectRevert("PM:RF:ZERO_SUPPLY");
-        vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 1);
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_insufficientCoverBoundary() external {
@@ -1963,41 +1963,41 @@ contract RequestFundsTests is PoolManagerTestBase {
         asset.mint(poolManager.poolDelegateCover(), 1000e18 - 1);
 
         vm.expectRevert("PM:RF:INSUFFICIENT_COVER");
-        vm.startPrank(loanManager);
-        poolManager.requestFunds(loanManager, 1);
+        vm.startPrank(strategy);
+        poolManager.requestFunds(strategy, 1);
 
         asset.mint(poolManager.poolDelegateCover(), 1);
 
-        poolManager.requestFunds(loanManager, 1);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_lockedLiquidityBoundary() external {
         MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1_000_000e18);
 
         vm.expectRevert("PM:RF:LOCKED_LIQUIDITY");
-        vm.startPrank(loanManager);
-        poolManager.requestFunds(loanManager, 1);
+        vm.startPrank(strategy);
+        poolManager.requestFunds(strategy, 1);
 
         asset.mint(poolManager.pool(), 1);
 
-        poolManager.requestFunds(loanManager, 1);
+        poolManager.requestFunds(strategy, 1);
     }
 
     function test_requestFunds_zeroAddress() external {
         vm.expectRevert("PM:RF:INVALID_DESTINATION");
-        vm.prank(loanManager);
+        vm.prank(strategy);
         poolManager.requestFunds(address(0), 1000e18);
     }
 
     function test_requestFunds_success() external {
         assertEq(asset.balanceOf(address(pool)), 1_000_000e18);
-        assertEq(asset.balanceOf(loanManager),   0);
+        assertEq(asset.balanceOf(strategy),   0);
 
-        vm.prank(loanManager);
-        poolManager.requestFunds(loanManager, 1000e18);
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1000e18);
 
         assertEq(asset.balanceOf(address(pool)), 1_000_000e18 - 1000e18);
-        assertEq(asset.balanceOf(loanManager),   1000e18);
+        assertEq(asset.balanceOf(strategy),   1000e18);
     }
 
 }

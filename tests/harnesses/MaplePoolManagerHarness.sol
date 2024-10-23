@@ -9,24 +9,24 @@ contract MaplePoolManagerHarness is MaplePoolManager {
         _handleCover(losses_, platformFees_);
     }
 
-    function __setIsLoanManager(address loanManager_, bool isLoanManager_) external {
-        isLoanManager[loanManager_] = isLoanManager_;
+    function __setIsStrategy(address strategy_, bool isStrategy_) external {
+        isStrategy[strategy_] = isStrategy_;
     }
 
     function __setPoolPermissionManager(address poolPermissionManager_) external {
         poolPermissionManager = poolPermissionManager_;
     }
 
-    function __pushToLoanManagerList(address loanManager_) external {
-        loanManagerList.push(loanManager_);
+    function __pushToStrategyList(address strategy_) external {
+        strategyList.push(strategy_);
     }
 
     function __setConfigured(bool configured_) external {
         configured = configured_;
     }
 
-    function __getLoanManagerListValue(uint256 index_) external view returns (address value_) {
-        value_ = index_ < loanManagerList.length ? loanManagerList[index_] : address(0);
+    function __getStrategyListValue(uint256 index_) external view returns (address value_) {
+        value_ = index_ < strategyList.length ? strategyList[index_] : address(0);
     }
 
 }

@@ -29,7 +29,7 @@ contract MaplePoolDeployerTests is TestBase {
 
     uint256 coverAmountRequired = 10e18;
 
-    address[] loanManagerFactories;
+    address[] strategyFactories;
 
     uint256[7] configParamsCycle = [
         1_000_000e18,
@@ -55,7 +55,7 @@ contract MaplePoolDeployerTests is TestBase {
         _deployAndBootstrapGlobals(asset, poolDelegate);
 
         for (uint256 i; i < 2; ++i) {
-            loanManagerFactories.push(address(new MapleProxyFactory(globals)));
+            strategyFactories.push(address(new MapleProxyFactory(globals)));
         }
 
         poolManagerFactory       = address(new MapleProxyFactory(globals));
@@ -73,9 +73,9 @@ contract MaplePoolDeployerTests is TestBase {
 
         IMapleProxyFactory(poolManagerFactory).setDefaultVersion(1);
 
-        for (uint256 i; i < loanManagerFactories.length; ++i) {
-            IMapleProxyFactory(loanManagerFactories[i]).registerImplementation(1, address(new MockProxied()), address(new MockMigrator()));
-            IMapleProxyFactory(loanManagerFactories[i]).setDefaultVersion(1);
+        for (uint256 i; i < strategyFactories.length; ++i) {
+            IMapleProxyFactory(strategyFactories[i]).registerImplementation(1, address(new MockProxied()), address(new MockMigrator()));
+            IMapleProxyFactory(strategyFactories[i]).setDefaultVersion(1);
         }
 
         IMapleProxyFactory(withdrawalManagerFactory).registerImplementation(1, address(new MockProxied()), address(new MockMigrator()));
@@ -98,7 +98,7 @@ contract MaplePoolDeployerTests is TestBase {
         MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             poolPermissionManager,
             name,
@@ -117,7 +117,7 @@ contract MaplePoolDeployerTests is TestBase {
         MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             poolPermissionManager,
             name,
@@ -136,12 +136,12 @@ contract MaplePoolDeployerTests is TestBase {
             address          expectedPool_,
             address          expectedPoolDelegateCover_,
             address          expectedWithdrawalManager_,
-            address[] memory expectedLoanManagers_
+            address[] memory expectedStrategies_
         ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
             poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             name,
             symbol,
@@ -152,7 +152,7 @@ contract MaplePoolDeployerTests is TestBase {
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             poolPermissionManager,
             name,
@@ -165,8 +165,8 @@ contract MaplePoolDeployerTests is TestBase {
         assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
         assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
-        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
-            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        for (uint256 i_; i_ < strategyFactories.length; ++i_) {
+            assertEq(IMaplePoolManager(poolManager_).strategyList(i_), expectedStrategies_[i_]);
         }
     }
 
@@ -186,12 +186,12 @@ contract MaplePoolDeployerTests is TestBase {
             address          expectedPool_,
             address          expectedPoolDelegateCover_,
             address          expectedWithdrawalManager_,
-            address[] memory expectedLoanManagers_
+            address[] memory expectedStrategies_
         ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
             poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             name,
             symbol,
@@ -202,7 +202,7 @@ contract MaplePoolDeployerTests is TestBase {
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             poolPermissionManager,
             name,
@@ -215,8 +215,8 @@ contract MaplePoolDeployerTests is TestBase {
         assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
         assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
-        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
-            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        for (uint256 i_; i_ < strategyFactories.length; ++i_) {
+            assertEq(IMaplePoolManager(poolManager_).strategyList(i_), expectedStrategies_[i_]);
         }
     }
 
@@ -230,12 +230,12 @@ contract MaplePoolDeployerTests is TestBase {
             address          expectedPool_,
             address          expectedPoolDelegateCover_,
             address          expectedWithdrawalManager_,
-            address[] memory expectedLoanManagers_
+            address[] memory expectedStrategies_
         ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
             poolDelegate,
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             name,
             symbol,
@@ -246,7 +246,7 @@ contract MaplePoolDeployerTests is TestBase {
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
             withdrawalManagerFactory,
-            loanManagerFactories,
+            strategyFactories,
             asset,
             poolPermissionManager,
             name,
@@ -259,8 +259,8 @@ contract MaplePoolDeployerTests is TestBase {
         assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
         assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
-        for (uint256 i_; i_ < loanManagerFactories.length; ++i_) {
-            assertEq(IMaplePoolManager(poolManager_).loanManagerList(i_), expectedLoanManagers_[i_]);
+        for (uint256 i_; i_ < strategyFactories.length; ++i_) {
+            assertEq(IMaplePoolManager(poolManager_).strategyList(i_), expectedStrategies_[i_]);
         }
     }
 

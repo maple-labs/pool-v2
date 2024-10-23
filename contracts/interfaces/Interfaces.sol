@@ -97,7 +97,7 @@ interface IPoolLike is IERC20Like {
 
 interface IPoolManagerLike {
 
-    function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
+    function addStrategy(address strategyFactory_) external returns (address strategy_);
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view

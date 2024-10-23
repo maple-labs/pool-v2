@@ -8,15 +8,15 @@ interface IMaplePoolDeployer {
      *  @param pool_              The address of the Pool deployed.
      *  @param poolManager_       The address of the PoolManager deployed.
      *  @param withdrawalManager_ The address of the WithdrawalManager deployed.
-     *  @param loanManagers_      An array of the addresses of the LoanManagers deployed.
+     *  @param strategies_        An array of the addresses of the Strategies deployed.
      */
-    event PoolDeployed(address indexed pool_, address indexed poolManager_, address indexed withdrawalManager_, address[] loanManagers_);
+    event PoolDeployed(address indexed pool_, address indexed poolManager_, address indexed withdrawalManager_, address[] strategies_);
 
     /**
      *  @dev   Deploys a pool along with its dependencies.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
-     *  @param loanManagerFactories_     An array of LoanManager factories to use.
+     *  @param strategyFactories_        An array of Strategy factories to use.
      *  @param asset_                    The address of the asset to use.
      *  @param poolPermissionManager_    The address of the PoolPermissionManager to use.
      *  @param name_                     The name of the Pool.
@@ -34,7 +34,7 @@ interface IMaplePoolDeployer {
     function deployPool(
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -48,7 +48,7 @@ interface IMaplePoolDeployer {
      *  @dev   Deploys a pool along with its dependencies.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
-     *  @param loanManagerFactories_     An array of LoanManager factories to use.
+     *  @param strategyFactories_        An array of Strategy factories to use.
      *  @param asset_                    The address of the asset to use.
      *  @param poolPermissionManager_    The address of the PoolPermissionManager to use.
      *  @param name_                     The name of the Pool.
@@ -63,7 +63,7 @@ interface IMaplePoolDeployer {
     function deployPool(
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -78,7 +78,7 @@ interface IMaplePoolDeployer {
      *  @param poolDelegate_             The address of the PoolDelegate that will deploy the Pool.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
-     *  @param loanManagerFactories_     An array of LoanManager factories to use.
+     *  @param strategyFactories_        An array of Strategy factories to use.
      *  @param asset_                    The address of the asset to use.
      *  @param name_                     The name of the Pool.
      *  @param symbol_                   The symbol of the Pool.
@@ -94,13 +94,13 @@ interface IMaplePoolDeployer {
      *  @return pool_              The address of the Pool contract that will be deployed.
      *  @return poolDelegateCover_ The address of the PoolDelegateCover contract that will be deployed.
      *  @return withdrawalManager_ The address of the WithdrawalManager contract that will be deployed.
-     *  @return loanManagers_      The address of the LoanManager contracts that will be deployed.
+     *  @return strategies_        The address of the Strategy contracts that will be deployed.
      */
     function getDeploymentAddresses(
         address           poolDelegate_,
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -112,7 +112,7 @@ interface IMaplePoolDeployer {
             address          pool_,
             address          poolDelegateCover_,
             address          withdrawalManager_,
-            address[] memory loanManagers_
+            address[] memory strategies_
         );
 
     /**
@@ -120,7 +120,7 @@ interface IMaplePoolDeployer {
      *  @param poolDelegate_             The address of the PoolDelegate that will deploy the Pool.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
-     *  @param loanManagerFactories_     An array of LoanManager factories to use.
+     *  @param strategyFactories_        An array of Strategy factories to use.
      *  @param asset_                    The address of the asset to use.
      *  @param name_                     The name of the Pool.
      *  @param symbol_                   The symbol of the Pool.
@@ -133,13 +133,13 @@ interface IMaplePoolDeployer {
      *  @return pool_              The address of the Pool contract that will be deployed.
      *  @return poolDelegateCover_ The address of the PoolDelegateCover contract that will be deployed.
      *  @return withdrawalManager_ The address of the WithdrawalManager contract that will be deployed.
-     *  @return loanManagers_      The address of the LoanManager contracts that will be deployed.
+     *  @return strategies_        The address of the Strategy contracts that will be deployed.
      */
     function getDeploymentAddresses(
         address           poolDelegate_,
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
-        address[]  memory loanManagerFactories_,
+        address[]  memory strategyFactories_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -151,7 +151,7 @@ interface IMaplePoolDeployer {
             address          pool_,
             address          poolDelegateCover_,
             address          withdrawalManager_,
-            address[] memory loanManagers_
+            address[] memory strategies_
         );
 
     function globals() external view returns (address globals_);

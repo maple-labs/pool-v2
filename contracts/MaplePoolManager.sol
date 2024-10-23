@@ -166,22 +166,22 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addLoanManager(address loanManagerFactory_)
-        external override whenNotPaused onlyPoolDelegateOrNotConfigured returns (address loanManager_)
+    function addStrategy(address strategyFactory_)
+        external override whenNotPaused onlyPoolDelegateOrNotConfigured returns (address strategy_)
     {
-        require(IGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", loanManagerFactory_), "PM:ALM:INVALID_FACTORY");
+        require(IGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", strategyFactory_), "PM:ALM:INVALID_FACTORY");
 
-        // NOTE: If removing loan managers is allowed in the future, there will be a need to rethink salts here due to collisions.
-        loanManager_ = IMapleProxyFactory(loanManagerFactory_).createInstance(
+        // NOTE: If removing strategies is allowed in the future, there will be a need to rethink salts here due to collisions.
+        strategy_ = IMapleProxyFactory(strategyFactory_).createInstance(
             abi.encode(address(this)),
-            keccak256(abi.encode(address(this), loanManagerList.length))
+            keccak256(abi.encode(address(this), strategyList.length))
         );
 
-        isLoanManager[loanManager_] = true;
+        isStrategy[strategy_] = true;
 
-        loanManagerList.push(loanManager_);
+        strategyList.push(strategy_);
 
-        emit LoanManagerAdded(loanManager_);
+        emit StrategyAdded(strategy_);
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
@@ -192,13 +192,13 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
-    function setIsLoanManager(address loanManager_, bool isLoanManager_) external override whenNotPaused onlyPoolDelegate {
-        emit IsLoanManagerSet(loanManager_, isLoanManager[loanManager_] = isLoanManager_);
+    function setIsStrategy(address strategy_, bool isStrategy_) external override whenNotPaused onlyPoolDelegate {
+        emit IsStrategySet(strategy_, isStrategy[strategy_] = isStrategy_);
 
-        // Check LoanManager is in the list.
-        // NOTE: The factory and instance check are not required as the mapping is being updated for a LoanManager that is in the list.
-        for (uint256 i_; i_ < loanManagerList.length; ++i_) {
-            if (loanManagerList[i_] == loanManager_) return;
+        // Check Strategy is in the list.
+        // NOTE: The factory and instance check are not required as the mapping is being updated for a Strategy that is in the list.
+        for (uint256 i_; i_ < strategyList.length; ++i_) {
+            if (strategyList[i_] == strategy_) return;
         }
 
         revert("PM:SILM:INVALID_LM");
@@ -234,11 +234,11 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
         IGlobalsLike globals_ = IGlobalsLike(globals());
 
-        // NOTE: Do not need to check isInstance() as the LoanManager is added to the list on `addLoanManager()` or `configure()`.
+        // NOTE: Do not need to check isInstance() as the Strategy is added to the list on `addStrategy()` or `configure()`.
         require(principal_ != 0,                                         "PM:RF:INVALID_PRINCIPAL");
         require(globals_.isInstanceOf("LOAN_MANAGER_FACTORY", factory_), "PM:RF:INVALID_FACTORY");
         require(IMapleProxyFactory(factory_).isInstance(msg.sender),     "PM:RF:INVALID_INSTANCE");
-        require(isLoanManager[msg.sender],                               "PM:RF:NOT_LM");
+        require(isStrategy[msg.sender],                                  "PM:RF:NOT_LM");
         require(IERC20Like(pool_).totalSupply() != 0,                    "PM:RF:ZERO_SUPPLY");
         require(_hasSufficientCover(address(globals_), asset_),          "PM:RF:INSUFFICIENT_COVER");
 
@@ -437,17 +437,17 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         implementation_ = _implementation();
     }
 
-    function loanManagerListLength() external view override returns (uint256 loanManagerListLength_) {
-        loanManagerListLength_ = loanManagerList.length;
+    function strategyListLength() external view override returns (uint256 strategyListLength_) {
+        strategyListLength_ = strategyList.length;
     }
 
     function totalAssets() public view override returns (uint256 totalAssets_) {
         totalAssets_ = IERC20Like(asset).balanceOf(pool);
 
-        uint256 length_ = loanManagerList.length;
+        uint256 length_ = strategyList.length;
 
         for (uint256 i_; i_ < length_;) {
-            totalAssets_ += ILoanManagerLike(loanManagerList[i_]).assetsUnderManagement();
+            totalAssets_ += ILoanManagerLike(strategyList[i_]).assetsUnderManagement();
             unchecked { ++i_; }
         }
     }
@@ -495,10 +495,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
-        uint256 length_ = loanManagerList.length;
+        uint256 length_ = strategyList.length;
 
         for (uint256 i_; i_ < length_;) {
-            unrealizedLosses_ += ILoanManagerLike(loanManagerList[i_]).unrealizedLosses();
+            unrealizedLosses_ += ILoanManagerLike(strategyList[i_]).unrealizedLosses();
             unchecked { ++i_; }
         }
 
@@ -513,7 +513,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     function _getLoanManager(address loan_) internal view returns (address loanManager_) {
         loanManager_ = ILoanLike(loan_).lender();
 
-        require(isLoanManager[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
+        require(isStrategy[loanManager_], "PM:GLM:INVALID_LOAN_MANAGER");
     }
 
     function _handleCover(uint256 losses_, uint256 platformFees_) internal {

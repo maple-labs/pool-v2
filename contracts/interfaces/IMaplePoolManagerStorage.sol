@@ -28,11 +28,11 @@ interface IMaplePoolManagerStorage {
     function delegateManagementFeeRate() external view returns (uint256 delegateManagementFeeRate_);
 
     /**
-     *  @dev    Returns whether or not the given address is a loan manager.
-     *  @param  loan_          The address of the loan.
-     *  @return isLoanManager_ True if the address is a loan manager.
+     *  @dev    Returns whether or not the given address is a strategy.
+     *  @param  strategy_   The address of the strategy.
+     *  @return isStrategy_ True if the address is a strategy.
      */
-    function isLoanManager(address loan_) external view returns (bool isLoanManager_);
+    function isStrategy(address strategy_) external view returns (bool isStrategy_);
 
     /**
      *  @dev    Gets the liquidity cap for the pool.
@@ -41,11 +41,11 @@ interface IMaplePoolManagerStorage {
     function liquidityCap() external view returns (uint256 liquidityCap_);
 
     /**
-     *  @dev    Gets the address of the loan manager in the list.
-     *  @param  index_       The index to get the address of.
-     *  @return loanManager_ The address in the list.
+     *  @dev    Gets the address of the strategy in the list.
+     *  @param  index_    The index to get the address of.
+     *  @return strategy_ The address in the list.
      */
-    function loanManagerList(uint256 index_) external view returns (address loanManager_);
+    function strategyList(uint256 index_) external view returns (address strategy_);
 
     /**
      *  @dev    Gets the address of the pending pool delegate.
