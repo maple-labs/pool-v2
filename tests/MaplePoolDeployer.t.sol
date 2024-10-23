@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }                                  from "../modules/forge-std/src/Test.sol";
 import { MockERC20 }                             from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
@@ -13,9 +13,9 @@ import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol
 
 import { MockGlobals, MockMigrator, MockPoolPermissionManager, MockProxied } from "./mocks/Mocks.sol";
 
-import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+import { TestBase } from "./utils/TestBase.sol";
 
-contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
+contract MaplePoolDeployerTests is TestBase {
 
     address asset;
     address poolDelegate;
@@ -67,8 +67,8 @@ contract MaplePoolDeployerTests is Test, GlobalsBootstrapper {
 
         IMapleProxyFactory(poolManagerFactory).registerImplementation(
             1,
-            address(new MaplePoolManager()),
-            address(new MaplePoolManagerInitializer())
+            deploy("MaplePoolManager"),
+            deploy("MaplePoolManagerInitializer")
         );
 
         IMapleProxyFactory(poolManagerFactory).setDefaultVersion(1);

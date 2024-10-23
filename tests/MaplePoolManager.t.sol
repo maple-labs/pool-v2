@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }      from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
@@ -23,9 +23,9 @@ import {
 
 import { MaplePoolManagerHarness } from "./harnesses/MaplePoolManagerHarness.sol";
 
-import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+import { TestBase } from "./utils/TestBase.sol";
 
-contract TestBase is Test, GlobalsBootstrapper {
+contract PoolManagerTestBase is TestBase {
 
     address internal POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
@@ -102,7 +102,7 @@ contract TestBase is Test, GlobalsBootstrapper {
 
 }
 
-contract CompleteConfigurationTests is TestBase {
+contract CompleteConfigurationTests is PoolManagerTestBase {
 
     function test_completeConfiguration_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -126,7 +126,7 @@ contract CompleteConfigurationTests is TestBase {
 
 }
 
-contract MigrateTests is TestBase {
+contract MigrateTests is PoolManagerTestBase {
 
     address internal invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
     address internal migrator        = address(new MockPoolManagerMigrator());
@@ -166,9 +166,9 @@ contract MigrateTests is TestBase {
 
 }
 
-contract SetImplementationTests is TestBase {
+contract SetImplementationTests is PoolManagerTestBase {
 
-    address internal newImplementation = address(new MaplePoolManager());
+    address internal newImplementation = deploy("MaplePoolManager");
 
     function test_setImplementation_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -193,11 +193,11 @@ contract SetImplementationTests is TestBase {
 
 }
 
-contract UpgradeTests is TestBase {
+contract UpgradeTests is PoolManagerTestBase {
 
     address internal SECURITY_ADMIN = makeAddr("SECURITY_ADMIN");
 
-    address internal newImplementation = address(new MaplePoolManager());
+    address internal newImplementation = deploy("MaplePoolManager");
 
     function setUp() public override {
         super.setUp();
@@ -257,7 +257,7 @@ contract UpgradeTests is TestBase {
 
 }
 
-contract AcceptPoolDelegate_SetterTests is TestBase {
+contract AcceptPoolDelegate_SetterTests is PoolManagerTestBase {
 
     address internal SET_ADDRESS = makeAddr("SET_ADDRESS");
 
@@ -302,7 +302,7 @@ contract AcceptPoolDelegate_SetterTests is TestBase {
 
 }
 
-contract SetPendingPoolDelegate_SetterTests is TestBase {
+contract SetPendingPoolDelegate_SetterTests is PoolManagerTestBase {
 
     address internal SET_ADDRESS = makeAddr("SET_ADDRESS");
 
@@ -348,7 +348,7 @@ contract SetPendingPoolDelegate_SetterTests is TestBase {
 
 }
 
-contract SetActive_SetterTests is TestBase {
+contract SetActive_SetterTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
@@ -386,7 +386,7 @@ contract SetActive_SetterTests is TestBase {
     }
 }
 
-contract SetLiquidityCap_SetterTests is TestBase {
+contract SetLiquidityCap_SetterTests is PoolManagerTestBase {
 
     function test_setLiquidityCap_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -420,7 +420,7 @@ contract SetLiquidityCap_SetterTests is TestBase {
 
 }
 
-contract SetDelegateManagementFeeRate_SetterTests is TestBase {
+contract SetDelegateManagementFeeRate_SetterTests is PoolManagerTestBase {
 
     uint256 internal newManagementFeeRate = 10_0000;
 
@@ -463,7 +463,7 @@ contract SetDelegateManagementFeeRate_SetterTests is TestBase {
 
 }
 
-contract SetIsLoanManager_SetterTests is TestBase {
+contract SetIsLoanManager_SetterTests is PoolManagerTestBase {
 
     address loanManager1;
     address loanManager2;
@@ -515,7 +515,7 @@ contract SetIsLoanManager_SetterTests is TestBase {
 
 }
 
-contract TriggerDefault is TestBase {
+contract TriggerDefault is PoolManagerTestBase {
 
     address internal AUCTIONEER        = makeAddr("AUCTIONEER");
     address internal BORROWER          = makeAddr("BORROWER");
@@ -605,7 +605,7 @@ contract TriggerDefault is TestBase {
 
 }
 
-contract FinishCollateralLiquidation is TestBase {
+contract FinishCollateralLiquidation is PoolManagerTestBase {
 
     address internal BORROWER          = makeAddr("BORROWER");
     address internal LOAN              = makeAddr("LOAN");
@@ -863,7 +863,7 @@ contract FinishCollateralLiquidation is TestBase {
 
 }
 
-contract ProcessRedeemTests is TestBase {
+contract ProcessRedeemTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
@@ -910,7 +910,7 @@ contract ProcessRedeemTests is TestBase {
 
 }
 
-contract AddLoanManager_SetterTests is TestBase {
+contract AddLoanManager_SetterTests is PoolManagerTestBase {
 
     address loanManagerFactory;
 
@@ -966,7 +966,7 @@ contract AddLoanManager_SetterTests is TestBase {
 
 }
 
-contract SetWithdrawalManager_SetterTests is TestBase {
+contract SetWithdrawalManager_SetterTests is PoolManagerTestBase {
 
     function test_setWithdrawalManager_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -1008,7 +1008,7 @@ contract SetWithdrawalManager_SetterTests is TestBase {
 
 }
 
-contract CanCallTests is TestBase {
+contract CanCallTests is PoolManagerTestBase {
 
     function test_canCall_deposit_notActive() external {
         bytes32 functionId_ = bytes32("P:deposit");
@@ -1434,7 +1434,7 @@ contract CanCallTests is TestBase {
 
 }
 
-contract DepositCoverTests is TestBase {
+contract DepositCoverTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
@@ -1479,7 +1479,7 @@ contract DepositCoverTests is TestBase {
 
 }
 
-contract HandleCoverTests is TestBase {
+contract HandleCoverTests is PoolManagerTestBase {
 
     address loanManager;
 
@@ -1571,7 +1571,7 @@ contract HandleCoverTests is TestBase {
 
 }
 
-contract WithdrawCoverTests is TestBase {
+contract WithdrawCoverTests is PoolManagerTestBase {
 
     function test_withdrawCover_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -1654,7 +1654,7 @@ contract WithdrawCoverTests is TestBase {
 
 }
 
-contract MaxDepositTests is TestBase {
+contract MaxDepositTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
@@ -1729,7 +1729,7 @@ contract MaxDepositTests is TestBase {
 
 }
 
-contract MaxMintTests is TestBase {
+contract MaxMintTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
@@ -1872,7 +1872,7 @@ contract MaxMintTests is TestBase {
 
 }
 
-contract MaxWithdrawTests is TestBase {
+contract MaxWithdrawTests is PoolManagerTestBase {
 
     function test_maxWithdraw() external {
         uint256 assets_ = pool.maxWithdraw(address(this));
@@ -1888,7 +1888,7 @@ contract MaxWithdrawTests is TestBase {
 
 }
 
-contract RequestFundsTests is TestBase {
+contract RequestFundsTests is PoolManagerTestBase {
 
     address loanManager;
     address loanManagerFactory;
