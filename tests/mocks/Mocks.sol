@@ -339,7 +339,7 @@ contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
     mapping(address => uint256) public maxRedeem;
     mapping(address => uint256) public maxWithdraw;
 
-    function addStrategy(address strategyFactory_) external view returns (address strategy_) {}
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external view returns (address strategy_) {}
 
     function canCall(bytes32, address, bytes memory) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;

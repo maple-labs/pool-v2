@@ -17,6 +17,7 @@ interface IMaplePoolDeployer {
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.
+     *  @param strategyDeploymentData_   An array of bytes to use to construct the strategies.
      *  @param asset_                    The address of the asset to use.
      *  @param poolPermissionManager_    The address of the PoolPermissionManager to use.
      *  @param name_                     The name of the Pool.
@@ -35,6 +36,7 @@ interface IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -49,6 +51,7 @@ interface IMaplePoolDeployer {
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.
+     *  @param strategyDeploymentData_   An array of bytes to use to construct the strategies.
      *  @param asset_                    The address of the asset to use.
      *  @param poolPermissionManager_    The address of the PoolPermissionManager to use.
      *  @param name_                     The name of the Pool.
@@ -64,6 +67,7 @@ interface IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -79,6 +83,7 @@ interface IMaplePoolDeployer {
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.
+     *  @param strategyDeploymentData_   An array of bytes to use to construct the strategies.
      *  @param asset_                    The address of the asset to use.
      *  @param name_                     The name of the Pool.
      *  @param symbol_                   The symbol of the Pool.
@@ -101,6 +106,7 @@ interface IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -121,6 +127,7 @@ interface IMaplePoolDeployer {
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.
+     *  @param strategyDeploymentData_   An array of bytes to use to construct the strategies.
      *  @param asset_                    The address of the asset to use.
      *  @param name_                     The name of the Pool.
      *  @param symbol_                   The symbol of the Pool.
@@ -140,6 +147,7 @@ interface IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,

@@ -16,6 +16,7 @@ import {
     IPoolDelegateCoverLike,
     IPoolLike,
     IPoolPermissionManagerLike,
+    IStrategyLike,
     IWithdrawalManagerLike
 } from "./interfaces/Interfaces.sol";
 
@@ -63,8 +64,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         _;
     }
 
-    modifier onlyPoolDelegateOrNotConfigured() {
-        _revertIfConfiguredAndNotPoolDelegate();
+    modifier onlyProtocolAdminsOrNotConfigured() {
+        _revertIfConfiguredAndNotProtocolAdmins();
         _;
     }
 
@@ -166,14 +167,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addStrategy(address strategyFactory_)
-        external override whenNotPaused onlyPoolDelegateOrNotConfigured returns (address strategy_)
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_)
+        external override whenNotPaused onlyProtocolAdminsOrNotConfigured returns (address strategy_)
     {
-        require(IGlobalsLike(globals()).isInstanceOf("LOAN_MANAGER_FACTORY", strategyFactory_), "PM:ALM:INVALID_FACTORY");
+        require(IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", strategyFactory_), "PM:AS:INVALID_FACTORY");
 
         // NOTE: If removing strategies is allowed in the future, there will be a need to rethink salts here due to collisions.
         strategy_ = IMapleProxyFactory(strategyFactory_).createInstance(
-            abi.encode(address(this)),
+            deploymentData_,
             keccak256(abi.encode(address(this), strategyList.length))
         );
 
@@ -185,14 +186,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
-        external override whenNotPaused onlyPoolDelegateOrNotConfigured
+        external override whenNotPaused onlyProtocolAdminsOrNotConfigured
     {
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
-    function setIsStrategy(address strategy_, bool isStrategy_) external override whenNotPaused onlyPoolDelegate {
+    function setIsStrategy(address strategy_, bool isStrategy_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
         emit IsStrategySet(strategy_, isStrategy[strategy_] = isStrategy_);
 
         // Check Strategy is in the list.
@@ -201,10 +202,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
             if (strategyList[i_] == strategy_) return;
         }
 
-        revert("PM:SILM:INVALID_LM");
+        revert("PM:SIS:INVALID_STRATEGY");
     }
 
-    function setLiquidityCap(uint256 liquidityCap_) external override whenNotPaused onlyPoolDelegateOrNotConfigured {
+    function setLiquidityCap(uint256 liquidityCap_) external override whenNotPaused onlyProtocolAdminsOrNotConfigured {
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
@@ -217,7 +218,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);
     }
 
-    function setPoolPermissionManager(address poolPermissionManager_) external override whenNotPaused onlyPoolDelegateOrNotConfigured {
+    function setPoolPermissionManager(address poolPermissionManager_) external override whenNotPaused onlyProtocolAdminsOrNotConfigured {
         require(IGlobalsLike(globals()).isInstanceOf("POOL_PERMISSION_MANAGER", poolPermissionManager_), "PM:SPPM:INVALID_INSTANCE");
 
         emit PoolPermissionManagerSet(poolPermissionManager = poolPermissionManager_);
@@ -235,12 +236,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         IGlobalsLike globals_ = IGlobalsLike(globals());
 
         // NOTE: Do not need to check isInstance() as the Strategy is added to the list on `addStrategy()` or `configure()`.
-        require(principal_ != 0,                                         "PM:RF:INVALID_PRINCIPAL");
-        require(globals_.isInstanceOf("LOAN_MANAGER_FACTORY", factory_), "PM:RF:INVALID_FACTORY");
-        require(IMapleProxyFactory(factory_).isInstance(msg.sender),     "PM:RF:INVALID_INSTANCE");
-        require(isStrategy[msg.sender],                                  "PM:RF:NOT_LM");
-        require(IERC20Like(pool_).totalSupply() != 0,                    "PM:RF:ZERO_SUPPLY");
-        require(_hasSufficientCover(address(globals_), asset_),          "PM:RF:INSUFFICIENT_COVER");
+        require(principal_ != 0,                                     "PM:RF:INVALID_PRINCIPAL");
+        require(globals_.isInstanceOf("STRATEGY_FACTORY", factory_), "PM:RF:INVALID_FACTORY");
+        require(IMapleProxyFactory(factory_).isInstance(msg.sender), "PM:RF:INVALID_INSTANCE");
+        require(isStrategy[msg.sender],                              "PM:RF:NOT_STRATEGY");
+        require(IERC20Like(pool_).totalSupply() != 0,                "PM:RF:ZERO_SUPPLY");
+        require(_hasSufficientCover(address(globals_), asset_),      "PM:RF:INSUFFICIENT_COVER");
 
         // Fetching locked liquidity needs to be done prior to transferring the tokens.
         uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
@@ -447,7 +448,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         uint256 length_ = strategyList.length;
 
         for (uint256 i_; i_ < length_;) {
-            totalAssets_ += ILoanManagerLike(strategyList[i_]).assetsUnderManagement();
+            totalAssets_ += IStrategyLike(strategyList[i_]).assetsUnderManagement();
             unchecked { ++i_; }
         }
     }
@@ -498,7 +499,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         uint256 length_ = strategyList.length;
 
         for (uint256 i_; i_ < length_;) {
-            unrealizedLosses_ += ILoanManagerLike(strategyList[i_]).unrealizedLosses();
+            unrealizedLosses_ += IStrategyLike(strategyList[i_]).unrealizedLosses();
             unchecked { ++i_; }
         }
 
@@ -578,8 +579,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         require(!configured, "PM:ALREADY_CONFIGURED");
     }
 
-    function _revertIfConfiguredAndNotPoolDelegate() internal view {
-        require(!configured || msg.sender == poolDelegate, "PM:NO_AUTH");
+    function _revertIfConfiguredAndNotProtocolAdmins() internal view {
+        require(
+            !configured ||
+            msg.sender == poolDelegate ||
+            msg.sender == governor()   ||
+            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            "PM:NOT_PA_OR_NOT_CONFIGURED"
+        );
     }
 
     function _revertIfNotPool() internal view {

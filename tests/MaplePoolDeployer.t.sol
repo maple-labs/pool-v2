@@ -30,6 +30,7 @@ contract MaplePoolDeployerTests is TestBase {
     uint256 coverAmountRequired = 10e18;
 
     address[] strategyFactories;
+    bytes[]   strategyDeploymentData;
 
     uint256[7] configParamsCycle = [
         1_000_000e18,
@@ -48,18 +49,36 @@ contract MaplePoolDeployerTests is TestBase {
         0
     ];
 
+    uint256[7] noCoverConfigParamsCycle = [
+        1_000_000e18,
+        0.1e6,
+        0,
+        3 days,
+        1 days,
+        0,
+        block.timestamp + 10 days
+    ];
+
     function setUp() public virtual {
         asset        = address(new MockERC20("Asset", "AT", 18));
         poolDelegate = makeAddr("poolDelegate");
 
         _deployAndBootstrapGlobals(asset, poolDelegate);
 
-        for (uint256 i; i < 2; ++i) {
-            strategyFactories.push(address(new MapleProxyFactory(globals)));
-        }
 
         poolManagerFactory       = address(new MapleProxyFactory(globals));
         withdrawalManagerFactory = address(new MapleProxyFactory(globals));
+
+        // Get the pool manager address from the factory.
+        address poolManagerDeployment = MapleProxyFactory(poolManagerFactory).getInstanceAddress(
+            abi.encode(poolDelegate, asset, 0, name, symbol), // 0 is the initial supply
+            keccak256(abi.encode(poolDelegate))
+        );
+
+        for (uint256 i; i < 2; ++i) {
+            strategyFactories.push(address(new MapleProxyFactory(globals)));
+            strategyDeploymentData.push(abi.encode(poolManagerDeployment));
+        }
 
         poolPermissionManager = address(new MockPoolPermissionManager());
 
@@ -87,6 +106,29 @@ contract MaplePoolDeployerTests is TestBase {
         MockGlobals(globals).setValidPoolDeployer(poolDeployer, true);
     }
 
+    function test_deployPool_mismatchingArrays() external {
+        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
+
+        vm.prank(poolDelegate);
+        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
+
+        strategyDeploymentData.push("");
+
+        vm.prank(poolDelegate);
+        vm.expectRevert("PD:DP:MISMATCHING_ARRAYS");
+        MaplePoolDeployer(poolDeployer).deployPool(
+            poolManagerFactory,
+            withdrawalManagerFactory,
+            strategyFactories,
+            strategyDeploymentData,
+            asset,
+            poolPermissionManager,
+            name,
+            symbol,
+            configParamsCycle
+        );
+    }
+
     function test_deployPool_transferFailed() external {
         MockERC20(asset).mint(poolDelegate, coverAmountRequired - 1);
 
@@ -99,6 +141,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             poolPermissionManager,
             name,
@@ -118,6 +161,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             poolPermissionManager,
             name,
@@ -142,6 +186,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             name,
             symbol,
@@ -153,6 +198,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             poolPermissionManager,
             name,
@@ -171,16 +217,6 @@ contract MaplePoolDeployerTests is TestBase {
     }
 
     function test_deployPool_success_withoutCoverRequired() external {
-        uint256[7] memory noCoverConfigParamsCycle = [
-            uint256(1_000_000e18),
-            0.1e6,
-            0,
-            3 days,
-            1 days,
-            0,
-            block.timestamp + 10 days
-        ];
-
         (
             address          expectedPoolManager_,
             address          expectedPool_,
@@ -192,6 +228,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             name,
             symbol,
@@ -203,6 +240,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             poolPermissionManager,
             name,
@@ -236,6 +274,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             name,
             symbol,
@@ -247,6 +286,7 @@ contract MaplePoolDeployerTests is TestBase {
             poolManagerFactory,
             withdrawalManagerFactory,
             strategyFactories,
+            strategyDeploymentData,
             asset,
             poolPermissionManager,
             name,

@@ -38,6 +38,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -47,6 +48,8 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         external override
         returns (address poolManager_)
     {
+        require(strategyDeploymentData_.length == strategyFactories_.length, "PD:DP:MISMATCHING_ARRAYS");
+
         IGlobalsLike globals_ = IGlobalsLike(globals);
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
@@ -72,7 +75,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address[] memory strategies_ = new address[](strategyFactories_.length);
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_]);
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_], strategyDeploymentData_[i_]);
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
@@ -96,6 +99,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         address           poolPermissionManager_,
         string     memory name_,
@@ -105,6 +109,8 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         external override
         returns (address poolManager_)
     {
+        require(strategyDeploymentData_.length == strategyFactories_.length, "PD:DP:MISMATCHING_ARRAYS");
+
         IGlobalsLike globals_ = IGlobalsLike(globals);
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
@@ -130,7 +136,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address[] memory strategies_ = new address[](strategyFactories_.length);
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_]);
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_], strategyDeploymentData_[i_]);
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
@@ -155,6 +161,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -169,10 +176,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             address[] memory strategies_
         )
     {
-        poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(
-            abi.encode(poolDelegate_, asset_, configParams_[5], name_, symbol_),
-            keccak256(abi.encode(poolDelegate_))
-        );
+        {
+            bytes memory constructorArgs = abi.encode(poolDelegate_, asset_, configParams_[5], name_, symbol_);
+            bytes32 salt = keccak256(abi.encode(poolDelegate_));
+        
+            poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(constructorArgs, salt);
+        }
 
         pool_              = _addressFrom(poolManager_, 1);
         poolDelegateCover_ = _addressFrom(poolManager_, 2);
@@ -186,7 +195,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
             strategies_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
-                abi.encode(poolManager_),
+                strategyDeploymentData_[i_],
                 keccak256(abi.encode(poolManager_, i_))
             );
         }
@@ -197,6 +206,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolManagerFactory_,
         address           withdrawalManagerFactory_,
         address[]  memory strategyFactories_,
+        bytes[]    memory strategyDeploymentData_,
         address           asset_,
         string     memory name_,
         string     memory symbol_,
@@ -211,10 +221,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
             address[] memory strategies_
         )
     {
-        poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(
-            abi.encode(poolDelegate_, asset_, configParams_[3], name_, symbol_),
-            keccak256(abi.encode(poolDelegate_))
-        );
+        {
+            bytes memory constructorArgs = abi.encode(poolDelegate_, asset_, configParams_[3], name_, symbol_);
+            bytes32 salt = keccak256(abi.encode(poolDelegate_));
+        
+            poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(constructorArgs, salt);
+        }
 
         pool_              = _addressFrom(poolManager_, 1);
         poolDelegateCover_ = _addressFrom(poolManager_, 2);
@@ -228,7 +240,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
             strategies_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
-                abi.encode(poolManager_),
+                strategyDeploymentData_[i_],
                 keccak256(abi.encode(poolManager_, i_))
             );
         }

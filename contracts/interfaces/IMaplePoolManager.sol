@@ -157,9 +157,10 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**
      *  @dev    Adds a new strategy.
      *  @param  strategyFactory_ The address of the strategy factory to use.
+     *  @param  deploymentData_  The data to construct the strategy.
      *  @return strategy_        The address of the new strategy.
      */
-    function addStrategy(address strategyFactory_) external returns (address strategy_);
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external returns (address strategy_);
 
     /**
      *  @dev Complete the configuration.
