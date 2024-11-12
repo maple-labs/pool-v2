@@ -170,28 +170,37 @@ contract MaplePoolDeployerTests is TestBase {
         );
     }
 
-    function test_deployPool_success_withCoverRequired() external {
+    function test_deployPool_success_withCoverRequired_cyclicalWM() external {
         vm.prank(poolDelegate);
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
         MockERC20(asset).mint(poolDelegate, coverAmountRequired);
 
-        (
-            address          expectedPoolManager_,
-            address          expectedPool_,
-            address          expectedPoolDelegateCover_,
-            address          expectedWithdrawalManager_,
-            address[] memory expectedStrategies_
-        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
-            poolDelegate,
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            strategyFactories,
-            strategyDeploymentData,
-            asset,
-            name,
-            symbol,
-            configParamsCycle
-        );
+        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
+            MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
+                poolManagerFactory,
+                poolDelegate,
+                asset,
+                0,
+                name,
+                symbol
+            );
+
+        address expectedWithdrawalManager_ =
+            MaplePoolDeployer(poolDeployer).getCyclicalWithdrawalManagerAddress(
+                withdrawalManagerFactory,
+                expectedPool_,
+                expectedPoolManager_,
+                configParamsCycle[6],
+                configParamsCycle[3],
+                configParamsCycle[4]
+            );
+
+        address[] memory expectedStrategies_ =
+            MaplePoolDeployer(poolDeployer).getStrategiesAddresses(
+                expectedPoolManager_,
+                strategyFactories,
+                strategyDeploymentData
+            );
 
         vm.prank(poolDelegate);
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
@@ -216,24 +225,33 @@ contract MaplePoolDeployerTests is TestBase {
         }
     }
 
-    function test_deployPool_success_withoutCoverRequired() external {
-        (
-            address          expectedPoolManager_,
-            address          expectedPool_,
-            address          expectedPoolDelegateCover_,
-            address          expectedWithdrawalManager_,
-            address[] memory expectedStrategies_
-        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
-            poolDelegate,
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            strategyFactories,
-            strategyDeploymentData,
-            asset,
-            name,
-            symbol,
-            configParamsCycle
-        );
+    function test_deployPool_success_withoutCoverRequired_cyclicalWM() external {
+        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
+            MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
+                poolManagerFactory,
+                poolDelegate,
+                asset,
+                0,
+                name,
+                symbol
+            );
+
+        address expectedWithdrawalManager_ =
+            MaplePoolDeployer(poolDeployer).getCyclicalWithdrawalManagerAddress(
+                withdrawalManagerFactory,
+                expectedPool_,
+                expectedPoolManager_,
+                configParamsCycle[6],
+                configParamsCycle[3],
+                configParamsCycle[4]
+            );
+
+        address[] memory expectedStrategies_ =
+            MaplePoolDeployer(poolDeployer).getStrategiesAddresses(
+                expectedPoolManager_,
+                strategyFactories,
+                strategyDeploymentData
+            );
 
         vm.prank(poolDelegate);
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
@@ -263,23 +281,29 @@ contract MaplePoolDeployerTests is TestBase {
         MockERC20(asset).approve(poolDeployer, coverAmountRequired);
         MockERC20(asset).mint(poolDelegate, coverAmountRequired);
 
-        (
-            address          expectedPoolManager_,
-            address          expectedPool_,
-            address          expectedPoolDelegateCover_,
-            address          expectedWithdrawalManager_,
-            address[] memory expectedStrategies_
-        ) = MaplePoolDeployer(poolDeployer).getDeploymentAddresses(
-            poolDelegate,
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            strategyFactories,
-            strategyDeploymentData,
-            asset,
-            name,
-            symbol,
-            configParamsQueue
-        );
+        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
+            MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
+                poolManagerFactory,
+                poolDelegate,
+                asset,
+                0,
+                name,
+                symbol
+            );
+
+        address expectedWithdrawalManager_ =
+            MaplePoolDeployer(poolDeployer).getQueueWithdrawalManagerAddress(
+                withdrawalManagerFactory,
+                expectedPool_,
+                expectedPoolManager_
+            );
+
+        address[] memory expectedStrategies_ =
+            MaplePoolDeployer(poolDeployer).getStrategiesAddresses(
+                expectedPoolManager_,
+                strategyFactories,
+                strategyDeploymentData
+            );
 
         vm.prank(poolDelegate);
         address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
