@@ -65,19 +65,12 @@ contract MaplePoolDeployerTests is TestBase {
 
         _deployAndBootstrapGlobals(asset, poolDelegate);
 
-
         poolManagerFactory       = address(new MapleProxyFactory(globals));
         withdrawalManagerFactory = address(new MapleProxyFactory(globals));
 
-        // Get the pool manager address from the factory.
-        address poolManagerDeployment = MapleProxyFactory(poolManagerFactory).getInstanceAddress(
-            abi.encode(poolDelegate, asset, 0, name, symbol), // 0 is the initial supply
-            keccak256(abi.encode(poolDelegate))
-        );
-
         for (uint256 i; i < 2; ++i) {
             strategyFactories.push(address(new MapleProxyFactory(globals)));
-            strategyDeploymentData.push(abi.encode(poolManagerDeployment));
+            strategyDeploymentData.push(new bytes(0));
         }
 
         poolPermissionManager = address(new MockPoolPermissionManager());

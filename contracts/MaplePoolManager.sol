@@ -167,14 +167,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addStrategy(address strategyFactory_, bytes calldata deploymentData_)
+    function addStrategy(address strategyFactory_, bytes calldata extraDeploymentData_)
         external override whenNotPaused onlyProtocolAdminsOrNotConfigured returns (address strategy_)
     {
         require(IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", strategyFactory_), "PM:AS:INVALID_FACTORY");
 
         // NOTE: If removing strategies is allowed in the future, there will be a need to rethink salts here due to collisions.
         strategy_ = IMapleProxyFactory(strategyFactory_).createInstance(
-            deploymentData_,
+            bytes.concat(abi.encode(address(this)), extraDeploymentData_),
             keccak256(abi.encode(address(this), strategyList.length))
         );
 

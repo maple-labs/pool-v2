@@ -14,6 +14,7 @@ interface IMaplePoolDeployer {
 
     /**
      *  @dev   Deploys a pool along with its dependencies.
+     *         NOTE: The PoolManager address is encoded and prepended to the strategyDeploymentData.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.
@@ -48,6 +49,7 @@ interface IMaplePoolDeployer {
 
     /**
      *  @dev   Deploys a pool along with its dependencies.
+     *         NOTE: The PoolManager address is encoded and prepended to the strategyDeploymentData.
      *  @param poolManagerFactory_       The address of the PoolManager factory to use.
      *  @param withdrawalManagerFactory_ The address of the WithdrawalManager factory to use.
      *  @param strategyFactories_        An array of Strategy factories to use.

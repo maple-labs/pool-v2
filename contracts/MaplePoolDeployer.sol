@@ -267,7 +267,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
             strategiesAddresses_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
-                strategyDeploymentData_[i_],
+                bytes.concat(abi.encode(poolManager_), strategyDeploymentData_[i_]),
                 keccak256(abi.encode(poolManager_, i_))
             );
         }
