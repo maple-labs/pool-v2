@@ -39,6 +39,7 @@ jobs:
         git submodule update --init --recursive
     - name: Generate coverage report
       run: |
+        forge build
         forge coverage --report lcov
         sudo apt-get install lcov
         lcov --remove lcov.info -o lcov.info 'tests/*'
