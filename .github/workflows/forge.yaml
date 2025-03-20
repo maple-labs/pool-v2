@@ -45,7 +45,7 @@ jobs:
         sudo apt-get install lcov
         lcov --remove lcov.info -o lcov.info 'tests/*'
     - name: Report code coverage
-      uses: zgosalvez/github-actions-report-lcov@v1
+      uses: zgosalvez/github-actions-report-lcov@v4.1.22
       with:
         coverage-files: lcov.info
         minimum-coverage: 90
