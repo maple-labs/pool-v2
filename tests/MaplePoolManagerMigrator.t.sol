@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }      from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
@@ -11,7 +11,9 @@ import { MaplePoolManagerMigrator }    from "../contracts/proxy/MaplePoolManager
 
 import { MockGlobals, MockPoolPermissionManager } from "./mocks/Mocks.sol";
 
-contract MaplePoolManagerMigratorTests is Test {
+import { TestBase } from "./utils/TestBase.sol";
+
+contract MaplePoolManagerMigratorTests is TestBase {
 
     address governor;
     address poolDelegate;
@@ -22,7 +24,7 @@ contract MaplePoolManagerMigratorTests is Test {
     address migrator;
 
     MockERC20                 asset;
-    MockGlobals               globals;
+    MockGlobals               globals_;
     MockPoolPermissionManager ppm;
 
     MaplePoolManager        poolManager;
@@ -32,21 +34,21 @@ contract MaplePoolManagerMigratorTests is Test {
         governor     = makeAddr("governor");
         poolDelegate = makeAddr("poolDelegate");
 
-        implementationV1 = address(new MaplePoolManager());
-        implementationV2 = address(new MaplePoolManager());
-        initializer      = address(new MaplePoolManagerInitializer());
-        migrator         = address(new MaplePoolManagerMigrator());
+        implementationV1 = deploy("MaplePoolManager");
+        implementationV2 = deploy("MaplePoolManager");
+        initializer      = deploy("MaplePoolManagerInitializer");
+        migrator         = deploy("MaplePoolManagerMigrator");
 
-        asset   = new MockERC20("USD Coin", "USDC", 6);
-        globals = new MockGlobals(governor);
-        ppm     = new MockPoolPermissionManager();
+        asset    = new MockERC20("USD Coin", "USDC", 6);
+        globals_ = new MockGlobals(governor);
+        ppm      = new MockPoolPermissionManager();
 
-        globals.setValidPoolDeployer(address(this), true);
-        globals.setValidPoolAsset(address(asset), true);
-        globals.setValidPoolDelegate(poolDelegate, true);
-        globals.__setIsValidScheduledCall(true);
+        globals_.setValidPoolDeployer(address(this), true);
+        globals_.setValidPoolAsset(address(asset), true);
+        globals_.setValidPoolDelegate(poolDelegate, true);
+        globals_.__setIsValidScheduledCall(true);
 
-        factory = new MaplePoolManagerFactory(address(globals));
+        factory = new MaplePoolManagerFactory(address(globals_));
 
         vm.startPrank(governor);
         factory.registerImplementation(100, implementationV1, initializer);
@@ -62,7 +64,7 @@ contract MaplePoolManagerMigratorTests is Test {
     }
 
     function test_migrator_failure() external {
-        globals.setValidInstance("POOL_PERMISSION_MANAGER", address(ppm), false);
+        globals_.setValidInstance("POOL_PERMISSION_MANAGER", address(ppm), false);
 
         vm.prank(poolDelegate);
         vm.expectRevert("MPF:UI:FAILED");
@@ -70,7 +72,7 @@ contract MaplePoolManagerMigratorTests is Test {
     }
 
     function test_migrator_success() external {
-        globals.setValidInstance("POOL_PERMISSION_MANAGER", address(ppm), true);
+        globals_.setValidInstance("POOL_PERMISSION_MANAGER", address(ppm), true);
 
         assertEq(factory.versionOf(poolManager.implementation()), 100);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }       from "../modules/forge-std/src/Test.sol";
 import { stdError }   from "../modules/forge-std/src/StdError.sol";
@@ -13,9 +13,9 @@ import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManager
 
 import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./mocks/Mocks.sol";
 
-import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+import { TestBase } from "./utils/TestBase.sol";
 
-contract MaplePoolMintFrontrunTests is Test, GlobalsBootstrapper {
+contract MaplePoolMintFrontrunTests is TestBase {
 
     address POOL_DELEGATE = makeAddr("POOL_DELEGATE");
     address USER1         = makeAddr("USER1");
@@ -37,8 +37,8 @@ contract MaplePoolMintFrontrunTests is Test, GlobalsBootstrapper {
 
         factory = new MaplePoolManagerFactory(globals);
 
-        implementation = address(new MaplePoolManager());
-        initializer    = address(new MaplePoolManagerInitializer());
+        implementation = deploy("MaplePoolManager");
+        initializer    = deploy("MaplePoolManagerInitializer");
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);

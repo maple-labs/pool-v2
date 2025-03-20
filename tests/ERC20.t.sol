@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.25;
 
 import { ERC20BaseTest }   from "../modules/erc20/contracts/test/ERC20.t.sol";
 import { ERC20PermitTest } from "../modules/erc20/contracts/test/ERC20.t.sol";

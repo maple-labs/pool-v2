@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
@@ -50,11 +50,11 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
 
     /**
-     *  @dev   Emitted when a loan manager is set as valid.
-     *  @param loanManager_   The address of the loan manager.
-     *  @param isLoanManager_ Whether the loan manager is valid.
+     *  @dev   Emitted when a strategy is set as valid.
+     *  @param strategy_   The address of the strategy.
+     *  @param isStrategy_ Whether the strategy is valid.
      */
-    event IsLoanManagerSet(address indexed loanManager_, bool isLoanManager_);
+    event IsStrategySet(address indexed strategy_, bool isStrategy_);
 
     /**
      *  @dev   Emitted when a new liquidity cap is set.
@@ -63,10 +63,10 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event LiquidityCapSet(uint256 liquidityCap_);
 
     /**
-     *  @dev   Emitted when a new loan manager is added.
-     *  @param loanManager_ The address of the new loan manager.
+     *  @dev   Emitted when a new strategy is added.
+     *  @param strategy_ The address of the new strategy.
      */
-    event LoanManagerAdded(address indexed loanManager_);
+    event StrategyAdded(address indexed strategy_);
 
     /**
      *  @dev   Emitted when the pending pool delegate accepts the ownership transfer.
@@ -155,11 +155,13 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev    Adds a new loan manager.
-     *  @param  loanManagerFactory_ The address of the loan manager factory to use.
-     *  @return loanManager_        The address of the new loan manager.
+     *  @dev    Adds a new strategy.
+     *          NOTE: The PoolManager address is encoded and prepended to the extraDeploymentData.
+     *  @param  strategyFactory_     The address of the strategy factory to use.
+     *  @param  extraDeploymentData_ The data to construct the strategy.
+     *  @return strategy_            The address of the new strategy.
      */
-    function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
+    function addStrategy(address strategyFactory_, bytes calldata extraDeploymentData_) external returns (address strategy_);
 
     /**
      *  @dev Complete the configuration.
@@ -179,11 +181,11 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
 
     /**
-     *  @dev   Sets if the loanManager is valid in the isLoanManager mapping.
-     *  @param loanManager_   The address of the loanManager
-     *  @param isLoanManager_ Whether the loanManager is valid.
+     *  @dev   Sets if the strategy is valid in the isStrategy mapping.
+     *  @param strategy_   The address of the strategy
+     *  @param isStrategy_ Whether the strategy is valid.
      */
-    function setIsLoanManager(address loanManager_, bool isLoanManager_) external;
+    function setIsStrategy(address strategy_, bool isStrategy_) external;
 
     /**
      *  @dev   Sets the value for liquidity cap.
@@ -208,9 +210,9 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev   LoanManager can request funds from the pool via the poolManager.
+     *  @dev   Strategy can request funds from the pool via the poolManager.
      *  @param destination_ The address to send the funds to.
-     *  @param principal_   The principal amount to fund the loan with.
+     *  @param principal_   The principal amount to fund the strategy with.
      */
     function requestFunds(address destination_, uint256 principal_) external;
 
@@ -400,10 +402,10 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function hasSufficientCover() external view returns (bool hasSufficientCover_);
 
     /**
-     *  @dev    Returns the length of the `loanManagerList`.
-     *  @return loanManagerListLength_ The length of the `loanManagerList`.
+     *  @dev    Returns the length of the `strategyList`.
+     *  @return strategyListLength_ The length of the `strategyList`.
      */
-    function loanManagerListLength() external view returns (uint256 loanManagerListLength_);
+    function strategyListLength() external view returns (uint256 strategyListLength_);
 
     /**
      *  @dev    Returns the amount of total assets.

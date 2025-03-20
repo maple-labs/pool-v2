@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }       from "../modules/forge-std/src/Test.sol";
 import { stdError }   from "../modules/forge-std/src/StdError.sol";
@@ -19,9 +19,9 @@ import {
     MockWithdrawalManager
 } from "./mocks/Mocks.sol";
 
-import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+import { TestBase } from "./utils/TestBase.sol";
 
-contract TestBase is Test, GlobalsBootstrapper {
+contract PoolTestBase is TestBase {
 
     address POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
@@ -43,8 +43,8 @@ contract TestBase is Test, GlobalsBootstrapper {
 
         factory = new MaplePoolManagerFactory(address(globals));
 
-        implementation = address(new MaplePoolManager());
-        initializer    = address(new MaplePoolManagerInitializer());
+        implementation = deploy("MaplePoolManager");
+        initializer    = deploy("MaplePoolManagerInitializer");
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -121,7 +121,7 @@ contract TestBase is Test, GlobalsBootstrapper {
 
 }
 
-contract ConstructorTests is TestBase {
+contract ConstructorTests is PoolTestBase {
 
     function setUp() public override {}
 
@@ -162,7 +162,7 @@ contract ConstructorTests is TestBase {
 
 }
 
-contract DepositTests is TestBase {
+contract DepositTests is PoolTestBase {
 
     uint256 DEPOSIT_AMOUNT = 1e18;
 
@@ -227,7 +227,7 @@ contract DepositTests is TestBase {
 
 }
 
-contract DepositWithPermitTests is TestBase {
+contract DepositWithPermitTests is PoolTestBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -369,7 +369,7 @@ contract DepositWithPermitTests is TestBase {
 
 }
 
-contract MintTests is TestBase {
+contract MintTests is PoolTestBase {
 
     uint256 MINT_AMOUNT = 1e18;
 
@@ -432,7 +432,7 @@ contract MintTests is TestBase {
 
 }
 
-contract MintWithPermitTests is TestBase {
+contract MintWithPermitTests is PoolTestBase {
 
     address STAKER;
     address NOT_STAKER;
@@ -579,7 +579,7 @@ contract MintWithPermitTests is TestBase {
 
 }
 
-contract RedeemTests is TestBase {
+contract RedeemTests is PoolTestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -731,7 +731,7 @@ contract RedeemTests is TestBase {
 
 }
 
-contract RemoveSharesTests is TestBase {
+contract RemoveSharesTests is PoolTestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -794,7 +794,7 @@ contract RemoveSharesTests is TestBase {
 
 }
 
-contract RequestRedeemTests is TestBase {
+contract RequestRedeemTests is PoolTestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -876,7 +876,7 @@ contract RequestRedeemTests is TestBase {
 
 }
 
-contract RequestWithdraw is TestBase {
+contract RequestWithdraw is PoolTestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -946,7 +946,7 @@ contract RequestWithdraw is TestBase {
 
 }
 
-contract TransferTests is TestBase {
+contract TransferTests is PoolTestBase {
 
     address RECIPIENT = makeAddr("RECIPIENT");
 
@@ -963,7 +963,7 @@ contract TransferTests is TestBase {
 
 }
 
-contract TransferFromTests is TestBase {
+contract TransferFromTests is PoolTestBase {
 
     address RECIPIENT = makeAddr("RECIPIENT");
     address OWNER     = makeAddr("OWNER");
@@ -986,7 +986,7 @@ contract TransferFromTests is TestBase {
 
 }
 
-contract WithdrawTests is TestBase {
+contract WithdrawTests is PoolTestBase {
 
     uint256 depositAmount = 1_000e6;
 
@@ -1025,7 +1025,7 @@ contract WithdrawTests is TestBase {
 
 }
 
-contract PreviewDepositTests is TestBase {
+contract PreviewDepositTests is PoolTestBase {
 
     function test_previewDeposit_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1102,7 +1102,7 @@ contract PreviewDepositTests is TestBase {
 
 }
 
-contract PreviewMintTests is TestBase {
+contract PreviewMintTests is PoolTestBase {
 
     function test_previewMint_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1174,7 +1174,7 @@ contract PreviewMintTests is TestBase {
 
 }
 
-contract ConvertToExitAssetsTests is TestBase {
+contract ConvertToExitAssetsTests is PoolTestBase {
 
     function test_convertToExitAssets_zeroSupply() external {
         assertEq(pool.convertToExitAssets(0),   0);
@@ -1395,7 +1395,7 @@ contract ConvertToExitAssetsTests is TestBase {
 
 // }
 
-contract ConvertToAssetsTests is TestBase {
+contract ConvertToAssetsTests is PoolTestBase {
 
     function test_convertToAssets_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
@@ -1462,7 +1462,7 @@ contract ConvertToAssetsTests is TestBase {
     }
 }
 
-contract ConvertToSharesTests is TestBase {
+contract ConvertToSharesTests is PoolTestBase {
 
     function test_convertToShares_initialState() public {
         _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });

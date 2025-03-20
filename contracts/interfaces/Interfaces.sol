@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 interface IERC20Like {
 
@@ -51,17 +51,22 @@ interface IGlobalsLike {
 
 }
 
-interface ILoanManagerLike {
+interface IStrategyLike {
 
     function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
 
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface ILoanManagerLike {
+
+    
     function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
 
     function triggerDefault(address loan_, address liquidatorFactory_)
         external
         returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
-
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
 }
 
@@ -97,7 +102,7 @@ interface IPoolLike is IERC20Like {
 
 interface IPoolManagerLike {
 
-    function addLoanManager(address loanManagerFactory_) external returns (address loanManager_);
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external returns (address strategy_);
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view

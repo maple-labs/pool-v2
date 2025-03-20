@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.25;
 
 import { IMaplePoolManagerStorage } from "../interfaces/IMaplePoolManagerStorage.sol";
 
@@ -24,11 +24,11 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
     uint256 public override liquidityCap;
     uint256 public override delegateManagementFeeRate;
 
-    mapping(address => bool) public override isLoanManager;
+    mapping(address => bool) public override isStrategy;
 
     mapping(address => bool) __deprecated_isValidLender;
 
-    address[] public override loanManagerList;
+    address[] public override strategyList;
 
     address public override poolPermissionManager;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
@@ -339,7 +339,7 @@ contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
     mapping(address => uint256) public maxRedeem;
     mapping(address => uint256) public maxWithdraw;
 
-    function addLoanManager(address loanManagerFactory_) external view returns (address loanManager_) {}
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external view returns (address strategy_) {}
 
     function canCall(bytes32, address, bytes memory) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }        from "../../modules/forge-std/src/Test.sol";
 import { MockGlobals } from "../mocks/Mocks.sol";
@@ -9,8 +9,9 @@ import { MockGlobals } from "../mocks/Mocks.sol";
  */
 contract GlobalsBootstrapper is Test {
 
-    address internal GOVERNOR = makeAddr("GOVERNOR");
-    address internal TREASURY = makeAddr("TREASURY");
+    address internal GOVERNOR          = makeAddr("GOVERNOR");
+    address internal OPERATIONAL_ADMIN = makeAddr("OPERATIONAL_ADMIN");
+    address internal TREASURY          = makeAddr("TREASURY");
 
     address internal globals;
 
@@ -19,6 +20,7 @@ contract GlobalsBootstrapper is Test {
         MockGlobals(globals).setValidPoolAsset(address(liquidityAsset_), true);
         MockGlobals(globals).setValidPoolDelegate(poolDelegate_, true);
         MockGlobals(globals).setMapleTreasury(TREASURY);
+        MockGlobals(globals).__setOperationalAdmin(OPERATIONAL_ADMIN);
         vm.stopPrank();
     }
 

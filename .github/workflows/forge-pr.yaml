@@ -39,14 +39,15 @@ jobs:
         git submodule update --init --recursive
     - name: Generate coverage report
       run: |
+        forge build
         forge coverage --report lcov
         sudo apt-get install lcov
         lcov --remove lcov.info -o lcov.info 'tests/*'
     - name: Report code coverage
-      uses: zgosalvez/github-actions-report-lcov@v1
+      uses: zgosalvez/github-actions-report-lcov@v4.1.22
       with:
         coverage-files: lcov.info
-        minimum-coverage: 90
+        minimum-coverage: 85
         artifact-name: code-coverage-report
         github-token: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./

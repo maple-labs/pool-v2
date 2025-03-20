@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 import { Test }      from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
@@ -12,9 +12,9 @@ import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
 
 import { MockGlobals } from "./mocks/Mocks.sol";
 
-import { GlobalsBootstrapper } from "./bootstrap/GlobalsBootstrapper.sol";
+import { TestBase } from "./utils/TestBase.sol";
 
-contract TestBase is Test, GlobalsBootstrapper {
+contract PoolManagerFactoryTestBase is TestBase {
 
     address internal PD = makeAddr("PD");
 
@@ -30,8 +30,8 @@ contract TestBase is Test, GlobalsBootstrapper {
 
         factory = new MaplePoolManagerFactory(address(globals));
 
-        implementation = address(new MaplePoolManager());
-        initializer    = address(new MaplePoolManagerInitializer());
+        implementation = deploy("MaplePoolManager");
+        initializer    = deploy("MaplePoolManagerInitializer");
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -43,7 +43,7 @@ contract TestBase is Test, GlobalsBootstrapper {
 
 }
 
-contract PoolManagerFactoryTest is TestBase {
+contract PoolManagerFactoryTest is PoolManagerFactoryTestBase {
 
     function test_createInstance() external {
         address migrationAdmin = makeAddr("migrationAdmin");
@@ -86,7 +86,7 @@ contract PoolManagerFactoryTest is TestBase {
 
 }
 
-contract PoolManagerFactoryFailureTest is TestBase {
+contract PoolManagerFactoryFailureTest is PoolManagerFactoryTestBase {
 
     function test_createInstance_notPoolDeployer() external {
         bytes memory arguments = abi.encode(PD, address(asset), 0, "Pool", "P2");
