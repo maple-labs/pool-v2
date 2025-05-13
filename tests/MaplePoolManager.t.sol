@@ -999,6 +999,14 @@ contract AddStrategy_SetterTests is PoolManagerTestBase {
         poolManager.addStrategy(address(0), deploymentData);
     }
 
+    function test_addStrategy_aumFailure() external {
+        MockFactory(loanManagerFactory).__setReverts(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:AS:AUM_FAILURE");
+        poolManager.addStrategy(loanManagerFactory, deploymentData);
+    }
+
     function test_addStrategy_success_whenNotConfigured() external {
         address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
 

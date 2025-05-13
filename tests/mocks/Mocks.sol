@@ -21,6 +21,8 @@ contract MockProxied is MapleProxiedInternals {
     }
 
     function migrate(address migrator_, bytes calldata arguments_) external {}
+
+    function assetsUnderManagement() external pure returns (uint256 aum) {}
 }
 
 contract MockERC20Pool is MaplePool {
@@ -166,7 +168,7 @@ contract MockGlobals {
     function __setIsValidScheduledCall(bool isValid_) external {
         _isValidScheduledCall = isValid_;
     }
-    
+
     function __setOperationalAdmin(address admin_) external {
         operationalAdmin = admin_;
     }
@@ -507,7 +509,7 @@ contract MockPoolPermissionManager {
     function hasPermission(address, address[] calldata, bytes32) external view returns (bool allowed_) {
         allowed_ = _allowed;
     }
-    
+
     function __setAllowed(bool allowed_) external {
         _allowed = allowed_;
     }
@@ -547,22 +549,44 @@ contract MockWithdrawalManager is MapleProxiedInternals {
 
 contract MockImplementation {
 
+    bool _reverts;
+
     fallback() external {
         // Do nothing.
+    }
+
+    function __setReverts(bool reverts_) external {
+        _reverts = reverts_;
+    }
+
+    function assetsUnderManagement() external view returns (uint256) {
+        if (_reverts) {
+            revert();
+        }
+
+        return 0;
     }
 
 }
 
 contract MockFactory {
 
+    bool _reverts;
+
     mapping(address => bool) public isInstance;
 
-    function createInstance(bytes calldata, bytes32) external returns (address instance_) {
-        instance_ = address(new MockImplementation());
+    function createInstance(bytes calldata, bytes32) external returns (address instance) {
+        instance = address(new MockImplementation());
+
+        MockImplementation(instance).__setReverts(_reverts);
     }
 
     function __setIsInstance(address instance, bool status) external {
         isInstance[instance] = status;
+    }
+
+    function __setReverts(bool reverts) external {
+        _reverts = reverts;
     }
 
 }

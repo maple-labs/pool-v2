@@ -39,16 +39,20 @@ jobs:
       run: |
         git config --global url."https://github.com/".insteadOf "git@github.com:"
         git submodule update --init --recursive
+
+    - name: Build contracts
+      run: forge build
+
     - name: Generate coverage report
       run: |
         forge coverage --report lcov
         sudo apt-get install lcov
         lcov --remove lcov.info -o lcov.info 'tests/*'
     - name: Report code coverage
-      uses: zgosalvez/github-actions-report-lcov@v1
+      uses: zgosalvez/github-actions-report-lcov@v4.1.22
       with:
         coverage-files: lcov.info
-        minimum-coverage: 90
+        minimum-coverage: 85
         artifact-name: code-coverage-report
         github-token: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./

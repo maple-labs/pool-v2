@@ -182,6 +182,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
         strategyList.push(strategy_);
 
+        // Check the accounting of the newly added strategy isn't broken.
+        // NOTE: This can occur if a newly added CoreStrategy creates an accounting loop between two or more Maple pools.
+        ( bool success_, ) = strategy_.staticcall(abi.encodeWithSelector(IStrategyLike.assetsUnderManagement.selector));
+
+        require(success_, "PM:AS:AUM_FAILURE");
+
         emit StrategyAdded(strategy_);
     }
 
