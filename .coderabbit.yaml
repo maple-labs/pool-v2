@@ -1,0 +1,111 @@
+# YAML schema for editor validation
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+# Additional tone guidance for reviews
+tone_instructions: "Be concise and security-focused; prioritize correctness, readability, and gas efficiency. List concrete risks. When citing knowledge_base.code_guidelines, name the exact broken rule."
+
+# Top-level review behavior configuration
+reviews:
+  # Overall review strictness (options: "assertive", "chill")
+  profile: "assertive"
+  # Whether CR should suggest changes workflow which auto approves PR after resolving issues.
+  request_changes_workflow: false
+  # Include a high-level summary section
+  high_level_summary: true
+  # Instructions for the high-level summary content
+  high_level_summary_instructions: "Provide bullet point release notes, then list risk areas and affected contracts."
+  # Post a review status
+  review_status: true
+  # Include inline details for each change
+  review_details: false
+  # Post a commit status to the PR
+  commit_status: true
+  # Fail the commit status on issues
+  fail_commit_status: true
+  # Summarize changed files
+  changed_files_summary: true
+  # Generate sequence diagrams
+  sequence_diagrams: true
+  # Estimate review effort
+  estimate_code_review_effort: true
+  # Check linked issues content
+  assess_linked_issues: true
+  # Suggest related issues
+  related_issues: true
+  # Suggest related PRs
+  related_prs: true
+  # Suggest labels for the PR
+  suggested_labels: false
+  # Suggest reviewers
+  suggested_reviewers: false
+  # Allow agent prompting which generates an prompt which other AI agents can use.
+  enable_prompt_for_ai_agents: false
+
+  # Per-path review instructions
+  path_instructions:
+    # Path instruction entry
+    - path: "contracts/**/*.sol"
+      # Guidance for Solidity contract reviews
+      instructions: ""
+    # Path instruction entry
+    - path: "tests/**/*.sol"
+      # Guidance for Solidity tests in the tests/ folder
+      instructions: "Check coverage of failure modes, boundary conditions, and fuzz/invariant tests; suggest missing test cases."
+    # Path instruction entry
+    - path: "scripts/**"
+      # Guidance for scripts
+      instructions: "Verify scripts are safe by default and idempotent"
+
+  # Auto review settings
+  auto_review:
+    # Enable auto review
+    enabled: true
+    # Review draft PRs
+    drafts: true
+    # Post incremental reviews on updates
+    auto_incremental_review: true
+    # Skip auto review if title contains these keywords
+    ignore_title_keywords: ["!coderabbit"]
+
+# Chat behavior
+chat:
+  # Auto-reply in chat threads
+  auto_reply: true
+
+# Knowledge base configuration
+knowledge_base:
+  # Opt out of knowledge base features
+  opt_out: false
+  # Web search capability
+  web_search:
+    # Enable web search
+    enabled: false
+  # Use code guidelines
+  code_guidelines:
+    # Enable code guidelines
+    enabled: true
+    # Guideline file patterns to load
+    filePatterns:
+      # Solidity contract standards
+      - "standards/CONTRACT_STYLE.md"
+      # Solidity test standards
+      - "standards/TEST_STYLE.md"
+
+# Code generation behavior
+code_generation:
+  # Docstring generation rules
+  docstrings:
+    # Path-specific docstring instructions
+    path_instructions:
+      # Path instruction entry
+      - path: "contracts/**/*.sol"
+        # NatSpec guidance
+        instructions: "Use NatSpec where appropriate; include @notice and @dev, and @param/@return for public/external functions."
+  # Unit test generation rules
+  unit_tests:
+    # Path-specific unit test instructions
+    path_instructions:
+      # Path instruction entry
+      - path: "contracts/**/*.sol"
+        # Foundry testing guidance
+        instructions: "Prefer Foundry-style tests; include revert cases, edge values, and state transition coverage."
