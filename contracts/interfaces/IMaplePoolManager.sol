@@ -69,6 +69,13 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event StrategyAdded(address indexed strategy_);
 
     /**
+     *  @dev   Emitted when the pool's AUM exposure cap to a strategy is set.
+     *  @param strategy_ The address of the strategy.
+     *  @param cap_      The pool's AUM exposure cap to the strategy.
+     */
+    event StrategyCapSet(address indexed strategy_, uint256 cap_);
+
+    /**
      *  @dev   Emitted when the pending pool delegate accepts the ownership transfer.
      *  @param previousDelegate_ The address of the previous delegate.
      *  @param newDelegate_      The address of the new delegate.
@@ -192,6 +199,14 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @param liquidityCap_ The value for liquidity cap.
      */
     function setLiquidityCap(uint256 liquidityCap_) external;
+
+    /**
+     *  @dev   Sets the pool's AUM exposure cap to a strategy.
+     *         The strategy must be an instance of a valid strategy factory if the cap is non-zero.
+     *  @param strategy_ The address of the strategy.
+     *  @param cap_      The pool's AUM exposure cap to the strategy.
+     */
+    function setStrategyCap(address strategy_, uint256 cap_) external;
 
     /**
      *  @dev   Sets the address of the pool permission manager.

@@ -8,6 +8,8 @@ import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
 import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
+import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
+
 import {
     MockERC20Pool,
     MockFactory,
@@ -565,6 +567,207 @@ contract SetIsStrategy_SetterTests is PoolManagerTestBase {
         poolManager.setIsStrategy(strategy2, true);
 
         assertTrue(poolManager.isStrategy(strategy2));
+    }
+
+}
+
+contract SetStrategyCap_SetterTests is PoolManagerTestBase {
+
+    MockFactory     internal strategyFactory;          // registered under STRATEGY_FACTORY
+    MockFactory     internal strategyManagerFactory;   // registered under STRATEGY_MANAGER_FACTORY
+    MockLoanManager internal strategy;                 // valid instance of strategyFactory
+    MockLoanManager internal strategyManager;          // valid instance of strategyManagerFactory
+
+    uint256 internal newCap = 1_000_000e18;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategyFactory        = new MockFactory();
+        strategyManagerFactory = new MockFactory();
+
+        strategy        = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockLoanManager(address(pool), address(0), POOL_DELEGATE);
+
+        strategy.__setFactory(address(strategyFactory));
+        strategyManager.__setFactory(address(strategyManagerFactory));
+
+        poolManager.__setIsStrategy(address(strategy),        true);
+        poolManager.__setIsStrategy(address(strategyManager), true);
+
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",         address(strategyFactory),        true);
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
+
+        strategyFactory.__setIsInstance(address(strategy),               true);
+        strategyManagerFactory.__setIsInstance(address(strategyManager), true);
+    }
+
+    function test_setStrategyCap_revert_paused() external {
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_notPoolDelegate() external {
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_noChange() external {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NO_CHANGE");
+        poolManager.setStrategyCap(address(strategy), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NO_CHANGE");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_notStrategy() external {
+        address unregisteredStrategy = makeAddr("unregisteredStrategy");
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY");
+        poolManager.setStrategyCap(unregisteredStrategy, newCap);
+    }
+
+    function test_setStrategyCap_revert_invalidFactory_strategy() external {
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:INVALID_FACTORY");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_invalidFactory_strategyManager() external {
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:INVALID_FACTORY");
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+    }
+
+    function test_setStrategyCap_revert_invalidInstance_strategy() external {
+        strategyFactory.__setIsInstance(address(strategy), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:INVALID_INSTANCE");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_invalidInstance_strategyManager() external {
+        strategyManagerFactory.__setIsInstance(address(strategyManager), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:INVALID_INSTANCE");
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+    }
+
+    function test_setStrategyCap_success_asPoolDelegate() external {
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategy), newCap);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+    }
+
+    function test_setStrategyCap_success_asGovernor() external {
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.prank(GOVERNOR);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+    }
+
+    function test_setStrategyCap_success_asOperationalAdmin() external {
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+    }
+
+    function test_setStrategyCap_success_strategyManager() external {
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), newCap);
+    }
+
+    function test_setStrategyCap_success_overwrite() external {
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+
+        uint256 updatedCap = 2_000_000e18;
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), updatedCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), updatedCap);
+    }
+
+    function test_setStrategyCap_success_zeroCap_bypassesValidation() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+
+        poolManager.__setIsStrategy(address(strategy), false);
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), false);
+        strategyFactory.__setIsInstance(address(strategy), false);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategy), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), 0);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+    }
+
+    function test_setStrategyCap_success_capMax() external {
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), type(uint256).max);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), type(uint256).max);
+    }
+
+    function test_setStrategyCap_success_multipleStrategies_isolation() external {
+        uint256 strategyManagerCap = 5_000_000e18;
+
+        assertEq(poolManager.strategyCapOf(address(strategy)),        0);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)),        newCap);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategyManager), strategyManagerCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)),        newCap);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), strategyManagerCap);
     }
 
 }

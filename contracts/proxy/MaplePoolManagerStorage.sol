@@ -32,4 +32,6 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
     address public override poolPermissionManager;
 
+    mapping(address => uint256) public override strategyCapOf;
+
 }

@@ -41,6 +41,14 @@ interface IMaplePoolManagerStorage {
     function liquidityCap() external view returns (uint256 liquidityCap_);
 
     /**
+     *  @dev    Gets the pool's AUM exposure cap to a given strategy.
+     *          The maximum amount of this pool's assets that may be deployed to the strategy at any one time.
+     *  @param  strategy_ The address of the strategy.
+     *  @return cap_      The pool's AUM exposure cap to the strategy.
+     */
+    function strategyCapOf(address strategy_) external view returns (uint256 cap_);
+
+    /**
      *  @dev    Gets the address of the strategy in the list.
      *  @param  index_    The index to get the address of.
      *  @return strategy_ The address in the list.
