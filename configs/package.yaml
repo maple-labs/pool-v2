@@ -8,8 +8,6 @@ packages:
     contractName: PoolManagerInitializer
   - path: contracts/Pool.sol
     contractName: Pool
-  - path: contracts/PoolDelegateCover.sol
-    contractName: PoolDelegateCover
   - path: contracts/PoolDeployer.sol
     contractName: PoolDeployer
   - path: contracts/PoolManager.sol

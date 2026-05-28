@@ -26,11 +26,10 @@ interface IMaplePoolDeployer {
      *  @param configParams_             Array of uint256 config parameters. Array used to avoid stack too deep issues.
      *                                    [0]: liquidityCap
      *                                    [1]: delegateManagementFeeRate
-     *                                    [2]: coverAmountRequired
-     *                                    [3]: cycleDuration
-     *                                    [4]: windowDuration
-     *                                    [5]: initialSupply
-     *                                    [6]: startTime
+     *                                    [2]: cycleDuration
+     *                                    [3]: windowDuration
+     *                                    [4]: initialSupply
+     *                                    [5]: startTime
      *  @return poolManager_ The address of the PoolManager.
      */
     function deployPool(
@@ -42,7 +41,7 @@ interface IMaplePoolDeployer {
         address           poolPermissionManager_,
         string     memory name_,
         string     memory symbol_,
-        uint256[7] memory configParams_
+        uint256[6] memory configParams_
     )
         external
         returns (address poolManager_);
@@ -61,8 +60,7 @@ interface IMaplePoolDeployer {
      *  @param configParams_             Array of uint256 config parameters. Array used to avoid stack too deep issues.
      *                                    [0]: liquidityCap
      *                                    [1]: delegateManagementFeeRate
-     *                                    [2]: coverAmountRequired
-     *                                    [3]: initialSupply
+     *                                    [2]: initialSupply
      *  @return poolManager_ The address of the PoolManager.
      */
     function deployPool(
@@ -74,7 +72,7 @@ interface IMaplePoolDeployer {
         address           poolPermissionManager_,
         string     memory name_,
         string     memory symbol_,
-        uint256[4] memory configParams_
+        uint256[3] memory configParams_
     )
         external
         returns (address poolManager_);
@@ -89,7 +87,6 @@ interface IMaplePoolDeployer {
      *  @param  symbol_             The symbol of the Pool.
      *  @return poolManager_        The address of the PoolManager contract that will be deployed.
      *  @return pool_               The address of the Pool contract that will be deployed.
-     *  @return poolDelegateCover_  The address of the PoolDelegateCover contract that will be deployed.
      */
     function getPoolDeploymentAddresses(
         address poolManagerFactory_,
@@ -98,7 +95,7 @@ interface IMaplePoolDeployer {
         uint256 initialSupply_,
         string memory name_,
         string memory symbol_
-    ) external view returns (address poolManager_, address pool_, address poolDelegateCover_);
+    ) external view returns (address poolManager_, address pool_);
 
     /**
      *  @dev    Gets the address of the Cyclical Withdrawal Manager that would result from a deployment.

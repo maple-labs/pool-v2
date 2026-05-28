@@ -12,38 +12,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
-     *  @dev   Emitted when a collateral liquidations is finished.
-     *  @param loan_             The address of the loan.
-     *  @param unrealizedLosses_ The amount of unrealized losses.
-     */
-    event CollateralLiquidationFinished(address indexed loan_, uint256 unrealizedLosses_);
-
-    /**
-     *  @dev   Emitted when a collateral liquidations is triggered.
-     *  @param loan_ The address of the loan.
-     */
-    event CollateralLiquidationTriggered(address indexed loan_);
-
-    /**
-     *  @dev   Emitted when cover is deposited.
-     *  @param amount_ The amount of cover deposited.
-     */
-    event CoverDeposited(uint256 amount_);
-
-    /**
-     *  @dev   Emitted when cover is liquidated in the case of a loan defaulting.
-     *  @param toTreasury_ The amount of cover sent to the Treasury.
-     *  @param toPool_     The amount of cover sent to the Pool.
-     */
-    event CoverLiquidated(uint256 toTreasury_, uint256 toPool_);
-
-    /**
-     *  @dev   Emitted when cover is withdrawn.
-     *  @param amount_ The amount of cover withdrawn.
-     */
-    event CoverWithdrawn(uint256 amount_);
-
-    /**
      *  @dev   Emitted when a new management fee rate is set.
      *  @param managementFeeRate_ The amount of management fee rate.
      */
@@ -232,23 +200,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function requestFunds(address destination_, uint256 principal_) external;
 
     /**************************************************************************************************************************************/
-    /*** Liquidation Functions                                                                                                          ***/
-    /**************************************************************************************************************************************/
-
-    /**
-     *  @dev   Finishes the collateral liquidation
-     *  @param loan_ Loan that had its collateral liquidated.
-     */
-    function finishCollateralLiquidation(address loan_) external;
-
-    /**
-     *  @dev   Triggers the default of a loan.
-     *  @param loan_              Loan to trigger the default.
-     *  @param liquidatorFactory_ Factory used to deploy the liquidator.
-     */
-    function triggerDefault(address loan_, address liquidatorFactory_) external;
-
-    /**************************************************************************************************************************************/
     /*** Exit Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
@@ -300,23 +251,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @param sender_ The address of the sender of the shares.
      */
      function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
-
-    /**************************************************************************************************************************************/
-    /*** Cover Functions                                                                                                                ***/
-    /**************************************************************************************************************************************/
-
-    /**
-     *  @dev   Deposits cover into the pool.
-     *  @param amount_ The amount of cover to deposit.
-     */
-    function depositCover(uint256 amount_) external;
-
-    /**
-     *  @dev   Withdraws cover from the pool.
-     *  @param amount_    The amount of cover to withdraw.
-     *  @param recipient_ The address of the recipient.
-     */
-    function withdrawCover(uint256 amount_, address recipient_) external;
 
     /**************************************************************************************************************************************/
     /*** LP Token View Functions                                                                                                        ***/
@@ -411,10 +345,10 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function governor() external view returns (address governor_);
 
     /**
-     *  @dev    Returns if pool has sufficient cover.
-     *  @return hasSufficientCover_ True if pool has sufficient cover.
+     *  @dev    Returns whether the pool has sufficient cover. Pool delegate cover is deprecated, so this always returns true.
+     *  @return hasSufficientCover_ True.
      */
-    function hasSufficientCover() external view returns (bool hasSufficientCover_);
+    function hasSufficientCover() external pure returns (bool hasSufficientCover_);
 
     /**
      *  @dev    Returns the length of the `strategyList`.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.25;
 
-import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { IGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
@@ -43,7 +42,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolPermissionManager_,
         string     memory name_,
         string     memory symbol_,
-        uint256[7] memory configParams_
+        uint256[6] memory configParams_
     )
         external override
         returns (address poolManager_)
@@ -60,7 +59,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         // Deploy Pool Manager (and Pool).
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
-            abi.encode(msg.sender, asset_, configParams_[5], name_, symbol_),
+            abi.encode(msg.sender, asset_, configParams_[4], name_, symbol_),
             keccak256(abi.encode(msg.sender))
         );
 
@@ -68,7 +67,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         // Deploy Withdrawal Manager.
         address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
-            abi.encode(pool_, configParams_[6], configParams_[3], configParams_[4]),
+            abi.encode(pool_, configParams_[5], configParams_[2], configParams_[3]),
             keccak256(abi.encode(poolManager_))
         );
 
@@ -79,14 +78,6 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
-
-        uint256 coverAmount_ = configParams_[2];
-
-        require(
-            coverAmount_ == 0 ||
-            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManagerLike(poolManager_).poolDelegateCover(), coverAmount_),
-            "PD:DP:TRANSFER_FAILED"
-        );
 
         IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
         IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
@@ -104,7 +95,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address           poolPermissionManager_,
         string     memory name_,
         string     memory symbol_,
-        uint256[4] memory configParams_
+        uint256[3] memory configParams_
     )
         external override
         returns (address poolManager_)
@@ -121,7 +112,7 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         // Deploy Pool Manager (and Pool).
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
-            abi.encode(msg.sender, asset_, configParams_[3], name_, symbol_),
+            abi.encode(msg.sender, asset_, configParams_[2], name_, symbol_),
             keccak256(abi.encode(msg.sender))
         );
 
@@ -141,14 +132,6 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
 
-        uint256 coverAmount_ = configParams_[2];
-
-        require(
-            coverAmount_ == 0 ||
-            ERC20Helper.transferFrom(asset_, msg.sender, IPoolManagerLike(poolManager_).poolDelegateCover(), coverAmount_),
-            "PD:DP:TRANSFER_FAILED"
-        );
-
         IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
         IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
         IPoolManagerLike(poolManager_).setPoolPermissionManager(poolPermissionManager_);
@@ -164,9 +147,9 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         string memory name_,
         string memory symbol_
     )
-        external view override returns (address poolManager_, address pool_, address poolDelegateCover_)
+        external view override returns (address poolManager_, address pool_)
     {
-        ( pool_, poolManager_, poolDelegateCover_ ) = _getPoolAddresses(
+        ( pool_, poolManager_ ) = _getPoolAddresses(
             poolManagerFactory_, poolDelegate_, asset_, initialSupply_, name_, symbol_
         );
     }
@@ -245,14 +228,13 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         string memory name_,
         string memory symbol_
     )
-        internal view returns (address pool_, address poolManager_, address poolDelegateCover_)
+        internal view returns (address pool_, address poolManager_)
     {
         bytes memory constructorArgs = abi.encode(poolDelegate_, asset_, initialSupply_, name_, symbol_);
         bytes32 salt                 = keccak256(abi.encode(poolDelegate_));
 
-        poolManager_       = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(constructorArgs, salt);
-        pool_              = _addressFrom(poolManager_, 1);
-        poolDelegateCover_ = _addressFrom(poolManager_, 2);
+        poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(constructorArgs, salt);
+        pool_        = _addressFrom(poolManager_, 1);
     }
 
     function _getStrategiesAddresses(

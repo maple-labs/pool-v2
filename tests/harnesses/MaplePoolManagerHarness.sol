@@ -5,10 +5,6 @@ import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol";
 
 contract MaplePoolManagerHarness is MaplePoolManager {
 
-    function __handleCover(uint256 losses_, uint256 platformFees_) external {
-        _handleCover(losses_, platformFees_);
-    }
-
     function __setIsStrategy(address strategy_, bool isStrategy_) external {
         isStrategy[strategy_] = isStrategy_;
     }

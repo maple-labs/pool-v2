@@ -16,7 +16,6 @@ This repository contains the core contracts of the Maple V2 protocol that are re
 | -------- | ------- |
 | [`Pool`](https://github.com/maple-labs/maple-core-v2/wiki/Pools) | Each pool represents a different lending pool with a unique strategy and pool delegate that issues loans on behalf of the liquidity providers. The `Pool` contract is compatible with the [ERC-4626 Tokenized Vault standard](https://eips.ethereum.org/EIPS/eip-4626). |
 | [`PoolManager`](https://github.com/maple-labs/maple-core-v2/wiki/PoolManager) | Used by the pool delegate to manage pool level parameters and to issue loans to borrowers. |
-| [`PoolDelegateCover`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Delegate-Cover) | Holds first-loss capital in escrow on behalf of the pool delegate. |
 | [`PoolDeployer`](https://github.com/maple-labs/maple-core-v2/wiki/Pool-Creation) | Used to deploy new pools with all the required dependencies. |
 
 ## Dependencies/Inheritance
@@ -28,7 +27,7 @@ Contracts in this repo inherit and import code from:
 
 Contracts inherit and import code in the following ways:
 - `Pool` inherits `ERC20` for fungible token functionality.
-- `PoolDelegateCover`, `PoolDeployer` and `PoolManager` use `ERC20Helper` for token interactions.
+- `Pool` and `PoolManager` use `ERC20Helper` for token interactions.
 - `PoolManager` inherits `MapleProxiedInternals` for proxy logic.
 - `PoolManagerFactory` inherits `MapleProxyFactory` for proxy deployment and management.
 

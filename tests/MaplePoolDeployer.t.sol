@@ -27,36 +27,22 @@ contract MaplePoolDeployerTests is TestBase {
     string name   = "Pool";
     string symbol = "P2";
 
-    uint256 coverAmountRequired = 10e18;
-
     address[] strategyFactories;
     bytes[]   strategyDeploymentData;
 
-    uint256[7] configParamsCycle = [
-        1_000_000e18,
-        0.1e6,
-        coverAmountRequired,
-        3 days,
-        1 days,
-        0,
-        block.timestamp + 10 days
+    uint256[6] configParamsCycle = [
+        1_000_000e18,               // liquidityCap
+        0.1e6,                      // delegateManagementFeeRate
+        3 days,                     // cycleDuration
+        1 days,                     // windowDuration
+        0,                          // initialSupply
+        block.timestamp + 10 days   // startTime
     ];
 
-    uint256[4] configParamsQueue = [
-        1_000_000e18,
-        0.1e6,
-        coverAmountRequired,
-        0
-    ];
-
-    uint256[7] noCoverConfigParamsCycle = [
-        1_000_000e18,
-        0.1e6,
-        0,
-        3 days,
-        1 days,
-        0,
-        block.timestamp + 10 days
+    uint256[3] configParamsQueue = [
+        1_000_000e18,               // liquidityCap
+        0.1e6,                      // delegateManagementFeeRate
+        0                           // initialSupply
     ];
 
     function setUp() public virtual {
@@ -100,11 +86,6 @@ contract MaplePoolDeployerTests is TestBase {
     }
 
     function test_deployPool_mismatchingArrays() external {
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
-
-        vm.prank(poolDelegate);
-        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-
         strategyDeploymentData.push("");
 
         vm.prank(poolDelegate);
@@ -122,33 +103,7 @@ contract MaplePoolDeployerTests is TestBase {
         );
     }
 
-    function test_deployPool_transferFailed() external {
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired - 1);
-
-        vm.prank(poolDelegate);
-        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-
-        vm.prank(poolDelegate);
-        vm.expectRevert("PD:DP:TRANSFER_FAILED");
-        MaplePoolDeployer(poolDeployer).deployPool(
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            strategyFactories,
-            strategyDeploymentData,
-            asset,
-            poolPermissionManager,
-            name,
-            symbol,
-            configParamsCycle
-        );
-    }
-
     function test_deployPool_invalidPoolDelegate() external {
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
-
-        vm.prank(poolDelegate);
-        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-
         vm.expectRevert("PD:DP:INVALID_PD");
         MaplePoolDeployer(poolDeployer).deployPool(
             poolManagerFactory,
@@ -163,12 +118,8 @@ contract MaplePoolDeployerTests is TestBase {
         );
     }
 
-    function test_deployPool_success_withCoverRequired_cyclicalWM() external {
-        vm.prank(poolDelegate);
-        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
-
-        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
+    function test_deployPool_success_cyclicalWM() external {
+        (address expectedPoolManager_, address expectedPool_) =
             MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
                 poolManagerFactory,
                 poolDelegate,
@@ -183,9 +134,9 @@ contract MaplePoolDeployerTests is TestBase {
                 withdrawalManagerFactory,
                 expectedPool_,
                 expectedPoolManager_,
-                configParamsCycle[6],
-                configParamsCycle[3],
-                configParamsCycle[4]
+                configParamsCycle[5],
+                configParamsCycle[2],
+                configParamsCycle[3]
             );
 
         address[] memory expectedStrategies_ =
@@ -210,7 +161,6 @@ contract MaplePoolDeployerTests is TestBase {
 
         assertEq(poolManager_,                                        expectedPoolManager_);
         assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
-        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
         assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
         for (uint256 i_; i_ < strategyFactories.length; ++i_) {
@@ -218,63 +168,8 @@ contract MaplePoolDeployerTests is TestBase {
         }
     }
 
-    function test_deployPool_success_withoutCoverRequired_cyclicalWM() external {
-        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
-            MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
-                poolManagerFactory,
-                poolDelegate,
-                asset,
-                0,
-                name,
-                symbol
-            );
-
-        address expectedWithdrawalManager_ =
-            MaplePoolDeployer(poolDeployer).getCyclicalWithdrawalManagerAddress(
-                withdrawalManagerFactory,
-                expectedPool_,
-                expectedPoolManager_,
-                configParamsCycle[6],
-                configParamsCycle[3],
-                configParamsCycle[4]
-            );
-
-        address[] memory expectedStrategies_ =
-            MaplePoolDeployer(poolDeployer).getStrategiesAddresses(
-                expectedPoolManager_,
-                strategyFactories,
-                strategyDeploymentData
-            );
-
-        vm.prank(poolDelegate);
-        address poolManager_ = MaplePoolDeployer(poolDeployer).deployPool(
-            poolManagerFactory,
-            withdrawalManagerFactory,
-            strategyFactories,
-            strategyDeploymentData,
-            asset,
-            poolPermissionManager,
-            name,
-            symbol,
-            noCoverConfigParamsCycle
-        );
-
-        assertEq(poolManager_,                                        expectedPoolManager_);
-        assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
-        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
-        assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
-
-        for (uint256 i_; i_ < strategyFactories.length; ++i_) {
-            assertEq(IMaplePoolManager(poolManager_).strategyList(i_), expectedStrategies_[i_]);
-        }
-    }
-
-    function test_deployPool_success_withCoverRequired_queueWM() external {
-        vm.prank(poolDelegate);
-        MockERC20(asset).approve(poolDeployer, coverAmountRequired);
-        MockERC20(asset).mint(poolDelegate, coverAmountRequired);
-
-        (address expectedPoolManager_, address expectedPool_, address expectedPoolDelegateCover_) =
+    function test_deployPool_success_queueWM() external {
+        (address expectedPoolManager_, address expectedPool_) =
             MaplePoolDeployer(poolDeployer).getPoolDeploymentAddresses(
                 poolManagerFactory,
                 poolDelegate,
@@ -313,7 +208,6 @@ contract MaplePoolDeployerTests is TestBase {
 
         assertEq(poolManager_,                                        expectedPoolManager_);
         assertEq(IMaplePoolManager(poolManager_).pool(),              expectedPool_);
-        assertEq(IMaplePoolManager(poolManager_).poolDelegateCover(), expectedPoolDelegateCover_);
         assertEq(IMaplePoolManager(poolManager_).withdrawalManager(), expectedWithdrawalManager_);
 
         for (uint256 i_; i_ < strategyFactories.length; ++i_) {

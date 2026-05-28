@@ -13,7 +13,8 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
     address public override asset;
     address public override pool;
 
-    address public override poolDelegateCover;
+    address __deprecated_poolDelegateCover;
+
     address public override withdrawalManager;
 
     bool public override active;

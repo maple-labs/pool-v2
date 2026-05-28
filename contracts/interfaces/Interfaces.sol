@@ -31,13 +31,7 @@ interface IGlobalsLike {
         external view
         returns (bool isValid_);
 
-    function mapleTreasury() external view returns (address mapleTreasury_);
-
-    function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
-
     function migrationAdmin() external view returns (address migrationAdmin_);
-
-    function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
     function operationalAdmin() external view returns (address operationalAdmin_);
 
@@ -59,34 +53,11 @@ interface IStrategyLike {
 
 }
 
-interface ILoanManagerLike {
-
-    
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
-
-    function triggerDefault(address loan_, address liquidatorFactory_)
-        external
-        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
-
-}
-
-interface ILoanLike {
-
-    function lender() external view returns (address lender_);
-
-}
-
 interface IMapleProxyFactoryLike {
 
     function isInstance(address instance_) external view returns (bool isInstance_);
 
     function mapleGlobals() external view returns (address mapleGlobals_);
-
-}
-
-interface IPoolDelegateCoverLike {
-
-    function moveFunds(uint256 amount_, address recipient_) external;
 
 }
 
@@ -121,8 +92,6 @@ interface IPoolManagerLike {
     function maxWithdraw(address owner_) external view returns (uint256 maxAssets_);
 
     function pool() external view returns (address pool_);
-
-    function poolDelegateCover() external view returns (address poolDelegateCover_);
 
     function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
 

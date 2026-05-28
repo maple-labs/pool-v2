@@ -74,13 +74,7 @@ interface IMaplePoolManagerStorage {
     function poolDelegate() external view returns (address poolDelegate_);
 
     /**
-     *  @dev    Gets the address of the pool delegate cover.
-     *  @return poolDelegateCover_ The address of the pool delegate cover.
-     */
-    function poolDelegateCover() external view returns (address poolDelegateCover_);
-
-    /**
-     *  @dev    Gets the address of the pool delegate cover.
+     *  @dev    Gets the address of the pool permission manager.
      *  @return poolPermissionManager_ The address of the pool permission manager.
      */
     function poolPermissionManager() external view returns (address poolPermissionManager_);

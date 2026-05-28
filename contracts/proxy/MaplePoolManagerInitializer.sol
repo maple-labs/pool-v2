@@ -5,7 +5,6 @@ import { IGlobalsLike, IMapleProxyFactoryLike } from "../interfaces/Interfaces.s
 import { IMaplePoolManagerInitializer }         from "../interfaces/IMaplePoolManagerInitializer.sol";
 
 import { MaplePool }               from "../MaplePool.sol";
-import { MaplePoolDelegateCover }  from "../MaplePoolDelegateCover.sol";
 import { MaplePoolManagerStorage } from "./MaplePoolManagerStorage.sol";
 
 contract MaplePoolManagerInitializer is IMaplePoolManagerInitializer, MaplePoolManagerStorage {
@@ -85,8 +84,6 @@ contract MaplePoolManagerInitializer is IMaplePoolManagerInitializer, MaplePoolM
                 symbol_
             )
         );
-
-        poolDelegateCover = address(new MaplePoolDelegateCover(address(this), asset));
 
         emit Initialized(poolDelegate_, asset_, address(pool));
     }
