@@ -18,13 +18,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
 
     /**
-     *  @dev   Emitted when a strategy is set as valid.
-     *  @param strategy_   The address of the strategy.
-     *  @param isStrategy_ Whether the strategy is valid.
-     */
-    event IsStrategySet(address indexed strategy_, bool isStrategy_);
-
-    /**
      *  @dev   Emitted when a new liquidity cap is set.
      *  @param liquidityCap_ The value of liquidity cap.
      */
@@ -146,13 +139,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
      */
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
-
-    /**
-     *  @dev   Sets if the strategy is valid in the isStrategy mapping.
-     *  @param strategy_   The address of the strategy
-     *  @param isStrategy_ Whether the strategy is valid.
-     */
-    function setIsStrategy(address strategy_, bool isStrategy_) external;
 
     /**
      *  @dev   Sets the value for liquidity cap.
@@ -355,9 +341,9 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function totalAssets() external view returns (uint256 totalAssets_);
 
     /**
-     *  @dev    Returns the amount unrealized losses.
-     *  @return unrealizedLosses_ Amount of unrealized losses.
+     *  @dev    Deprecated. Always returns 0. Retained so MaplePool's share-conversion math continues to compile and run.
+     *  @return unrealizedLosses_ Always 0.
      */
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+    function unrealizedLosses() external pure returns (uint256 unrealizedLosses_);
 
 }

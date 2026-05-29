@@ -191,18 +191,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit DelegateManagementFeeRateSet(delegateManagementFeeRate = delegateManagementFeeRate_);
     }
 
-    function setIsStrategy(address strategy_, bool isStrategy_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
-        emit IsStrategySet(strategy_, isStrategy[strategy_] = isStrategy_);
-
-        // Check Strategy is in the list.
-        // NOTE: The factory and instance check are not required as the mapping is being updated for a Strategy that is in the list.
-        for (uint256 i_; i_ < strategyList.length; ++i_) {
-            if (strategyList[i_] == strategy_) return;
-        }
-
-        revert("PM:SIS:INVALID_STRATEGY");
-    }
-
     function setLiquidityCap(uint256 liquidityCap_) external override whenNotPaused onlyProtocolAdminsOrNotConfigured {
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
@@ -436,16 +424,9 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         ( , shares_ ) = IWithdrawalManagerLike(withdrawalManager).previewWithdraw(owner_, assets_);
     }
 
-    function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
-        uint256 length_ = strategyList.length;
-
-        for (uint256 i_; i_ < length_;) {
-            unrealizedLosses_ += IStrategyLike(strategyList[i_]).unrealizedLosses();
-            unchecked { ++i_; }
-        }
-
-        // NOTE: Use minimum to prevent underflows in the case that `unrealizedLosses` includes late interest and `totalAssets` does not.
-        unrealizedLosses_ = _min(unrealizedLosses_, totalAssets());
+    // Deprecated: always returns 0. Signature is preserved so MaplePool's share math continues to compile and run.
+    function unrealizedLosses() public pure override returns (uint256 unrealizedLosses_) {
+        unrealizedLosses_ = 0;
     }
 
     /**************************************************************************************************************************************/
@@ -496,10 +477,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         if (!IMapleProxyFactory(factory_).isInstance(strategy_))                   return false;
 
         return true;
-    }
-
-    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
-        minimum_ = a_ < b_ ? a_ : b_;
     }
 
     function _revertIfConfigured() internal view {

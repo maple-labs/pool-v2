@@ -172,7 +172,6 @@ contract MockGlobals {
 contract MockStrategy {
 
     uint256 public assetsUnderManagement;
-    uint256 public unrealizedLosses;
 
     address public factory;
 
