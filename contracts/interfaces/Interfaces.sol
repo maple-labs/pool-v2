@@ -45,14 +45,6 @@ interface IGlobalsLike {
 
 }
 
-interface IStrategyLike {
-
-    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
-
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
-
-}
-
 interface IMapleProxyFactoryLike {
 
     function isInstance(address instance_) external view returns (bool isInstance_);
@@ -130,6 +122,20 @@ interface IPoolPermissionManagerLike {
     function hasPermission(address poolManager, address caller, bytes32 functionId) external view returns (bool allowed);
 
     function hasPermission(address poolManager, address[] calldata caller, bytes32 functionId) external view returns (bool allowed);
+
+}
+
+interface IStrategyLike {
+
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface IStrategyManagerLike {
+
+    function assetsOf(address poolManager_) external view returns (uint256 assets_);
 
 }
 

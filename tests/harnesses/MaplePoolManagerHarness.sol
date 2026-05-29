@@ -9,6 +9,10 @@ contract MaplePoolManagerHarness is MaplePoolManager {
         isStrategy[strategy_] = isStrategy_;
     }
 
+    function __setIsStrategyManager(address strategyManager_, bool isStrategyManager_) external {
+        isStrategyManager[strategyManager_] = isStrategyManager_;
+    }
+
     function __setPoolPermissionManager(address poolPermissionManager_) external {
         poolPermissionManager = poolPermissionManager_;
     }
@@ -19,6 +23,10 @@ contract MaplePoolManagerHarness is MaplePoolManager {
 
     function __setConfigured(bool configured_) external {
         configured = configured_;
+    }
+
+    function __setLocked(uint256 locked_) external {
+        _locked = locked_;
     }
 
     function __getStrategyListValue(uint256 index_) external view returns (address value_) {

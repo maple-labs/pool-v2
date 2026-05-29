@@ -171,14 +171,24 @@ contract MockGlobals {
 
 contract MockStrategy {
 
-    uint128 public assetsUnderManagement;
-    uint128 public unrealizedLosses;
+    uint256 public assetsUnderManagement;
+    uint256 public unrealizedLosses;
 
     address public factory;
+
+    mapping(address => uint256) public assetsOf;
 
     constructor(address pool_, address treasury_, address poolDelegate_) {}
 
     function fund(address) external {}
+
+    function __setAssetsOf(address poolManager_, uint256 assets_) external {
+        assetsOf[poolManager_] = assets_;
+    }
+
+    function __setAssetsUnderManagement(uint256 assetsUnderManagement_) external {
+        assetsUnderManagement = assetsUnderManagement_;
+    }
 
     function __setFactory(address factory_) external {
         factory = factory_;

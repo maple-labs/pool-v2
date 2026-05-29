@@ -102,14 +102,6 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      */
     event WithdrawalManagerSet(address indexed withdrawalManager_);
 
-    /**
-     *  @dev   Emitted when withdrawal of assets from the pool is processed.
-     *  @param owner_            The owner of the assets.
-     *  @param redeemableShares_ The amount of redeemable shares.
-     *  @param resultingAssets_  The amount of assets redeemed.
-     */
-    event WithdrawalProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
-
     /**************************************************************************************************************************************/
     /*** Ownership Transfer Functions                                                                                                   ***/
     /**************************************************************************************************************************************/
@@ -195,9 +187,9 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**
      *  @dev   Strategy can request funds from the pool via the poolManager.
      *  @param destination_ The address to send the funds to.
-     *  @param principal_   The principal amount to fund the strategy with.
+     *  @param amount_      Amount to fund the strategy with.
      */
-    function requestFunds(address destination_, uint256 principal_) external;
+    function requestFunds(address destination_, uint256 amount_) external;
 
     /**************************************************************************************************************************************/
     /*** Exit Functions                                                                                                                 ***/

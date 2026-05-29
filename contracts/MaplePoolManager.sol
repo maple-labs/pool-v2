@@ -14,6 +14,7 @@ import {
     IPoolLike,
     IPoolPermissionManagerLike,
     IStrategyLike,
+    IStrategyManagerLike,
     IWithdrawalManagerLike
 } from "./interfaces/Interfaces.sol";
 
@@ -68,11 +69,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     modifier onlyPool() {
         _revertIfNotPool();
-        _;
-    }
-
-    modifier onlyPoolDelegate() {
-        _revertIfNotPoolDelegate();
         _;
     }
 
@@ -212,21 +208,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function setStrategyCap(address strategy_, uint256 cap_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
-        require(strategyCapOf[strategy_] != cap_, "PM:SSC:NO_CHANGE");
-
-        if (cap_ != 0) {
-            require(isStrategy[strategy_], "PM:SSC:NOT_STRATEGY");
-
-            address      factory_ = IMapleProxied(strategy_).factory();
-            IGlobalsLike globals_ = IGlobalsLike(globals());
-
-            require(
-                globals_.isInstanceOf("STRATEGY_FACTORY",         factory_) ||
-                globals_.isInstanceOf("STRATEGY_MANAGER_FACTORY", factory_),
-                "PM:SSC:INVALID_FACTORY"
-            );
-            require(IMapleProxyFactory(factory_).isInstance(strategy_), "PM:SSC:INVALID_INSTANCE");
-        }
+        require(strategyCapOf[strategy_] != cap_,                  "PM:SSC:NO_CHANGE");
+        require(cap_ == 0 || _isValidStrategyOrManager(strategy_), "PM:SSC:NOT_STRATEGY_OR_MANAGER");
 
         strategyCapOf[strategy_] = cap_;
 
@@ -252,29 +235,23 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Funding Functions                                                                                                              ***/
     /**************************************************************************************************************************************/
 
-    function requestFunds(address destination_, uint256 principal_) external override whenNotPaused nonReentrant {
-        address asset_   = asset;
-        address pool_    = pool;
-        address factory_ = IMapleProxied(msg.sender).factory();
+    // TODO: Confirm that old cyclical WM pools will be able to request funds.
+    function requestFunds(address destination_, uint256 amount_) external override whenNotPaused nonReentrant {
+        address pool_   = pool;
+        address caller_ = msg.sender;
 
-        IGlobalsLike globals_ = IGlobalsLike(globals());
+        require(destination_                    != address(0), "PM:RF:ZERO_DESTINATION");
+        require(amount_                         != 0,          "PM:RF:ZERO_AMOUNT");
+        require(IERC20Like(pool_).totalSupply() != 0,          "PM:RF:ZERO_SUPPLY");
+        require(_isValidStrategyOrManager(caller_),            "PM:RF:INVALID_STRATEGY_OR_MANAGER");
 
-        // NOTE: Do not need to check isInstance() as the Strategy is added to the list on `addStrategy()` or `configure()`.
-        require(principal_ != 0,                                     "PM:RF:INVALID_PRINCIPAL");
-        require(globals_.isInstanceOf("STRATEGY_FACTORY", factory_), "PM:RF:INVALID_FACTORY");
-        require(IMapleProxyFactory(factory_).isInstance(msg.sender), "PM:RF:INVALID_INSTANCE");
-        require(isStrategy[msg.sender],                              "PM:RF:NOT_STRATEGY");
-        require(IERC20Like(pool_).totalSupply() != 0,                "PM:RF:ZERO_SUPPLY");
+        uint256 currentExposure_ = isStrategyManager[caller_]
+            ? IStrategyManagerLike(caller_).assetsOf(address(this))
+            : IStrategyLike(caller_).assetsUnderManagement();
 
-        // Fetching locked liquidity needs to be done prior to transferring the tokens.
-        uint256 lockedLiquidity_ = IWithdrawalManagerLike(withdrawalManager).lockedLiquidity();
+        require(currentExposure_ + amount_ <= strategyCapOf[caller_], "PM:RF:STRATEGY_CAP");
 
-        // Transfer the required principal.
-        require(destination_ != address(0),                                        "PM:RF:INVALID_DESTINATION");
-        require(ERC20Helper.transferFrom(asset_, pool_, destination_, principal_), "PM:RF:TRANSFER_FAIL");
-
-        // The remaining liquidity in the pool must be greater or equal to the locked liquidity.
-        require(IERC20Like(asset_).balanceOf(pool_) >= lockedLiquidity_, "PM:RF:LOCKED_LIQUIDITY");
+        require(ERC20Helper.transferFrom(asset, pool_, destination_, amount_), "PM:RF:TRANSFER_FAIL");
     }
 
     /**************************************************************************************************************************************/
@@ -505,6 +482,21 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         maxAssets_              = liquidityCap_ > totalAssets_ && depositAllowed_ ? liquidityCap_ - totalAssets_ : 0;
     }
 
+    function _isValidStrategyOrManager(address strategy_) internal view returns (bool) {
+        bool isStrategy_        = isStrategy[strategy_];
+        bool isStrategyManager_ = isStrategyManager[strategy_];
+
+        if (!isStrategy_ && !isStrategyManager_) return false;
+
+        address factory_             = IMapleProxied(strategy_).factory();
+        bytes32 requiredFactoryRole_ = isStrategyManager_ ? bytes32("STRATEGY_MANAGER_FACTORY") : bytes32("STRATEGY_FACTORY");
+
+        if (!IGlobalsLike(globals()).isInstanceOf(requiredFactoryRole_, factory_)) return false;
+        if (!IMapleProxyFactory(factory_).isInstance(strategy_))                   return false;
+
+        return true;
+    }
+
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         minimum_ = a_ < b_ ? a_ : b_;
     }
@@ -525,10 +517,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _revertIfNotPool() internal view {
         require(msg.sender == pool, "PM:NOT_POOL");
-    }
-
-    function _revertIfNotPoolDelegate() internal view {
-        require(msg.sender == poolDelegate, "PM:NOT_PD");
     }
 
     function _revertIfNeitherPoolDelegateNorProtocolAdmins() internal view {
