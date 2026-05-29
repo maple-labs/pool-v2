@@ -245,11 +245,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         require(IERC20Like(pool_).totalSupply() != 0,          "PM:RF:ZERO_SUPPLY");
         require(_isValidStrategyOrManager(caller_),            "PM:RF:INVALID_STRATEGY_OR_MANAGER");
 
-        uint256 currentExposure_ = isStrategyManager[caller_]
-            ? IStrategyManagerLike(caller_).assetsOf(address(this))
-            : IStrategyLike(caller_).assetsUnderManagement();
-
-        require(currentExposure_ + amount_ <= strategyCapOf[caller_], "PM:RF:STRATEGY_CAP");
+        require(_assetsUnderManagement(caller_) + amount_ <= strategyCapOf[caller_], "PM:RF:STRATEGY_CAP");
 
         require(ERC20Helper.transferFrom(asset, pool_, destination_, amount_), "PM:RF:TRANSFER_FAIL");
     }
@@ -393,9 +389,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
         uint256 length_ = strategyList.length;
 
-        for (uint256 i_; i_ < length_;) {
-            totalAssets_ += IStrategyLike(strategyList[i_]).assetsUnderManagement();
-            unchecked { ++i_; }
+        for (uint256 i_; i_ < length_; i_++) {
+            totalAssets_ += _assetsUnderManagement(strategyList[i_]);
         }
     }
 
@@ -459,6 +454,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _address(uint256 word_) internal pure returns (address address_) {
         address_ = address(uint160(word_));
+    }
+
+    function _assetsUnderManagement(address strategy_) internal view returns (uint256 exposure_) {
+        exposure_ = isStrategyManager[strategy_]
+            ? IStrategyManagerLike(strategy_).assetsOf(address(this))
+            : IStrategyLike(strategy_).assetsUnderManagement();
     }
 
     function _canDeposit(uint256 assets_) internal view returns (bool canDeposit_, string memory errorMessage_) {

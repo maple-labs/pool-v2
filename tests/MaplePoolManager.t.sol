@@ -1654,6 +1654,115 @@ contract MaxWithdrawTests is PoolManagerTestBase {
 
 }
 
+contract TotalAssetsTests is PoolManagerTestBase {
+
+    MockStrategy internal strategy;
+    MockStrategy internal strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategy        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        poolManager.__setIsStrategyManager(address(strategyManager), true);
+        poolManager.__setIsStrategy(address(strategy), true);
+
+        asset.burn(address(pool), asset.balanceOf(address(pool)));
+    }
+
+    function test_totalAssets_singleStrategy() external {
+        uint256 strategyAssets = 250_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets);
+    }
+
+    function test_totalAssets_singleStrategyManager() external {
+        uint256 managerAssets = 400_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategyManager));
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), managerAssets);
+    }
+
+    function test_totalAssets_mixed() external {
+        uint256 strategyAssets = 250_000e18;
+        uint256 managerAssets  = 400_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets + managerAssets);
+    }
+
+    function test_totalAssets_mixed_partialThenFullLoss() external {
+        uint256 strategyAssets = 1_600e18;
+        uint256 managerAssets  = 800e18;
+
+        /**********************************************************************************************************************************/
+        /*** Step 1: Baseline                                                                                                           ***/
+        /**********************************************************************************************************************************/
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        /**********************************************************************************************************************************/
+        /*** Step 2: Full exposure                                                                                                      ***/
+        /**********************************************************************************************************************************/
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets + managerAssets);
+
+        /**********************************************************************************************************************************/
+        /*** Step 3: Partial loss                                                                                                       ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setAssetsUnderManagement(strategyAssets / 16);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets / 19);
+
+        assertEq(poolManager.totalAssets(), strategyAssets / 16 + managerAssets / 19);
+
+        /**********************************************************************************************************************************/
+        /*** Step 4: Full loss                                                                                                          ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setAssetsUnderManagement(0);
+        strategyManager.__setAssetsOf(address(poolManager), 0);
+
+        assertEq(poolManager.totalAssets(), 0);
+    }
+
+    function test_totalAssets_managerWithZeroExposure() external {
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        assertEq(strategy.assetsUnderManagement(),               0);
+        assertEq(strategyManager.assetsOf(address(poolManager)), 0);
+
+        assertEq(poolManager.totalAssets(), 0);
+    }
+
+}
+
 contract RequestFundsTests is PoolManagerTestBase {
 
     address destination = makeAddr("destination");
