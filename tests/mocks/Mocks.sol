@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
+import { StdUtils }              from "../../modules/forge-std/src/StdUtils.sol";
+import { VmSafe }                from "../../modules/forge-std/src/Vm.sol";
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
@@ -441,7 +443,7 @@ contract MockImplementation {
 
 }
 
-contract MockFactory {
+contract MockFactory is StdUtils {
 
     bool _reverts;
 
@@ -451,6 +453,11 @@ contract MockFactory {
         instance = address(new MockImplementation());
 
         MockImplementation(instance).__setReverts(_reverts);
+    }
+
+    function getNextStrategyAddress() external view returns (address) {
+        VmSafe vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
+        return computeCreateAddress(address(this), vm.getNonce(address(this)));
     }
 
     function __setIsInstance(address instance, bool status) external {

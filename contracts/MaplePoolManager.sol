@@ -57,6 +57,11 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         _locked = 1;
     }
 
+    modifier onlyGovernorOrNotConfigured() {
+        _revertIfConfiguredAndNotGovernor();
+        _;
+    }
+
     modifier onlyIfNotConfigured() {
         _revertIfConfigured();
         _;
@@ -159,15 +164,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addStrategy(address strategyFactory_, bytes calldata extraDeploymentData_)
-        external override whenNotPaused onlyProtocolAdminsOrNotConfigured returns (address strategy_)
+    function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata extraDeploymentData_)
+        external override whenNotPaused onlyGovernorOrNotConfigured returns (address strategy_)
     {
         require(IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", strategyFactory_), "PM:AS:INVALID_FACTORY");
 
-        // NOTE: If removing strategies is allowed in the future, there will be a need to rethink salts here due to collisions.
         strategy_ = IMapleProxyFactory(strategyFactory_).createInstance(
             bytes.concat(abi.encode(address(this)), extraDeploymentData_),
-            keccak256(abi.encode(address(this), strategyList.length))
+            salt_
         );
 
         isStrategy[strategy_] = true;
@@ -481,6 +485,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _revertIfConfigured() internal view {
         require(!configured, "PM:ALREADY_CONFIGURED");
+    }
+
+    function _revertIfConfiguredAndNotGovernor() internal view {
+        require(!configured || msg.sender == governor(), "PM:NOT_GOV_OR_NOT_CONFIGURED");
     }
 
     function _revertIfConfiguredAndNotProtocolAdmins() internal view {

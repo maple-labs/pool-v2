@@ -803,20 +803,36 @@ contract AddStrategy_SetterTests is PoolManagerTestBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
-        poolManager.addStrategy(address(0), deploymentData);
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
     }
 
-    function test_addStrategy_notPoolDelegate() external {
+    function test_addStrategy_notGovernor() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:NOT_PA_OR_NOT_CONFIGURED");
-        poolManager.addStrategy(address(0), deploymentData);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
+    }
+
+    function test_addStrategy_asPoolDelegate_whenConfigured_reverts() external {
+        poolManager.__setConfigured(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
+    }
+
+    function test_addStrategy_asOperationalAdmin_whenConfigured_reverts() external {
+        poolManager.__setConfigured(true);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
     }
 
     function test_addStrategy_invalidFactory() external {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:AS:INVALID_FACTORY");
-        poolManager.addStrategy(address(0), deploymentData);
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
     }
 
     function test_addStrategy_aumFailure() external {
@@ -824,52 +840,38 @@ contract AddStrategy_SetterTests is PoolManagerTestBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:AS:AUM_FAILURE");
-        poolManager.addStrategy(loanManagerFactory, deploymentData);
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
     }
 
     function test_addStrategy_success_whenNotConfigured() external {
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
+        address expectedStrategy = MockFactory(loanManagerFactory).getNextStrategyAddress();
 
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyAdded(expectedStrategy);
 
-        assertEq(poolManager.strategyListLength(), 1);
-    }
+        address strategy_ = poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
 
-    function test_addStrategy_success_asPoolDelegate() external {
-        poolManager.__setConfigured(true);
-
-        vm.startPrank(POOL_DELEGATE);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
-
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
-
-        assertEq(poolManager.strategyListLength(), 1);
+        assertEq(strategy_,                         expectedStrategy);
+        assertEq(poolManager.strategyList(0),       strategy_);
+        assertEq(poolManager.strategyListLength(),  1);
+        assertEq(poolManager.isStrategy(strategy_), true);
     }
 
     function test_addStrategy_success_asGovernor() external {
         poolManager.__setConfigured(true);
 
-        vm.startPrank(GOVERNOR);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
+        address expectedStrategy = MockFactory(loanManagerFactory).getNextStrategyAddress();
 
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyAdded(expectedStrategy);
 
-        assertEq(poolManager.strategyListLength(), 1);
-    }
+        vm.prank(GOVERNOR);
+        address strategy_ = poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
 
-    function test_addStrategy_success_asOperationalAdmin() external {
-        poolManager.__setConfigured(true);
-
-        vm.startPrank(OPERATIONAL_ADMIN);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
-
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
-
-        assertEq(poolManager.strategyListLength(), 1);
+        assertEq(strategy_,                         expectedStrategy);
+        assertEq(poolManager.strategyList(0),       strategy_);
+        assertEq(poolManager.strategyListLength(),  1);
+        assertEq(poolManager.isStrategy(strategy_), true);
     }
 
 }

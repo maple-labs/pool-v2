@@ -74,7 +74,11 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address[] memory strategies_ = new address[](strategyFactories_.length);
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_], strategyDeploymentData_[i_]);
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(
+                strategyFactories_[i_],
+                keccak256(abi.encode(poolManager_, i_)),
+                strategyDeploymentData_[i_]
+            );
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
@@ -127,7 +131,11 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address[] memory strategies_ = new address[](strategyFactories_.length);
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(strategyFactories_[i_], strategyDeploymentData_[i_]);
+            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(
+                strategyFactories_[i_],
+                keccak256(abi.encode(poolManager_, i_)),
+                strategyDeploymentData_[i_]
+            );
         }
 
         emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);

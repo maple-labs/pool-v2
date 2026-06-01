@@ -65,7 +65,7 @@ interface IPoolLike is IERC20Like {
 
 interface IPoolManagerLike {
 
-    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external returns (address strategy_);
+    function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata deploymentData_) external returns (address strategy_);
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view
