@@ -187,6 +187,22 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit StrategyAdded(strategy_);
     }
 
+    function addStrategyManager(address strategyManager_) external override whenNotPaused onlyGovernorOrNotConfigured {
+        require(!isStrategy[strategyManager_],                                  "PM:ASM:ALREADY_STRATEGY");
+        require(!isStrategyManager[strategyManager_],                           "PM:ASM:ALREADY_STRATEGY_MANAGER");
+        require(_isValidStrategyManager(strategyManager_),                      "PM:ASM:INVALID_STRATEGY_MANAGER");
+        require(IStrategyManagerLike(strategyManager_).isAssetSupported(asset), "PM:ASM:ASSET_NOT_SUPPORTED");
+
+        isStrategyManager[strategyManager_] = true;
+        strategyList.push(strategyManager_);
+
+        ( bool success_, ) = strategyManager_.staticcall(abi.encodeWithSelector(IStrategyManagerLike.assetsOf.selector, address(this)));
+
+        require(success_, "PM:ASM:ASSETS_OF_FAILURE");
+
+        emit StrategyManagerAdded(strategyManager_);
+    }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
         external override whenNotPaused onlyProtocolAdminsOrNotConfigured
     {
@@ -468,19 +484,33 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         maxAssets_              = liquidityCap_ > totalAssets_ && depositAllowed_ ? liquidityCap_ - totalAssets_ : 0;
     }
 
-    function _isValidStrategyOrManager(address strategy_) internal view returns (bool) {
-        bool isStrategy_        = isStrategy[strategy_];
-        bool isStrategyManager_ = isStrategyManager[strategy_];
+    function _isValidStrategy(address strategy_) internal view returns (bool) {
+        if (strategy_ == address(0)) return false;
 
-        if (!isStrategy_ && !isStrategyManager_) return false;
+        address factory_ = IMapleProxied(strategy_).factory();
 
-        address factory_             = IMapleProxied(strategy_).factory();
-        bytes32 requiredFactoryRole_ = isStrategyManager_ ? bytes32("STRATEGY_MANAGER_FACTORY") : bytes32("STRATEGY_FACTORY");
-
-        if (!IGlobalsLike(globals()).isInstanceOf(requiredFactoryRole_, factory_)) return false;
-        if (!IMapleProxyFactory(factory_).isInstance(strategy_))                   return false;
+        if (!IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", factory_)) return false;
+        if (!IMapleProxyFactory(factory_).isInstance(strategy_))                 return false;
 
         return true;
+    }
+
+    function _isValidStrategyManager(address strategyManager_) internal view returns (bool) {
+        if (strategyManager_ == address(0)) return false;
+
+        address factory_ = IMapleProxied(strategyManager_).factory();
+
+        if (!IGlobalsLike(globals()).isInstanceOf("STRATEGY_MANAGER_FACTORY", factory_)) return false;
+        if (!IMapleProxyFactory(factory_).isInstance(strategyManager_))                  return false;
+
+        return true;
+    }
+
+    function _isValidStrategyOrManager(address caller_) internal view returns (bool) {
+        if (isStrategyManager[caller_]) return _isValidStrategyManager(caller_);
+        if (isStrategy[caller_])        return _isValidStrategy(caller_);
+
+        return false;
     }
 
     function _revertIfConfigured() internal view {

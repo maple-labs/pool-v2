@@ -177,14 +177,23 @@ contract MockStrategy {
 
     address public factory;
 
-    mapping(address => uint256) public assetsOf;
+    bool internal _revertOnAssetsOf;
+
+    mapping(address => uint256) internal _assetsOf;
+
+    mapping(address => bool) public isAssetSupported;
 
     constructor(address pool_, address treasury_, address poolDelegate_) {}
+
+    function assetsOf(address poolManager_) external view returns (uint256 assets_) {
+        require(!_revertOnAssetsOf, "MS:AO:REVERT");
+        assets_ = _assetsOf[poolManager_];
+    }
 
     function fund(address) external {}
 
     function __setAssetsOf(address poolManager_, uint256 assets_) external {
-        assetsOf[poolManager_] = assets_;
+        _assetsOf[poolManager_] = assets_;
     }
 
     function __setAssetsUnderManagement(uint256 assetsUnderManagement_) external {
@@ -193,6 +202,14 @@ contract MockStrategy {
 
     function __setFactory(address factory_) external {
         factory = factory_;
+    }
+
+    function __setIsAssetSupported(address asset_, bool isSupported_) external {
+        isAssetSupported[asset_] = isSupported_;
+    }
+
+    function __setRevertOnAssetsOf(bool reverts_) external {
+        _revertOnAssetsOf = reverts_;
     }
 
 }

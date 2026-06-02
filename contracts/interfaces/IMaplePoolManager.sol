@@ -37,6 +37,12 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event StrategyCapSet(address indexed strategy_, uint256 cap_);
 
     /**
+     *  @dev   Emitted when a strategy manager is registered with the pool.
+     *  @param strategyManager_ The address of the strategy manager.
+     */
+    event StrategyManagerAdded(address indexed strategyManager_);
+
+    /**
      *  @dev   Emitted when the pending pool delegate accepts the ownership transfer.
      *  @param previousDelegate_ The address of the previous delegate.
      *  @param newDelegate_      The address of the new delegate.
@@ -123,6 +129,14 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @return strategy_            The address of the new strategy.
      */
     function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata extraDeploymentData_) external returns (address strategy_);
+
+    /**
+     *  @dev   Registers an already-deployed strategy manager with the pool.
+     *         Callable by any caller while the pool manager is not yet configured (typically during deployment).
+     *         Once `completeConfiguration()` has been called, only the governor (timelock-gated) may call this function.
+     *  @param strategyManager_ The address of the strategy manager.
+     */
+    function addStrategyManager(address strategyManager_) external;
 
     /**
      *  @dev Complete the configuration.

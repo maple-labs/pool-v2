@@ -137,6 +137,8 @@ interface IStrategyManagerLike {
 
     function assetsOf(address poolManager_) external view returns (uint256 assets_);
 
+    function isAssetSupported(address asset_) external view returns (bool isAssetSupported_);
+
 }
 
 interface IWithdrawalManagerLike {
