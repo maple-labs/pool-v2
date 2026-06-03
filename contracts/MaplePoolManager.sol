@@ -215,7 +215,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit LiquidityCapSet(liquidityCap = liquidityCap_);
     }
 
-    function setStrategyCap(address strategy_, uint256 cap_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
+    function setStrategyCap(address strategy_, uint256 cap_) external override whenNotPaused onlyProtocolAdminsOrNotConfigured {
         require(strategyCapOf[strategy_] != cap_,                  "PM:SSC:NO_CHANGE");
         require(cap_ == 0 || _isValidStrategyOrManager(strategy_), "PM:SSC:NOT_STRATEGY_OR_MANAGER");
 
@@ -227,8 +227,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     function setWithdrawalManager(address withdrawalManager_) external override whenNotPaused onlyIfNotConfigured {
         address factory_ = IMapleProxied(withdrawalManager_).factory();
 
-        require(IGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
-        require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                  "PM:SWM:INVALID_INSTANCE");
+        require(IGlobalsLike(globals()).isInstanceOf("WITHDRAWAL_MANAGER_QUEUE_FACTORY", factory_), "PM:SWM:INVALID_FACTORY");
+        require(IMapleProxyFactory(factory_).isInstance(withdrawalManager_),                        "PM:SWM:INVALID_INSTANCE");
 
         emit WithdrawalManagerSet(withdrawalManager = withdrawalManager_);
     }

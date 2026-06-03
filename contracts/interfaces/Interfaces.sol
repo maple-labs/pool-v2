@@ -67,6 +67,8 @@ interface IPoolManagerLike {
 
     function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata deploymentData_) external returns (address strategy_);
 
+    function addStrategyManager(address strategyManager_) external;
+
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view
         returns (bool canCall_, string memory errorMessage_);
@@ -108,6 +110,8 @@ interface IPoolManagerLike {
     function setLiquidityCap(uint256 liquidityCap_) external;
 
     function setPoolPermissionManager(address poolPermissionManager_) external;
+
+    function setStrategyCap(address strategy_, uint256 cap_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 

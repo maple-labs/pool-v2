@@ -29,84 +29,32 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
 
     address public override globals;
 
+    /**************************************************************************************************************************************/
+    /*** Constructor                                                                                                                    ***/
+    /**************************************************************************************************************************************/
+
     constructor(address globals_) {
-        require((globals = globals_) != address(0), "PD:C:ZERO_ADDRESS");
+        require(globals_ != address(0), "PD:C:ZERO_ADDRESS");
+
+        globals = globals_;
     }
 
-    function deployPool(
-        address           poolManagerFactory_,
-        address           withdrawalManagerFactory_,
-        address[]  memory strategyFactories_,
-        bytes[]    memory strategyDeploymentData_,
-        address           asset_,
-        address           poolPermissionManager_,
-        string     memory name_,
-        string     memory symbol_,
-        uint256[6] memory configParams_
-    )
-        external override
-        returns (address poolManager_)
-    {
-        require(strategyDeploymentData_.length == strategyFactories_.length, "PD:DP:MISMATCHING_ARRAYS");
-
-        IGlobalsLike globals_ = IGlobalsLike(globals);
-
-        require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
-
-        require(globals_.isInstanceOf("POOL_MANAGER_FACTORY",             poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
-        require(globals_.isInstanceOf("WITHDRAWAL_MANAGER_CYCLE_FACTORY", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
-        require(globals_.isInstanceOf("POOL_PERMISSION_MANAGER",          poolPermissionManager_),    "PD:DP:INVALID_PPM");
-
-        // Deploy Pool Manager (and Pool).
-        poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
-            abi.encode(msg.sender, asset_, configParams_[4], name_, symbol_),
-            keccak256(abi.encode(msg.sender))
-        );
-
-        address pool_ = IPoolManagerLike(poolManager_).pool();
-
-        // Deploy Withdrawal Manager.
-        address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
-            abi.encode(pool_, configParams_[5], configParams_[2], configParams_[3]),
-            keccak256(abi.encode(poolManager_))
-        );
-
-        address[] memory strategies_ = new address[](strategyFactories_.length);
-
-        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(
-                strategyFactories_[i_],
-                keccak256(abi.encode(poolManager_, i_)),
-                strategyDeploymentData_[i_]
-            );
-        }
-
-        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
-
-        IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
-        IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
-        IPoolManagerLike(poolManager_).setPoolPermissionManager(poolPermissionManager_);
-        IPoolManagerLike(poolManager_).setWithdrawalManager(withdrawalManager_);
-        IPoolManagerLike(poolManager_).completeConfiguration();
-    }
+    /**************************************************************************************************************************************/
+    /*** Pool deployment                                                                                                                ***/
+    /**************************************************************************************************************************************/
 
     function deployPool(
-        address           poolManagerFactory_,
-        address           withdrawalManagerFactory_,
-        address[]  memory strategyFactories_,
-        bytes[]    memory strategyDeploymentData_,
-        address           asset_,
-        address           poolPermissionManager_,
-        string     memory name_,
-        string     memory symbol_,
-        uint256[3] memory configParams_
+        address                          poolManagerFactory_,
+        address                          withdrawalManagerFactory_,
+        PoolManagerInitParams   calldata poolManagerInitParams_,
+        PoolConfigParams        calldata poolConfigParams_,
+        StrategyDeployParams[]  calldata strategiesParams_,
+        StrategyManagerParams[] calldata strategyManagersParams_
     )
-        external override
-        returns (address poolManager_)
+        external override returns (address poolManager_)
     {
-        require(strategyDeploymentData_.length == strategyFactories_.length, "PD:DP:MISMATCHING_ARRAYS");
-
-        IGlobalsLike globals_ = IGlobalsLike(globals);
+        address      poolPermissionManager_ = poolConfigParams_.poolPermissionManager;
+        IGlobalsLike globals_               = IGlobalsLike(globals);
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
 
@@ -114,38 +62,77 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         require(globals_.isInstanceOf("WITHDRAWAL_MANAGER_QUEUE_FACTORY", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
         require(globals_.isInstanceOf("POOL_PERMISSION_MANAGER",          poolPermissionManager_),    "PD:DP:INVALID_PPM");
 
-        // Deploy Pool Manager (and Pool).
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
-            abi.encode(msg.sender, asset_, configParams_[2], name_, symbol_),
+            abi.encode(
+                msg.sender,
+                poolManagerInitParams_.asset,
+                poolManagerInitParams_.initialSupply,
+                poolManagerInitParams_.name,
+                poolManagerInitParams_.symbol
+            ),
             keccak256(abi.encode(msg.sender))
         );
 
-        address pool_ = IPoolManagerLike(poolManager_).pool();
-
-        // Deploy Withdrawal Manager.
+        address pool_              = IPoolManagerLike(poolManager_).pool();
         address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
             abi.encode(pool_),
             keccak256(abi.encode(poolManager_))
         );
 
-        address[] memory strategies_ = new address[](strategyFactories_.length);
+        address[] memory strategies_       = _deployStrategies(poolManager_, strategiesParams_);
+        address[] memory strategyManagers_ = _addStrategyManagers(poolManager_, strategyManagersParams_);
 
-        for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategies_[i_] = IPoolManagerLike(poolManager_).addStrategy(
-                strategyFactories_[i_],
-                keccak256(abi.encode(poolManager_, i_)),
-                strategyDeploymentData_[i_]
-            );
-        }
+        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_, strategyManagers_);
 
-        emit PoolDeployed(pool_, poolManager_, withdrawalManager_, strategies_);
-
-        IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(configParams_[1]);
-        IPoolManagerLike(poolManager_).setLiquidityCap(configParams_[0]);
+        IPoolManagerLike(poolManager_).setDelegateManagementFeeRate(poolConfigParams_.delegateManagementFeeRate);
+        IPoolManagerLike(poolManager_).setLiquidityCap(poolConfigParams_.liquidityCap);
         IPoolManagerLike(poolManager_).setPoolPermissionManager(poolPermissionManager_);
         IPoolManagerLike(poolManager_).setWithdrawalManager(withdrawalManager_);
         IPoolManagerLike(poolManager_).completeConfiguration();
     }
+
+    /**************************************************************************************************************************************/
+    /*** Pool deployment internal helper functions                                                                                      ***/
+    /**************************************************************************************************************************************/
+
+    function _addStrategyManagers(address poolManager_, StrategyManagerParams[] calldata strategyManagersParams_)
+        internal returns (address[] memory strategyManagers_)
+    {
+        strategyManagers_ = new address[](strategyManagersParams_.length);
+
+        for (uint256 i_; i_ < strategyManagersParams_.length; ++i_) {
+            address strategyManager_ = strategyManagersParams_[i_].instance;
+            uint256 cap_             = strategyManagersParams_[i_].cap;
+
+            IPoolManagerLike(poolManager_).addStrategyManager(strategyManager_);
+
+            if (cap_ != 0) IPoolManagerLike(poolManager_).setStrategyCap(strategyManager_, cap_);
+
+            strategyManagers_[i_] = strategyManager_;
+        }
+    }
+
+    function _deployStrategies(address poolManager_, StrategyDeployParams[] calldata strategiesParams_)
+        internal returns (address[] memory strategies_)
+    {
+        strategies_ = new address[](strategiesParams_.length);
+
+        for (uint256 i_; i_ < strategiesParams_.length; ++i_) {
+            address factory_ = strategiesParams_[i_].factory;
+            bytes32 salt_    = strategiesParams_[i_].salt;
+            uint256 cap_     = strategiesParams_[i_].cap;
+
+            address strategy_ = IPoolManagerLike(poolManager_).addStrategy(factory_, salt_, strategiesParams_[i_].deploymentData);
+
+            if (cap_ != 0) IPoolManagerLike(poolManager_).setStrategyCap(strategy_, cap_);
+
+            strategies_[i_] = strategy_;
+        }
+    }
+
+    /**************************************************************************************************************************************/
+    /*** Deployment getters                                                                                                             ***/
+    /**************************************************************************************************************************************/
 
     function getPoolDeploymentAddresses(
         address poolManagerFactory_,
@@ -162,21 +149,6 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         );
     }
 
-    function getCyclicalWithdrawalManagerAddress(
-        address withdrawalManagerFactory_,
-        address pool_,
-        address poolManager_,
-        uint256 startTime_,
-        uint256 cycleDuration_,
-        uint256 windowDuration_
-    )
-        external view override returns (address withdrawalManager_)
-    {
-        return _getCyclicalWithdrawalManagerAddress(
-            withdrawalManagerFactory_, pool_, poolManager_, startTime_, cycleDuration_, windowDuration_
-        );
-    }
-
     function getQueueWithdrawalManagerAddress(
         address withdrawalManagerFactory_,
         address pool_,
@@ -190,29 +162,17 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     function getStrategiesAddresses(
         address          poolManager_,
         address[] memory strategyFactories_,
-        bytes[]   memory strategyDeploymentData_
+        bytes[]   memory strategyDeploymentData_,
+        bytes32[] memory strategySalts_
     )
-        public view returns (address[] memory strategies_)
+        external view returns (address[] memory strategies_)
     {
-        return _getStrategiesAddresses(poolManager_, strategyFactories_, strategyDeploymentData_);
+        return _getStrategiesAddresses(poolManager_, strategyFactories_, strategyDeploymentData_, strategySalts_);
     }
 
-    function _getCyclicalWithdrawalManagerAddress(
-        address withdrawalManagerFactory_,
-        address pool_,
-        address poolManager_,
-        uint256 startTime_,
-        uint256 cycleDuration_,
-        uint256 windowDuration_
-    )
-        internal view
-        returns (address cyclicalWithdrawalManager_)
-    {
-        cyclicalWithdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).getInstanceAddress(
-            abi.encode(pool_, startTime_, cycleDuration_, windowDuration_),
-            keccak256(abi.encode(poolManager_))
-        );
-    }
+    /**************************************************************************************************************************************/
+    /*** Deployment getter internal helper functions                                                                                    ***/
+    /**************************************************************************************************************************************/
 
     function _getQueueWithdrawalManagerAddress(
         address withdrawalManagerFactory_,
@@ -248,7 +208,8 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     function _getStrategiesAddresses(
         address          poolManager_,
         address[] memory strategyFactories_,
-        bytes[]   memory strategyDeploymentData_
+        bytes[]   memory strategyDeploymentData_,
+        bytes32[] memory strategySalts_
     )
         internal view
         returns (address[] memory strategiesAddresses_)
@@ -258,12 +219,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
             strategiesAddresses_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
                 bytes.concat(abi.encode(poolManager_), strategyDeploymentData_[i_]),
-                keccak256(abi.encode(poolManager_, i_))
+                strategySalts_[i_]
             );
         }
-    }
+    } 
 
-    function _addressFrom(address origin_, uint nonce_) internal pure returns (address address_) {
+    function _addressFrom(address origin_, uint256 nonce_) internal pure returns (address address_) {
         address_ = address(
             uint160(
                 uint256(
