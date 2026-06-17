@@ -174,12 +174,14 @@ contract MockGlobals {
 contract MockStrategy {
 
     uint256 public assetsUnderManagement;
+    uint256 public unrealizedLosses;
 
     address public factory;
 
     bool internal _revertOnAssetsOf;
 
     mapping(address => uint256) internal _assetsOf;
+    mapping(address => uint256) internal _unrealizedLossesOf;
 
     mapping(address => bool) public isAssetSupported;
 
@@ -188,6 +190,10 @@ contract MockStrategy {
     function assetsOf(address poolManager_) external view returns (uint256 assets_) {
         require(!_revertOnAssetsOf, "MS:AO:REVERT");
         assets_ = _assetsOf[poolManager_];
+    }
+
+    function unrealizedLossesOf(address poolManager_) external view returns (uint256 unrealizedLosses_) {
+        unrealizedLosses_ = _unrealizedLossesOf[poolManager_];
     }
 
     function fund(address) external {}
@@ -210,6 +216,14 @@ contract MockStrategy {
 
     function __setRevertOnAssetsOf(bool reverts_) external {
         _revertOnAssetsOf = reverts_;
+    }
+
+    function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
+        unrealizedLosses = unrealizedLosses_;
+    }
+
+    function __setUnrealizedLossesOf(address poolManager_, uint256 unrealizedLosses_) external {
+        _unrealizedLossesOf[poolManager_] = unrealizedLosses_;
     }
 
 }

@@ -356,9 +356,9 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function totalAssets() external view returns (uint256 totalAssets_);
 
     /**
-     *  @dev    Deprecated. Always returns 0. Retained so MaplePool's share-conversion math continues to compile and run.
-     *  @return unrealizedLosses_ Always 0.
+     *  @dev    Returns the sum of unrealized losses reported by every registered strategy and strategy manager.
+     *  @return unrealizedLosses_ Aggregate unrealized losses across all strategies and strategy managers.
      */
-    function unrealizedLosses() external pure returns (uint256 unrealizedLosses_);
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
 
 }

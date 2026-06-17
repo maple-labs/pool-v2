@@ -2053,6 +2053,149 @@ contract TotalAssetsTests is PoolManagerTestBase {
 
 }
 
+contract UnrealizedLossesTests is PoolManagerTestBase {
+
+    MockStrategy internal strategy;
+    MockStrategy internal strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategy        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        poolManager.__setIsStrategyManager(address(strategyManager), true);
+        poolManager.__setIsStrategy(address(strategy), true);
+
+        asset.burn(address(pool), asset.balanceOf(address(pool)));
+    }
+
+    function test_unrealizedLosses_emptyStrategyList() external {
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_singleStrategy() external {
+        uint256 strategyAssets = 1_000_000e18;
+        uint256 strategyLosses =   100_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategy.__setUnrealizedLosses(strategyLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses);
+    }
+
+    function test_unrealizedLosses_singleStrategyManager() external {
+        uint256 managerAssets = 1_000_000e18;
+        uint256 managerLosses =   175_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategyManager));
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      managerAssets);
+        assertEq(poolManager.unrealizedLosses(), managerLosses);
+    }
+
+    function test_unrealizedLosses_mixed() external {
+        uint256 strategyAssets = 1_000_000e18;
+        uint256 managerAssets  = 1_000_000e18;
+        uint256 strategyLosses =   100_000e18;
+        uint256 managerLosses  =   175_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        strategy.__setUnrealizedLosses(strategyLosses);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets + managerAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses + managerLosses);
+    }
+
+    function test_unrealizedLosses_mixed_partialThenFullRecovery() external {
+        uint256 strategyAssets = 100_000e18;
+        uint256 managerAssets  = 100_000e18;
+        uint256 strategyLosses =   1_600e18;
+        uint256 managerLosses  =     800e18;
+
+        /**********************************************************************************************************************************/
+        /*** Step 1: Baseline                                                                                                           ***/
+        /**********************************************************************************************************************************/
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        /**********************************************************************************************************************************/
+        /*** Step 2: Full impairment                                                                                                    ***/
+        /**********************************************************************************************************************************/
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        strategy.__setUnrealizedLosses(strategyLosses);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets + managerAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses + managerLosses);
+
+        /**********************************************************************************************************************************/
+        /*** Step 3: Partial recovery                                                                                                   ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setUnrealizedLosses(strategyLosses / 16);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses / 19);
+
+        assertEq(poolManager.unrealizedLosses(), strategyLosses / 16 + managerLosses / 19);
+
+        /**********************************************************************************************************************************/
+        /*** Step 4: Full recovery                                                                                                      ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setUnrealizedLosses(0);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), 0);
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_managerWithZeroLosses() external {
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        assertEq(strategy.unrealizedLosses(),                              0);
+        assertEq(strategyManager.unrealizedLossesOf(address(poolManager)), 0);
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_clampedToTotalAssets() external {
+        uint256 strategyAssets = 500_000e18;
+        uint256 strategyLosses = 800_000e18;
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategy.__setUnrealizedLosses(strategyLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyAssets);
+    }
+
+}
+
 contract RequestFundsTests is PoolManagerTestBase {
 
     address destination = makeAddr("destination");

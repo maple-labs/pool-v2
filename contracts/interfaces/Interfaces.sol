@@ -143,6 +143,8 @@ interface IStrategyManagerLike {
 
     function isAssetSupported(address asset_) external view returns (bool isAssetSupported_);
 
+    function unrealizedLossesOf(address poolManager_) external view returns (uint256 unrealizedLosses_);
+
 }
 
 interface IWithdrawalManagerLike {

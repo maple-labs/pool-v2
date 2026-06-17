@@ -444,9 +444,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         ( , shares_ ) = IWithdrawalManagerLike(withdrawalManager).previewWithdraw(owner_, assets_);
     }
 
-    // Deprecated: always returns 0. Signature is preserved so MaplePool's share math continues to compile and run.
-    function unrealizedLosses() public pure override returns (uint256 unrealizedLosses_) {
-        unrealizedLosses_ = 0;
+    function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
+        uint256 length_ = strategyList.length;
+
+        for (uint256 i_; i_ < length_; i_++) {
+            unrealizedLosses_ += _unrealizedLosses(strategyList[i_]);
+        }
+
+        unrealizedLosses_ = _min(unrealizedLosses_, totalAssets());
     }
 
     /**************************************************************************************************************************************/
@@ -513,6 +518,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         return false;
     }
 
+    function _unrealizedLosses(address strategy_) internal view returns (uint256 unrealizedLosses_) {
+        unrealizedLosses_ = isStrategyManager[strategy_]
+            ? IStrategyManagerLike(strategy_).unrealizedLossesOf(address(this))
+            : IStrategyLike(strategy_).unrealizedLosses();
+    }
+
     function _revertIfConfigured() internal view {
         require(!configured, "PM:ALREADY_CONFIGURED");
     }
@@ -546,6 +557,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _revertIfPaused() internal view {
         require(!IGlobalsLike(globals()).isFunctionPaused(msg.sig), "PM:PAUSED");
+    }
+
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
+        min_ = a_ < b_ ? a_ : b_;
     }
 
 }
