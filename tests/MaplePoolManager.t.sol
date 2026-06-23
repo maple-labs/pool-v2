@@ -96,18 +96,6 @@ contract PoolManagerTestBase is TestBase {
         poolManager.setActive(true);
     }
 
-    function assertStrategyList(address[] memory expected_) internal {
-        assertEq(poolManager.strategyListLength(), expected_.length);
-
-        for (uint256 i_; i_ < expected_.length; ++i_) {
-            assertEq(poolManager.strategyList(i_), expected_[i_]);
-        }
-    }
-
-    function assertStrategyList_Empty() internal {
-        assertEq(poolManager.strategyListLength(), 0);
-    }
-
     function array(address a_) internal pure returns (address[] memory arr_) {
         arr_    = new address[](1);
         arr_[0] = a_;
@@ -124,6 +112,32 @@ contract PoolManagerTestBase is TestBase {
         arr_[0] = a_;
         arr_[1] = b_;
         arr_[2] = c_;
+    }
+
+    function assertStrategyList(address[] memory expected_) internal {
+        assertEq(poolManager.strategyListLength(), expected_.length);
+
+        for (uint256 i_; i_ < expected_.length; ++i_) {
+            assertEq(poolManager.strategyList(i_), expected_[i_]);
+        }
+    }
+
+    function assertStrategyList_Empty() internal {
+        assertEq(poolManager.strategyListLength(), 0);
+    }
+
+    function addStrategyManager(MockStrategy strategyManager_) internal {
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager_));
+    }
+
+    function createStrategyManager(MockFactory strategyManagerFactory_) internal returns (MockStrategy strategyManager_) {
+        strategyManager_ = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        strategyManager_.__setFactory(address(strategyManagerFactory_));
+        strategyManager_.__setIsAssetSupported(address(asset), true);
+
+        strategyManagerFactory_.__setIsInstance(address(strategyManager_), true);
     }
 
 }
@@ -1238,6 +1252,256 @@ contract AddStrategyManager_SetterTests is PoolManagerTestBase {
         assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategy1Assets + strategy2Assets);
 
         assertStrategyList(array(address(strategy1), address(strategyManager), address(strategy2)));
+    }
+
+}
+
+contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
+
+    MockFactory  strategyManagerFactory;
+    MockStrategy strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategyManagerFactory = new MockFactory();
+        strategyManager        = createStrategyManager(strategyManagerFactory);
+
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
+    }
+
+    function test_removeStrategyManager_revert_paused() external {
+        addStrategyManager(strategyManager);
+
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notGovernor() external {
+        addStrategyManager(strategyManager);
+
+        // Default caller
+        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        // Pool delegate cannot remove
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        // Operational admin cannot remove
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notStrategyManager() external {
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_nonZeroAssets() external {
+        uint256 managerAssets = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:RSM:NON_ZERO_ASSETS");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_nonZeroLosses() external {
+        uint256 managerLosses = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:RSM:NON_ZERO_LOSSES");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notStrategyManager_afterRemoval() external {
+        addStrategyManager(strategyManager);
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_success() external {
+        addStrategyManager(strategyManager);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+
+        assertStrategyList(array(address(strategyManager)));
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_clearsStrategyCap() external {
+        uint256 managerCap = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategyManager), managerCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), managerCap);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategyManager), 0);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
+
+        addStrategyManager(strategyManager);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
+
+        vm.prank(address(strategyManager));
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        poolManager.requestFunds(makeAddr("destination"), 1);
+    }
+
+    function test_removeStrategyManager_success_otherPoolManagerHasAssets() external {
+        address otherPoolManager = makeAddr("otherPoolManager");
+        uint256 managerAssets    = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setAssetsOf(otherPoolManager, managerAssets);
+
+        assertEq(strategyManager.assetsOf(address(poolManager)), 0);
+        assertEq(strategyManager.assetsOf(otherPoolManager),     managerAssets);
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(strategyManager.assetsOf(otherPoolManager),              managerAssets);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_otherPoolManagerHasLosses() external {
+        address otherPoolManager = makeAddr("otherPoolManager");
+        uint256 managerLosses    = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setUnrealizedLossesOf(otherPoolManager, managerLosses);
+
+        assertEq(strategyManager.unrealizedLossesOf(address(poolManager)), 0);
+        assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),     managerLosses);
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),    managerLosses);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_middleAndLast() external {
+        MockStrategy strategy         = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+
+        poolManager.__setIsStrategy(address(strategy), true);
+        poolManager.__pushToStrategyList(address(strategy));
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+
+        assertStrategyList(array(address(strategy), address(strategyManager), address(strategyManager2)));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+
+        assertStrategyList(array(address(strategy), address(strategyManager2)));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager2));
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), false);
+
+        assertStrategyList(array(address(strategy)));
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_first() external {
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+        MockStrategy strategyManager3 = createStrategyManager(strategyManagerFactory);
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+        addStrategyManager(strategyManager3);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager3)), true);
+
+        assertStrategyList(array(address(strategyManager3), address(strategyManager2)));
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_last() external {
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+        MockStrategy strategyManager3 = createStrategyManager(strategyManagerFactory);
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+        addStrategyManager(strategyManager3);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
+
+        vm.prank(GOVERNOR);
+        poolManager.removeStrategyManager(address(strategyManager3));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager3)), false);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2)));
     }
 
 }

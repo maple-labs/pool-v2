@@ -101,6 +101,8 @@ interface IPoolManagerLike {
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
+    function removeStrategyManager(address strategyManager_) external;
+
     function requestRedeem(uint256 shares_, address owner_, address sender_) external;
 
     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;

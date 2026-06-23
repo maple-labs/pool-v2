@@ -203,6 +203,34 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit StrategyManagerAdded(strategyManager_);
     }
 
+    function removeStrategyManager(address strategyManager_) external override whenNotPaused {
+        require(msg.sender == governor(),                                                      "PM:RSM:NOT_GOVERNOR");
+        require(isStrategyManager[strategyManager_],                                           "PM:RSM:NOT_STRATEGY_MANAGER");
+        require(IStrategyManagerLike(strategyManager_).assetsOf(address(this)) == 0,           "PM:RSM:NON_ZERO_ASSETS");
+        require(IStrategyManagerLike(strategyManager_).unrealizedLossesOf(address(this)) == 0, "PM:RSM:NON_ZERO_LOSSES");
+
+        uint256 length_ = strategyList.length;
+
+        for (uint256 i_; i_ < length_; ++i_) {
+            if (strategyList[i_] != strategyManager_) continue;
+
+            strategyList[i_] = strategyList[length_ - 1];
+
+            strategyList.pop();
+
+            break;
+        }
+
+        delete isStrategyManager[strategyManager_];
+
+        if (strategyCapOf[strategyManager_] != 0) {
+            strategyCapOf[strategyManager_] = 0;
+            emit StrategyCapSet(strategyManager_, 0);
+        }
+
+        emit StrategyManagerRemoved(strategyManager_);
+    }
+
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
         external override whenNotPaused onlyProtocolAdminsOrNotConfigured
     {
