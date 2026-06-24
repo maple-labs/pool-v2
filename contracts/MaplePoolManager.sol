@@ -11,6 +11,8 @@ import { MaplePoolManagerStorage } from "./proxy/MaplePoolManagerStorage.sol";
 import {
     IERC20Like,
     IGlobalsLike,
+    ILoanLike,
+    ILoanManagerLike,
     IPoolLike,
     IPoolPermissionManagerLike,
     IStrategyLike,
@@ -265,6 +267,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         require(IGlobalsLike(globals()).isInstanceOf("POOL_PERMISSION_MANAGER", poolPermissionManager_), "PM:SPPM:INVALID_INSTANCE");
 
         emit PoolPermissionManagerSet(poolPermissionManager = poolPermissionManager_);
+    }
+
+    function triggerDefault(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins {
+        ( , uint256 losses_, ) = ILoanManagerLike(ILoanLike(loan_).lender()).triggerDefault(loan_, address(0));
+
+        emit CollateralLiquidationFinished(loan_, losses_);
     }
 
     /**************************************************************************************************************************************/

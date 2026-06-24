@@ -14,6 +14,8 @@ import {
     MockERC20Pool,
     MockFactory,
     MockGlobals,
+    MockLoan,
+    MockLoanManager,
     MockPoolManagerMigrator,
     MockPoolPermissionManager,
     MockStrategy,
@@ -1544,6 +1546,65 @@ contract SetWithdrawalManager_SetterTests is PoolManagerTestBase {
         poolManager.setWithdrawalManager(withdrawalManager);
 
         assertEq(poolManager.withdrawalManager(), withdrawalManager);
+    }
+
+}
+
+contract TriggerDefaultTests is PoolManagerTestBase {
+
+    MockLoan        internal loan;
+    MockLoanManager internal loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager();
+        loan        = new MockLoan();
+
+        loan.__setLender(address(loanManager));
+    }
+
+    function test_triggerDefault_paused() external {
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_notAuthorized() external {
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asPoolDelegate() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asGovernor() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(GOVERNOR);
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asOperationalAdmin() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.triggerDefault(address(loan));
     }
 
 }

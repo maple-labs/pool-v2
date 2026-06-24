@@ -171,6 +171,34 @@ contract MockGlobals {
 
 }
 
+contract MockLoan {
+
+    address public lender;
+
+    function __setLender(address lender_) external {
+        lender = lender_;
+    }
+
+}
+
+contract MockLoanManager {
+
+    uint256 internal _remainingLosses;
+
+    function triggerDefault(address, address)
+        external view returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 unrecoveredPlatformFees_)
+    {
+        liquidationComplete_     = true;
+        remainingLosses_         = _remainingLosses;
+        unrecoveredPlatformFees_ = 0;
+    }
+
+    function __setTriggerDefaultReturn(uint256 remainingLosses_) external {
+        _remainingLosses = remainingLosses_;
+    }
+
+}
+
 contract MockStrategy {
 
     uint256 public assetsUnderManagement;

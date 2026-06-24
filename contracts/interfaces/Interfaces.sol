@@ -45,6 +45,19 @@ interface IGlobalsLike {
 
 }
 
+interface ILoanLike {
+
+    function lender() external view returns (address lender_);
+
+}
+
+interface ILoanManagerLike {
+
+    function triggerDefault(address loan_, address liquidatorFactory_)
+        external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 unrecoveredPlatformFees_);
+
+}
+
 interface IMapleProxyFactoryLike {
 
     function isInstance(address instance_) external view returns (bool isInstance_);

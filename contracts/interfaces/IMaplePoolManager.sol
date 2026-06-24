@@ -12,6 +12,13 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**************************************************************************************************************************************/
 
     /**
+     *  @dev   Emitted when a collateral liquidations is finished.
+     *  @param loan_             The address of the loan.
+     *  @param unrealizedLosses_ The amount of unrealized losses.
+     */
+    event CollateralLiquidationFinished(address indexed loan_, uint256 unrealizedLosses_);
+
+    /**
      *  @dev   Emitted when a new management fee rate is set.
      *  @param managementFeeRate The amount of management fee rate.
      */
@@ -193,6 +200,12 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @param withdrawalManager The address of the withdrawal manager.
      */
     function setWithdrawalManager(address withdrawalManager) external;
+
+    /**
+     *  @dev   Triggers the default of a loan held by the pool's loan manager.
+     *  @param loan_ The address of the loan to default.
+     */
+    function triggerDefault(address loan_) external;
 
     /**************************************************************************************************************************************/
     /*** Funding Functions                                                                                                              ***/
