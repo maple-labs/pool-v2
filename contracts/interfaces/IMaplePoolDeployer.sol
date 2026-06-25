@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
+struct PoolManagerInitParams {
+    address asset;
+    uint256 initialSupply;
+    string  name;
+    string  symbol;
+}
+
+struct PoolConfigParams {
+    address poolPermissionManager;
+    uint256 delegateManagementFeeRate;
+    uint256 liquidityCap;
+}
+
+struct StrategyDeployParams {
+    address factory;
+    uint256 cap;
+    bytes32 salt;
+    bytes   deploymentData;
+}
+
+struct StrategyManagerParams {
+    address instance;
+    uint256 cap;
+}
+
 interface IMaplePoolDeployer {
-
-    struct PoolManagerInitParams {
-        address asset;
-        uint256 initialSupply;
-        string  name;
-        string  symbol;
-    }
-
-    struct PoolConfigParams {
-        address poolPermissionManager;
-        uint256 delegateManagementFeeRate;
-        uint256 liquidityCap;
-    }
-
-    struct StrategyDeployParams {
-        address factory;
-        uint256 cap;
-        bytes32 salt;
-        bytes   deploymentData;
-    }
-
-    struct StrategyManagerParams {
-        address instance;
-        uint256 cap;
-    }
 
     /**
      *  @dev   Emitted when a new pool is deployed.

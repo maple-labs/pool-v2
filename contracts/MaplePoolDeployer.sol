@@ -4,7 +4,14 @@ pragma solidity ^0.8.25;
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { IGlobalsLike, IPoolManagerLike } from "./interfaces/Interfaces.sol";
-import { IMaplePoolDeployer }             from "./interfaces/IMaplePoolDeployer.sol";
+
+import {
+    IMaplePoolDeployer,
+    PoolConfigParams,
+    PoolManagerInitParams,
+    StrategyDeployParams,
+    StrategyManagerParams
+} from "./interfaces/IMaplePoolDeployer.sol";
 
 /*
 

@@ -8,8 +8,15 @@ import { MaplePoolDeployer }        from "../contracts/MaplePoolDeployer.sol";
 import { MaplePoolManagerFactory }  from "../contracts/proxy/MaplePoolManagerFactory.sol";
 
 import { IMaplePool }         from "../contracts/interfaces/IMaplePool.sol";
-import { IMaplePoolDeployer } from "../contracts/interfaces/IMaplePoolDeployer.sol";
 import { IMaplePoolManager }  from "../contracts/interfaces/IMaplePoolManager.sol";
+
+import {
+    IMaplePoolDeployer,
+    PoolConfigParams,
+    PoolManagerInitParams,
+    StrategyDeployParams,
+    StrategyManagerParams
+} from "../contracts/interfaces/IMaplePoolDeployer.sol";
 
 import {
     MockFactory,
@@ -53,8 +60,8 @@ contract PoolDeployerTestBase is TestBase {
     MaplePoolManagerFactory factory;
     MaplePoolDeployer       poolDeployer;
 
-    IMaplePoolDeployer.PoolManagerInitParams poolManagerInitParams;
-    IMaplePoolDeployer.PoolConfigParams      poolConfigParams;
+    PoolManagerInitParams poolManagerInitParams;
+    PoolConfigParams      poolConfigParams;
 
     function setUp() public virtual {
         asset = new MockERC20("Asset", "AT", 18);
@@ -95,14 +102,14 @@ contract PoolDeployerTestBase is TestBase {
         MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",                 strategyFactory,          true);
         MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY",         strategyManagerFactory,   true);
 
-        poolManagerInitParams = IMaplePoolDeployer.PoolManagerInitParams({
+        poolManagerInitParams = PoolManagerInitParams({
             asset:         address(asset),
             name:          poolName,
             symbol:        poolSymbol,
             initialSupply: 0
         });
 
-        poolConfigParams = IMaplePoolDeployer.PoolConfigParams({
+        poolConfigParams = PoolConfigParams({
             poolPermissionManager:     poolPermissionManager,
             liquidityCap:              liquidityCap,
             delegateManagementFeeRate: delegateManagementFeeRate
@@ -139,10 +146,10 @@ contract PoolDeployerTestBase is TestBase {
         strategy_ = strategies[0];
     }
 
-    function _strategyParams(uint256 cap) internal view returns (IMaplePoolDeployer.StrategyDeployParams[] memory strategies_) {
-        strategies_ = new IMaplePoolDeployer.StrategyDeployParams[](1);
+    function _strategyParams(uint256 cap) internal view returns (StrategyDeployParams[] memory strategies_) {
+        strategies_ = new StrategyDeployParams[](1);
 
-        strategies_[0] = IMaplePoolDeployer.StrategyDeployParams({
+        strategies_[0] = StrategyDeployParams({
             factory:        strategyFactory,
             deploymentData: new bytes(0),
             salt:           strategySalt,
@@ -150,12 +157,11 @@ contract PoolDeployerTestBase is TestBase {
         });
     }
 
-    function _strategyManagerParams(uint256 cap)
-        internal view returns (IMaplePoolDeployer.StrategyManagerParams[] memory strategyManagers_)
+    function _strategyManagerParams(uint256 cap) internal view returns (StrategyManagerParams[] memory strategyManagers_)
     {
-        strategyManagers_ = new IMaplePoolDeployer.StrategyManagerParams[](1);
+        strategyManagers_ = new StrategyManagerParams[](1);
 
-        strategyManagers_[0] = IMaplePoolDeployer.StrategyManagerParams({
+        strategyManagers_[0] = StrategyManagerParams({
             instance: strategyManager,
             cap:      cap
         });
@@ -176,8 +182,8 @@ contract PoolDeployerTestBase is TestBase {
 
 contract DeployPoolFailureTests is PoolDeployerTestBase {
 
-    IMaplePoolDeployer.StrategyDeployParams[]  strategiesParams;
-    IMaplePoolDeployer.StrategyManagerParams[] strategyManagersParams;
+    StrategyDeployParams[]  strategiesParams;
+    StrategyManagerParams[] strategyManagersParams;
 
     function test_deployPool_revert_invalidPoolDelegate() external {
         MockGlobals(globals).setValidPoolDelegate(PD, false);
@@ -263,8 +269,8 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
             withdrawalManagerFactory,
             poolManagerInitParams,
             poolConfigParams,
-            new IMaplePoolDeployer.StrategyDeployParams[](0),
-            new IMaplePoolDeployer.StrategyManagerParams[](0)
+            new StrategyDeployParams[](0),
+            new StrategyManagerParams[](0)
         );
 
         IMaplePoolManager poolManager = IMaplePoolManager(poolManagerAddress);
@@ -423,8 +429,8 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
             withdrawalManagerFactory,
             poolManagerInitParams,
             poolConfigParams,
-            new IMaplePoolDeployer.StrategyDeployParams[](0),
-            new IMaplePoolDeployer.StrategyManagerParams[](0)
+            new StrategyDeployParams[](0),
+            new StrategyManagerParams[](0)
         );
 
         IMaplePoolManager poolManager = IMaplePoolManager(poolManagerAddress);
@@ -478,26 +484,26 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
         address expectedStrategy1         = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt1 });
         address expectedStrategy2         = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt2 });
 
-        IMaplePoolDeployer.StrategyDeployParams[] memory strategies = new IMaplePoolDeployer.StrategyDeployParams[](2);
+        StrategyDeployParams[] memory strategies = new StrategyDeployParams[](2);
 
-        strategies[0] = IMaplePoolDeployer.StrategyDeployParams({
+        strategies[0] = StrategyDeployParams({
             factory:        strategyFactory,
             deploymentData: new bytes(0),
             salt:           strategySalt1,
             cap:            strategyCap1
         });
 
-        strategies[1] = IMaplePoolDeployer.StrategyDeployParams({
+        strategies[1] = StrategyDeployParams({
             factory:        strategyFactory,
             deploymentData: new bytes(0),
             salt:           strategySalt2,
             cap:            strategyCap2
         });
 
-        IMaplePoolDeployer.StrategyManagerParams[] memory strategyManagers = new IMaplePoolDeployer.StrategyManagerParams[](2);
+        StrategyManagerParams[] memory strategyManagers = new StrategyManagerParams[](2);
 
-        strategyManagers[0] = IMaplePoolDeployer.StrategyManagerParams({ instance: strategyManager1, cap: strategyManagerCap1 });
-        strategyManagers[1] = IMaplePoolDeployer.StrategyManagerParams({ instance: strategyManager2, cap: strategyManagerCap2 });
+        strategyManagers[0] = StrategyManagerParams({ instance: strategyManager1, cap: strategyManagerCap1 });
+        strategyManagers[1] = StrategyManagerParams({ instance: strategyManager2, cap: strategyManagerCap2 });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -581,7 +587,7 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
             poolManagerInitParams,
             poolConfigParams,
             _strategyParams({ cap: strategyCap }),
-            new IMaplePoolDeployer.StrategyManagerParams[](0)
+            new StrategyManagerParams[](0)
         );
 
         IMaplePoolManager poolManager = IMaplePoolManager(poolManagerAddress);
@@ -633,7 +639,7 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
             withdrawalManagerFactory,
             poolManagerInitParams,
             poolConfigParams,
-            new IMaplePoolDeployer.StrategyDeployParams[](0),
+            new StrategyDeployParams[](0),
             _strategyManagerParams({ cap: strategyManagerCap })
         );
 
