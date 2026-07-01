@@ -168,11 +168,7 @@ interface IWithdrawalManagerLike {
 
     function factory() external view returns (address factory_);
 
-    function isInExitWindow(address owner_) external view returns (bool isInExitWindow_);
-
-    function lockedLiquidity() external view returns (uint256 lockedLiquidity_);
-
-    function lockedShares(address owner_) external view returns (uint256 lockedShares_);
+    function maxRedeem(address owner_) external view returns (uint256 maxShares_);
 
     function previewRedeem(address owner_, uint256 shares) external view returns (uint256 redeemableShares, uint256 resultingAssets_);
 

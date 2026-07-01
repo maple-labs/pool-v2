@@ -459,7 +459,7 @@ contract MockMigrator {
 
 contract MockWithdrawalManager is MapleProxiedInternals {
 
-    uint256 public lockedLiquidity;
+    mapping(address => uint256) public maxRedeem;
 
     function addShares(uint256 shares_, address owner_) external {}
 
@@ -475,8 +475,8 @@ contract MockWithdrawalManager is MapleProxiedInternals {
         _setFactory(factory_);
     }
 
-    function __setLockedLiquidity(uint256 lockedLiquidity_) external {
-        lockedLiquidity = lockedLiquidity_;
+    function __setMaxRedeem(address owner_, uint256 maxShares_) external {
+        maxRedeem[owner_] = maxShares_;
     }
 }
 

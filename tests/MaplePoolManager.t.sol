@@ -142,6 +142,20 @@ contract PoolManagerTestBase is TestBase {
         strategyManagerFactory_.__setIsInstance(address(strategyManager_), true);
     }
 
+    function mockPoolState(uint256 totalAssets, uint256 totalShares, uint256 idleAssets) internal {
+        mockPoolState(totalAssets, totalShares, idleAssets, 0);
+    }
+
+    function mockPoolState(uint256 totalAssets, uint256 totalShares, uint256 idleAssets, uint256 unrealizedLosses) internal {
+        asset.mint(address(pool), idleAssets);
+        pool.mint(address(this), totalShares);
+
+        MockStrategy strategy_ = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategy_.__setAssetsUnderManagement(totalAssets - idleAssets);
+        strategy_.__setUnrealizedLosses(unrealizedLosses);
+        poolManager.__pushToStrategyList(address(strategy_));
+    }
+
 }
 
 contract CompleteConfigurationTests is PoolManagerTestBase {
@@ -2249,6 +2263,119 @@ contract MaxMintTests is PoolManagerTestBase {
 
         assertEq(poolManager.maxMint(lp1), maxMint);
         assertEq(poolManager.maxMint(lp2), maxMint);
+    }
+
+}
+
+contract MaxRedeemTests is PoolManagerTestBase {
+
+    address lp = makeAddr("lp");
+
+    function setUp() public override {
+        super.setUp();
+
+        asset.burn(address(pool), 1_000_000e18);
+        pool.burn(address(1), 1);
+
+        poolManager.setWithdrawalManager(withdrawalManager);
+    }
+
+    function test_maxRedeem_success_limitedByWithdrawalManagerShares() external {
+        mockPoolState({
+            totalAssets: 100e18,
+            totalShares: 100e18,
+            idleAssets:  100e18
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 30e18);
+
+        assertEq(poolManager.maxRedeem(lp), 30e18);
+    }
+
+    function test_maxRedeem_success_limitedByAvailableLiquidity() external {
+        mockPoolState({
+            totalAssets: 100e18,
+            totalShares: 100e18,
+            idleAssets:  40e18
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 70e18);
+
+        assertEq(poolManager.maxRedeem(lp), 40e18);
+    }
+
+    function test_maxRedeem_success_sharesEqualToAvailableLiquidity() external {
+        mockPoolState({
+            totalAssets: 100e18,
+            totalShares: 100e18,
+            idleAssets:  40e18
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 40e18);
+
+        assertEq(poolManager.maxRedeem(lp), 40e18);
+    }
+
+    function test_maxRedeem_success_zeroSharesAvailable() external {
+        mockPoolState({
+            totalAssets: 100e18,
+            totalShares: 100e18,
+            idleAssets:  100e18
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 0);
+
+        assertEq(poolManager.maxRedeem(lp), 0);
+    }
+
+    function test_maxRedeem_success_zeroLiquidity() external {
+        mockPoolState({
+            totalAssets: 100e18,
+            totalShares: 100e18,
+            idleAssets:  0
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 50e18);
+
+        assertEq(poolManager.maxRedeem(lp), 0);
+    }
+
+    function test_maxRedeem_success_withUnrealizedLosses() external {
+        mockPoolState({
+            totalAssets:      100e18,
+            totalShares:      100e18,
+            idleAssets:       40e18,
+            unrealizedLosses: 20e18
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 70e18);
+
+        assertEq(poolManager.maxRedeem(lp), 50e18); // 40 idle assets / 0.8 exit rate = 50 shares
+    }
+
+    function test_maxRedeem_success_roundsUpConversion() external {
+        mockPoolState({
+            totalAssets: 3, // 10 shares backed by 3 assets
+            totalShares: 10,
+            idleAssets:  1
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 10);
+
+        assertEq(poolManager.maxRedeem(lp), 4); // ceil(1 idle * 10 supply / 3 assets) == ceil(3.33) rounds up to 4
+    }
+
+    function test_maxRedeem_success_fullLoss() external {
+        mockPoolState({
+            totalAssets:      100e18,
+            totalShares:      100e18,
+            idleAssets:       40e18,
+            unrealizedLosses: 100e18 // Net assets backing the shares is zero
+        });
+
+        MockWithdrawalManager(withdrawalManager).__setMaxRedeem(lp, 70e18);
+
+        assertEq(poolManager.maxRedeem(lp), 0); // Returns zero instead of reverting under full loss
     }
 
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.25;
+pragma solidity 0.8.28;
 
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
@@ -463,8 +463,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function maxRedeem(address owner_) external view virtual override returns (uint256 maxShares_) {
-        uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
-        maxShares_            = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
+        if (unrealizedLosses() >= totalAssets()) return 0;
+
+        uint256 idleAssets_          = IERC20Like(asset).balanceOf(pool);
+        uint256 maxRedeemableShares_ = IWithdrawalManagerLike(withdrawalManager).maxRedeem(owner_);
+
+        maxShares_ = _min(maxRedeemableShares_, convertToExitShares(idleAssets_));
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
