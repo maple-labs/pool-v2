@@ -13,6 +13,7 @@ import {
 
 import { MaplePoolManagerStorage } from "./MaplePoolManagerStorage.sol";
 
+// Note: Before migrating all non-OTLM strategies will be emptied
 contract MaplePoolManagerMigratorV500 is MapleProxiedInternals, MaplePoolManagerStorage {
 
     event StrategyRemoved(address indexed strategy);
@@ -23,12 +24,13 @@ contract MaplePoolManagerMigratorV500 is MapleProxiedInternals, MaplePoolManager
         for (uint256 i_ = strategyList.length; i_ > 0;) {
             i_--;
 
-            address strategy_        = strategyList[i_];
-            address strategyFactory_ = IMapleProxied(strategy_).factory();
+            address strategy_ = strategyList[i_];
 
-            if (!IGlobalsLike(globals_).isInstanceOf("FT_LOAN_MANAGER_FACTORY", strategyFactory_)) continue;
+            if (_isOpenTermLoanManager(globals_, strategy_)) continue;
 
-            require(IStrategyLike(strategy_).assetsUnderManagement() == 0, "PMM:NON_ZERO_AUM");
+            if (_isFixedTermLoanManager(globals_, strategy_)) {
+                require(IStrategyLike(strategy_).assetsUnderManagement() == 0, "PMM:NON_ZERO_AUM");
+            }
 
             strategyList[i_] = strategyList[strategyList.length - 1];
 
@@ -38,6 +40,16 @@ contract MaplePoolManagerMigratorV500 is MapleProxiedInternals, MaplePoolManager
 
             emit StrategyRemoved(strategy_);
         }
+    }
+
+    function _isFixedTermLoanManager(address globals_, address strategy_) internal view returns (bool isFixedTermLoanManager_) {
+        isFixedTermLoanManager_ =
+            IGlobalsLike(globals_).isInstanceOf("FT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
+    }
+
+    function _isOpenTermLoanManager(address globals_, address strategy_) internal view returns (bool isOpenTermLoanManager_) {
+        isOpenTermLoanManager_ =
+            IGlobalsLike(globals_).isInstanceOf("OT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
     }
 
 }

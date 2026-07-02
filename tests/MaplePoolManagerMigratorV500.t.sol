@@ -16,10 +16,11 @@ import { MockGlobals, MockStrategy } from "./mocks/Mocks.sol";
 
 abstract contract MaplePoolManagerMigratorV500TestBase is Test {
 
-    address ftlmFactory    = makeAddr("ftlmFactory");
-    address governor       = makeAddr("governor");
-    address nonFtlmFactory = makeAddr("nonFtlmFactory");
-    address poolDelegate   = makeAddr("poolDelegate");
+    address ftlmFactory     = makeAddr("ftlmFactory");
+    address otlmFactory     = makeAddr("otlmFactory");
+    address strategyFactory = makeAddr("strategyFactory");
+    address governor        = makeAddr("governor");
+    address poolDelegate    = makeAddr("poolDelegate");
 
     address asset   = address(new MockERC20("USD Coin", "USDC", 6));
     address globals = address(new MockGlobals(governor));
@@ -32,6 +33,7 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         MockGlobals(globals).setValidPoolDelegate(poolDelegate, true);
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
         MockGlobals(globals).setValidInstance("FT_LOAN_MANAGER_FACTORY", ftlmFactory, true);
+        MockGlobals(globals).setValidInstance("OT_LOAN_MANAGER_FACTORY", otlmFactory, true);
         MockGlobals(globals).__setIsValidScheduledCall(true);
 
         address implementationV1 = address(new MaplePoolManagerHarness());
@@ -54,16 +56,28 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         ));
     }
 
-    function createAndAddStrategy(bool isFixedTermLoan_, uint256 aum_) internal returns (address strategy_) {
+    function _createAndAddStrategy(address factory_, uint256 aum_) private returns (address strategy_) {
         MockStrategy mockStrategy_ = new MockStrategy(address(0), address(0), address(0));
 
-        mockStrategy_.__setFactory(isFixedTermLoan_ ? ftlmFactory : nonFtlmFactory);
+        mockStrategy_.__setFactory(factory_);
         mockStrategy_.__setAssetsUnderManagement(aum_);
 
         poolManager.__pushToStrategyList(address(mockStrategy_));
         poolManager.__setIsStrategy(address(mockStrategy_), true);
 
         strategy_ = address(mockStrategy_);
+    }
+
+    function createAndAddFixedTermLoanManager(uint256 aum_) internal returns (address loanManager_) {
+        loanManager_ = _createAndAddStrategy(ftlmFactory, aum_);
+    }
+
+    function createAndAddOpenTermLoanManager(uint256 aum_) internal returns (address loanManager_) {
+        loanManager_ = _createAndAddStrategy(otlmFactory, aum_);
+    }
+
+    function createAndAddStrategy(uint256 aum_) internal returns (address strategy_) {
+        strategy_ = _createAndAddStrategy(strategyFactory, aum_);
     }
 
     function assertStrategyList(address[] memory expected_) internal {
@@ -100,12 +114,24 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         array_[3] = d_;
     }
 
+    function array(address a_, address b_, address c_, address d_, address e_, address f_)
+        internal pure returns (address[] memory array_)
+    {
+        array_    = new address[](6);
+        array_[0] = a_;
+        array_[1] = b_;
+        array_[2] = c_;
+        array_[3] = d_;
+        array_[4] = e_;
+        array_[5] = f_;
+    }
+
 }
 
 contract MigrateFailureTests is MaplePoolManagerMigratorV500TestBase {
 
-    function test_migrate_revert_nonZeroAum() external {
-        createAndAddStrategy({ isFixedTermLoan_: true, aum_: 1 });
+    function test_migrate_revert_nonZeroAum_ftlm() external {
+        createAndAddFixedTermLoanManager({ aum_: 1 });
 
         vm.prank(poolDelegate);
         vm.expectRevert("MPF:UI:FAILED");
@@ -125,29 +151,29 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         assertEq(poolManager.strategyListLength(), 0);
     }
 
-    function test_migrate_success_onlyNonFtlms() external {
-        address strategy1 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
-        address strategy2 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 1_000e6 });
-        address strategy3 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 42 });
+    function test_migrate_success_keepsOpenTermLoanManagers() external {
+        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 1_000e6 });
+        address otlm3 = createAndAddOpenTermLoanManager({ aum_: 42 });
 
-        assertStrategyList(array(strategy1, strategy2, strategy3));
+        assertStrategyList(array(otlm1, otlm2, otlm3));
 
-        assertEq(poolManager.isStrategy(strategy1), true);
-        assertEq(poolManager.isStrategy(strategy2), true);
-        assertEq(poolManager.isStrategy(strategy3), true);
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(otlm2), true);
+        assertEq(poolManager.isStrategy(otlm3), true);
 
         vm.prank(poolDelegate);
         poolManager.upgrade(2, "");
 
-        assertStrategyList(array(strategy1, strategy2, strategy3));
+        assertStrategyList(array(otlm1, otlm2, otlm3));
 
-        assertEq(poolManager.isStrategy(strategy1), true);
-        assertEq(poolManager.isStrategy(strategy2), true);
-        assertEq(poolManager.isStrategy(strategy3), true);
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(otlm2), true);
+        assertEq(poolManager.isStrategy(otlm3), true);
     }
 
-    function test_migrate_success_singleFtlm() external {
-        address ftlm = createAndAddStrategy({ isFixedTermLoan_: true, aum_: 0 });
+    function test_migrate_success_singleFixedTermLoanManager() external {
+        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
 
         assertStrategyList(array(ftlm));
 
@@ -164,39 +190,14 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         assertEq(poolManager.isStrategy(ftlm), false);
     }
 
-    function test_migrate_success_removesFtlmKeepsNonFtlm() external {
-        address nonFtlm = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
-        address ftlm    = createAndAddStrategy({ isFixedTermLoan_: true,  aum_: 0 });
+    function test_migrate_success_removesFixedTermLoanManagerKeepsOpenTerm() external {
+        address otlm = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
 
-        assertStrategyList(array(nonFtlm, ftlm));
+        assertStrategyList(array(otlm, ftlm));
 
-        assertEq(poolManager.isStrategy(nonFtlm), true);
-        assertEq(poolManager.isStrategy(ftlm),    true);
-
-        vm.expectEmit();
-        emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
-
-        vm.prank(poolDelegate);
-        poolManager.upgrade(2, "");
-
-        assertStrategyList(array(nonFtlm));
-
-        assertEq(poolManager.isStrategy(nonFtlm), true);
-        assertEq(poolManager.isStrategy(ftlm),    false);
-    }
-
-    function test_migrate_success_orderNotPreserved() external {
-        address nonFtlm1 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
-        address ftlm     = createAndAddStrategy({ isFixedTermLoan_: true,  aum_: 0 });
-        address nonFtlm2 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
-        address nonFtlm3 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
-
-        assertStrategyList(array(nonFtlm1, ftlm, nonFtlm2, nonFtlm3));
-
-        assertEq(poolManager.isStrategy(nonFtlm1), true);
-        assertEq(poolManager.isStrategy(ftlm),     true);
-        assertEq(poolManager.isStrategy(nonFtlm2), true);
-        assertEq(poolManager.isStrategy(nonFtlm3), true);
+        assertEq(poolManager.isStrategy(otlm), true);
+        assertEq(poolManager.isStrategy(ftlm), true);
 
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
@@ -204,26 +205,24 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.prank(poolDelegate);
         poolManager.upgrade(2, "");
 
-        assertStrategyList(array(nonFtlm1, nonFtlm3, nonFtlm2));
+        assertStrategyList(array(otlm));
 
-        assertEq(poolManager.isStrategy(nonFtlm1), true);
-        assertEq(poolManager.isStrategy(ftlm),     false);
-        assertEq(poolManager.isStrategy(nonFtlm2), true);
-        assertEq(poolManager.isStrategy(nonFtlm3), true);
+        assertEq(poolManager.isStrategy(otlm), true);
+        assertEq(poolManager.isStrategy(ftlm), false);
     }
 
-    function test_migrate_success_multipleFtlms() external {
-        address ftlm1    = createAndAddStrategy({ isFixedTermLoan_: true,  aum_: 0 });
-        address ftlm2    = createAndAddStrategy({ isFixedTermLoan_: true,  aum_: 0 });
-        address nonFtlm1 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 10_000e6 });
-        address nonFtlm2 = createAndAddStrategy({ isFixedTermLoan_: false, aum_: 0 });
+    function test_migrate_success_multipleFixedTermLoanManagers() external {
+        address ftlm1 = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address ftlm2 = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 10_000e6 });
+        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 0 });
 
-        assertStrategyList(array(ftlm1, ftlm2, nonFtlm1, nonFtlm2));
+        assertStrategyList(array(ftlm1, ftlm2, otlm1, otlm2));
 
-        assertEq(poolManager.isStrategy(ftlm1),    true);
-        assertEq(poolManager.isStrategy(ftlm2),    true);
-        assertEq(poolManager.isStrategy(nonFtlm1), true);
-        assertEq(poolManager.isStrategy(nonFtlm2), true);
+        assertEq(poolManager.isStrategy(ftlm1), true);
+        assertEq(poolManager.isStrategy(ftlm2), true);
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(otlm2), true);
 
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm2);
@@ -234,12 +233,117 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.prank(poolDelegate);
         poolManager.upgrade(2, "");
 
-        assertStrategyList(array(nonFtlm1, nonFtlm2));
+        assertStrategyList(array(otlm1, otlm2));
 
-        assertEq(poolManager.isStrategy(ftlm1),    false);
-        assertEq(poolManager.isStrategy(ftlm2),    false);
-        assertEq(poolManager.isStrategy(nonFtlm1), true);
-        assertEq(poolManager.isStrategy(nonFtlm2), true);
+        assertEq(poolManager.isStrategy(ftlm1), false);
+        assertEq(poolManager.isStrategy(ftlm2), false);
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(otlm2), true);
+    }
+
+    function test_migrate_success_removesStrategy() external {
+        address strategy = createAndAddStrategy({ aum_: 0 });
+
+        assertStrategyList(array(strategy));
+
+        assertEq(poolManager.isStrategy(strategy), true);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(strategy);
+
+        vm.prank(poolDelegate);
+        poolManager.upgrade(2, "");
+
+        assertStrategyList(new address[](0));
+
+        assertEq(poolManager.isStrategy(strategy), false);
+    }
+
+    function test_migrate_success_removesStrategyWithNonZeroAum() external {
+        address strategy = createAndAddStrategy({ aum_: 1_000e6 });
+
+        assertStrategyList(array(strategy));
+
+        assertEq(poolManager.isStrategy(strategy), true);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(strategy);
+
+        vm.prank(poolDelegate);
+        poolManager.upgrade(2, "");
+
+        assertStrategyList(new address[](0));
+
+        assertEq(poolManager.isStrategy(strategy), false);
+    }
+
+    function test_migrate_success_removesAllRemovableStrategies() external {
+        address aave = createAndAddStrategy({ aum_: 0 });
+        address sky  = createAndAddStrategy({ aum_: 0 });
+        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
+
+        assertStrategyList(array(aave, sky, ftlm));
+
+        assertEq(poolManager.isStrategy(aave), true);
+        assertEq(poolManager.isStrategy(sky),  true);
+        assertEq(poolManager.isStrategy(ftlm), true);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(sky);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(aave);
+
+        vm.prank(poolDelegate);
+        poolManager.upgrade(2, "");
+
+        assertStrategyList(new address[](0));
+
+        assertEq(poolManager.isStrategy(aave), false);
+        assertEq(poolManager.isStrategy(sky),  false);
+        assertEq(poolManager.isStrategy(ftlm), false);
+    }
+
+    function test_migrate_success_scramblesOrderOfSurvivingOpenTermLoanManagers() external {
+        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address aave  = createAndAddStrategy({ aum_: 0 });
+        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address sky   = createAndAddStrategy({ aum_: 0 });
+        address ftlm  = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address otlm3 = createAndAddOpenTermLoanManager({ aum_: 0 });
+
+        assertStrategyList(array(otlm1, aave, otlm2, sky, ftlm, otlm3));
+
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(aave),  true);
+        assertEq(poolManager.isStrategy(otlm2), true);
+        assertEq(poolManager.isStrategy(sky),   true);
+        assertEq(poolManager.isStrategy(ftlm),  true);
+        assertEq(poolManager.isStrategy(otlm3), true);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(sky);
+
+        vm.expectEmit();
+        emit MaplePoolManagerMigratorV500.StrategyRemoved(aave);
+
+        vm.prank(poolDelegate);
+        poolManager.upgrade(2, "");
+
+        assertStrategyList(array(otlm1, otlm3, otlm2));
+
+        assertEq(poolManager.isStrategy(otlm1), true);
+        assertEq(poolManager.isStrategy(aave),  false);
+        assertEq(poolManager.isStrategy(otlm2), true);
+        assertEq(poolManager.isStrategy(sky),   false);
+        assertEq(poolManager.isStrategy(ftlm),  false);
+        assertEq(poolManager.isStrategy(otlm3), true);
     }
 
 }
