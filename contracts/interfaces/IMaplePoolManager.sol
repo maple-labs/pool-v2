@@ -152,6 +152,12 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function addStrategyManager(address strategyManager) external;
 
     /**
+     *  @dev   Allows EOAs to batch admin calls.
+     *  @param data Array of calldata.
+     */
+    function multicall(bytes[] calldata data) external;
+
+    /**
      *  @dev   Removes a strategy manager from the pool and clears its strategy cap.
      *         Only callable by the governor after this pool manager has no assets and no unrealized losses in the strategy manager.
      *  @param strategyManager The address of the strategy manager.

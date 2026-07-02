@@ -205,6 +205,18 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit StrategyManagerAdded(strategyManager_);
     }
 
+    function multicall(bytes[] calldata data_) external override {
+        for (uint256 i = 0; i < data_.length; i++) {
+            ( bool success_, bytes memory returnData_ ) = address(this).delegatecall(data_[i]);
+
+            if (!success_) {
+                assembly ("memory-safe") {
+                    revert(add(32, returnData_), mload(returnData_))
+                }
+            }
+        }
+    }
+
     function removeStrategyManager(address strategyManager_) external override whenNotPaused {
         require(msg.sender == governor(),                                                      "PM:RSM:NOT_GOVERNOR");
         require(isStrategyManager[strategyManager_],                                           "PM:RSM:NOT_STRATEGY_MANAGER");
