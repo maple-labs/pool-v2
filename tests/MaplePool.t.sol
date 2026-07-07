@@ -17,7 +17,7 @@ import {
     MockRevertingERC20,
     MockPoolManager,
     MockWithdrawalManager
-} from "./mocks/Mocks.sol";
+} from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 

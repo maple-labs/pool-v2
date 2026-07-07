@@ -25,7 +25,7 @@ import {
     MockPoolPermissionManager,
     MockProxied,
     MockStrategy
-} from "./mocks/Mocks.sol";
+} from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 

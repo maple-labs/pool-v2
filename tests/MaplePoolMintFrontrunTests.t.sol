@@ -11,7 +11,7 @@ import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
 import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
-import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./mocks/Mocks.sol";
+import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 

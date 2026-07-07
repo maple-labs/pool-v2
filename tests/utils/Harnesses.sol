@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol";
+import { MaplePoolManager }            from "../../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerInitializer } from "../../contracts/proxy/MaplePoolManagerInitializer.sol";
 
 contract MaplePoolManagerHarness is MaplePoolManager {
 
@@ -31,6 +32,20 @@ contract MaplePoolManagerHarness is MaplePoolManager {
 
     function __getStrategyListValue(uint256 index_) external view returns (address value_) {
         value_ = index_ < strategyList.length ? strategyList[index_] : address(0);
+    }
+
+}
+
+contract MaplePoolManagerInitializerHarness is MaplePoolManagerInitializer {
+
+    function __initialize(
+        address poolDelegate_,
+        address asset_,
+        uint256 initialSupply_,
+        string memory name_,
+        string memory symbol_
+    ) external {
+        _initialize(poolDelegate_, asset_, initialSupply_, name_, symbol_);
     }
 
 }

@@ -20,9 +20,9 @@ import {
     MockPoolPermissionManager,
     MockStrategy,
     MockWithdrawalManager
-} from "./mocks/Mocks.sol";
+} from "./utils/Mocks.sol";
 
-import { MaplePoolManagerHarness } from "./harnesses/MaplePoolManagerHarness.sol";
+import { MaplePoolManagerHarness } from "./utils/Harnesses.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 
@@ -867,6 +867,13 @@ contract ProcessRedeemTests is PoolManagerTestBase {
         poolManager.processRedeem(1, address(1), address(1));
     }
 
+    function test_processRedeem_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
+        poolManager.processRedeem(1, address(1), address(1));
+    }
+
     function test_processRedeem_notWithdrawalManager() external {
         vm.expectRevert("PM:NOT_POOL");
         poolManager.processRedeem(1, address(1), address(1));
@@ -895,6 +902,13 @@ contract ProcessRedeemTests is PoolManagerTestBase {
 
         vm.prank(poolManager.pool());
         poolManager.processRedeem(1, user1, user2);
+    }
+
+    function test_processWithdraw_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
+        poolManager.processWithdraw(1, address(1), address(1));
     }
 
     function test_processWithdraw_notEnabled() external {
@@ -1583,6 +1597,13 @@ contract TriggerDefaultTests is PoolManagerTestBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
         poolManager.triggerDefault(address(loan));
     }
 

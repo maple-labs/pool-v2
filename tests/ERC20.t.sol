@@ -5,7 +5,7 @@ import { ERC20BaseTest }   from "../modules/erc20/contracts/test/ERC20.t.sol";
 import { ERC20PermitTest } from "../modules/erc20/contracts/test/ERC20.t.sol";
 import { MockERC20 }       from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MockERC20Pool, MockPoolManager } from "./mocks/Mocks.sol";
+import { MockERC20Pool, MockPoolManager } from "./utils/Mocks.sol";
 
 contract Pool_ERC20TestBase {
 

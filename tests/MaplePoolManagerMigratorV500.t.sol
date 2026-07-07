@@ -10,9 +10,9 @@ import { MaplePoolManagerFactory }      from "../contracts/proxy/MaplePoolManage
 import { MaplePoolManagerInitializer }  from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 import { MaplePoolManagerMigratorV500 } from "../contracts/proxy/MaplePoolManagerMigratorV500.sol";
 
-import { MaplePoolManagerHarness } from "./harnesses/MaplePoolManagerHarness.sol";
+import { MaplePoolManagerHarness } from "./utils/Harnesses.sol";
 
-import { MockGlobals, MockStrategy } from "./mocks/Mocks.sol";
+import { MockGlobals, MockStrategy } from "./utils/Mocks.sol";
 
 abstract contract MaplePoolManagerMigratorV500TestBase is Test {
 

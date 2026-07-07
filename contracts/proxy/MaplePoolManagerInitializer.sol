@@ -9,36 +9,6 @@ import { MaplePoolManagerStorage } from "./MaplePoolManagerStorage.sol";
 
 contract MaplePoolManagerInitializer is IMaplePoolManagerInitializer, MaplePoolManagerStorage {
 
-    function decodeArguments(bytes calldata encodedArguments_) public pure override
-        returns (
-            address poolDelegate_,
-            address asset_,
-            uint256 initialSupply_,
-            string memory name_,
-            string memory symbol_
-        )
-    {
-        (
-            poolDelegate_,
-            asset_,
-            initialSupply_,
-            name_,
-            symbol_
-        ) = abi.decode(encodedArguments_, (address, address, uint256, string, string));
-    }
-
-    function encodeArguments(
-        address poolDelegate_,
-        address asset_,
-        uint256 initialSupply_,
-        string memory name_,
-        string memory symbol_
-    )
-        external pure override returns (bytes memory encodedArguments_)
-    {
-        encodedArguments_ = abi.encode(poolDelegate_, asset_, initialSupply_, name_, symbol_);
-    }
-
     fallback() external {
         _locked = 1;
 
@@ -48,7 +18,7 @@ contract MaplePoolManagerInitializer is IMaplePoolManagerInitializer, MaplePoolM
             uint256 initialSupply_,
             string memory name_,
             string memory symbol_
-        ) = decodeArguments(msg.data);
+        ) = abi.decode(msg.data, (address, address, uint256, string, string));
 
         _initialize(poolDelegate_, asset_, initialSupply_,  name_, symbol_);
     }

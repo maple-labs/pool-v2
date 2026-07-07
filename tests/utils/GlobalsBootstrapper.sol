@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }        from "../../modules/forge-std/src/Test.sol";
-import { MockGlobals } from "../mocks/Mocks.sol";
+import { Test } from "../../modules/forge-std/src/Test.sol";
+
+import { MockGlobals } from "./Mocks.sol";
 
 /**
  *  @dev Used to setup the MockGlobals contract for test contracts.
