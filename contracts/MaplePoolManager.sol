@@ -218,7 +218,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function removeStrategyManager(address strategyManager_) external override whenNotPaused {
-        require(msg.sender == governor(),                                                      "PM:RSM:NOT_GOVERNOR");
+        require(msg.sender == IGlobalsLike(globals()).operationalAdmin(),                      "PM:RSM:NOT_OPERATIONAL_ADMIN");
         require(isStrategyManager[strategyManager_],                                           "PM:RSM:NOT_STRATEGY_MANAGER");
         require(IStrategyManagerLike(strategyManager_).assetsOf(address(this)) == 0,           "PM:RSM:NON_ZERO_ASSETS");
         require(IStrategyManagerLike(strategyManager_).unrealizedLossesOf(address(this)) == 0, "PM:RSM:NON_ZERO_LOSSES");

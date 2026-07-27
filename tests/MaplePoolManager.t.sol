@@ -1305,31 +1305,31 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         MockGlobals(globals).__setFunctionPaused(true);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:PAUSED");
         poolManager.removeStrategyManager(address(strategyManager));
     }
 
-    function test_removeStrategyManager_revert_notGovernor() external {
+    function test_removeStrategyManager_revert_notOperationalAdmin() external {
         addStrategyManager(strategyManager);
 
         // Default caller
-        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
 
         // Pool delegate cannot remove
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
 
-        // Operational admin cannot remove
-        vm.prank(OPERATIONAL_ADMIN);
-        vm.expectRevert("PM:RSM:NOT_GOVERNOR");
+        // Governor cannot remove
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
     }
 
     function test_removeStrategyManager_revert_notStrategyManager() external {
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
         poolManager.removeStrategyManager(address(strategyManager));
     }
@@ -1341,7 +1341,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         strategyManager.__setAssetsOf(address(poolManager), managerAssets);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:RSM:NON_ZERO_ASSETS");
         poolManager.removeStrategyManager(address(strategyManager));
     }
@@ -1353,7 +1353,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:RSM:NON_ZERO_LOSSES");
         poolManager.removeStrategyManager(address(strategyManager));
     }
@@ -1361,10 +1361,10 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
     function test_removeStrategyManager_revert_notStrategyManager_afterRemoval() external {
         addStrategyManager(strategyManager);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
         poolManager.removeStrategyManager(address(strategyManager));
     }
@@ -1379,7 +1379,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         vm.expectEmit();
         emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
@@ -1403,7 +1403,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         vm.expectEmit();
         emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
@@ -1430,7 +1430,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         assertEq(strategyManager.assetsOf(address(poolManager)), 0);
         assertEq(strategyManager.assetsOf(otherPoolManager),     managerAssets);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
@@ -1450,7 +1450,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         assertEq(strategyManager.unrealizedLossesOf(address(poolManager)), 0);
         assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),     managerLosses);
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
@@ -1475,7 +1475,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         assertStrategyList(array(address(strategy), address(strategyManager), address(strategyManager2)));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategy(address(strategy)),                true);
@@ -1484,7 +1484,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         assertStrategyList(array(address(strategy), address(strategyManager2)));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager2));
 
         assertEq(poolManager.isStrategy(address(strategy)),                true);
@@ -1504,7 +1504,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
@@ -1524,7 +1524,7 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
 
-        vm.prank(GOVERNOR);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.removeStrategyManager(address(strategyManager3));
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
