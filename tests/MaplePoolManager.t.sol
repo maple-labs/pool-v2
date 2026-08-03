@@ -1346,18 +1346,6 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         poolManager.removeStrategyManager(address(strategyManager));
     }
 
-    function test_removeStrategyManager_revert_nonZeroLosses() external {
-        uint256 managerLosses = 100_000e18;
-
-        addStrategyManager(strategyManager);
-
-        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
-
-        vm.prank(OPERATIONAL_ADMIN);
-        vm.expectRevert("PM:RSM:NON_ZERO_LOSSES");
-        poolManager.removeStrategyManager(address(strategyManager));
-    }
-
     function test_removeStrategyManager_revert_notStrategyManager_afterRemoval() external {
         addStrategyManager(strategyManager);
 
@@ -1455,6 +1443,23 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
         assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
         assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),    managerLosses);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_nonZeroLosses() external {
+        uint256 managerLosses = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertStrategyList(array(address(strategyManager)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
 
         assertStrategyList_Empty();
     }

@@ -159,7 +159,7 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev   Removes a strategy manager from the pool and clears its strategy cap.
-     *         Only callable by the governor after this pool manager has no assets and no unrealized losses in the strategy manager.
+     *         Only callable by the operational admin after this pool manager has no assets in the strategy manager.
      *  @param strategyManager The address of the strategy manager.
      */
     function removeStrategyManager(address strategyManager) external;
