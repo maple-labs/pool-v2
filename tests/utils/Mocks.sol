@@ -459,8 +459,6 @@ contract MockMigrator {
 
 contract MockWithdrawalManager is MapleProxiedInternals {
 
-    mapping(address => uint256) public maxRedeem;
-
     function addShares(uint256 shares_, address owner_) external {}
 
     function factory() external view returns (address factory_) {
@@ -475,9 +473,6 @@ contract MockWithdrawalManager is MapleProxiedInternals {
         _setFactory(factory_);
     }
 
-    function __setMaxRedeem(address owner_, uint256 maxShares_) external {
-        maxRedeem[owner_] = maxShares_;
-    }
 }
 
 contract MockImplementation {

@@ -474,12 +474,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function maxRedeem(address owner_) external view virtual override returns (uint256 maxShares_) {
-        if (unrealizedLosses() >= totalAssets()) return 0;
-
-        uint256 idleAssets_          = IERC20Like(asset).balanceOf(pool);
-        uint256 maxRedeemableShares_ = IWithdrawalManagerLike(withdrawalManager).maxRedeem(owner_);
-
-        maxShares_ = _min(maxRedeemableShares_, convertToExitShares(idleAssets_));
+        uint256 lockedShares_ = IWithdrawalManagerLike(withdrawalManager).lockedShares(owner_);
+        maxShares_            = IWithdrawalManagerLike(withdrawalManager).isInExitWindow(owner_) ? lockedShares_ : 0;
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
