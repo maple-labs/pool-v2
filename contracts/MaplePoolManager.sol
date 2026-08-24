@@ -290,7 +290,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Funding Functions                                                                                                              ***/
     /**************************************************************************************************************************************/
 
-    // TODO: Confirm that old cyclical WM pools will be able to request funds.
     function requestFunds(address destination_, uint256 amount_) external override whenNotPaused nonReentrant {
         address pool_   = pool;
         address caller_ = msg.sender;
