@@ -27,10 +27,6 @@ interface IGlobalsLike {
 
     function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
 
-    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_)
-        external view
-        returns (bool isValid_);
-
     function migrationAdmin() external view returns (address migrationAdmin_);
 
     function operationalAdmin() external view returns (address operationalAdmin_);
@@ -40,8 +36,6 @@ interface IGlobalsLike {
     function securityAdmin() external view returns (address securityAdmin_);
 
     function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
-
-    function unscheduleCall(address caller_, bytes32 functionId_, bytes calldata callData_) external;
 
 }
 

@@ -237,6 +237,8 @@ contract UpgradeTests is PoolManagerTestBase {
     function setUp() public override {
         super.setUp();
 
+        MockGlobals(globals).__setSecurityAdmin(SECURITY_ADMIN);
+
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(2, newImplementation, address(0));
         factory.enableUpgradePath(1, 2, address(0));
@@ -255,36 +257,26 @@ contract UpgradeTests is PoolManagerTestBase {
         poolManager.upgrade(2, "");
     }
 
-    function test_upgrade_notScheduled() external {
+    function test_upgrade_notSecurityAdmin() external {
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:U:INVALID_SCHED_CALL");
+        vm.expectRevert("PM:U:NO_AUTH");
+        poolManager.upgrade(2, "");
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:U:NO_AUTH");
         poolManager.upgrade(2, "");
     }
 
     function test_upgrade_upgradeFailed() external {
-        MockGlobals(globals).__setIsValidScheduledCall(true);
-        vm.prank(POOL_DELEGATE);
+        vm.prank(SECURITY_ADMIN);
         vm.expectRevert("MPF:UI:FAILED");
         poolManager.upgrade(2, "1");
     }
 
     function test_upgrade_successWithSecurityAdmin() external {
-        MockGlobals(globals).__setSecurityAdmin(SECURITY_ADMIN);
-
         assertEq(poolManager.implementation(), implementation);
 
-        // No need to schedule call
         vm.prank(SECURITY_ADMIN);
-        poolManager.upgrade(2, "");
-
-        assertEq(poolManager.implementation(), newImplementation);
-    }
-
-    function test_upgrade_successWithPoolDelegate() external {
-        assertEq(poolManager.implementation(), implementation);
-
-        MockGlobals(globals).__setIsValidScheduledCall(true);
-        vm.prank(POOL_DELEGATE);
         poolManager.upgrade(2, "");
 
         assertEq(poolManager.implementation(), newImplementation);

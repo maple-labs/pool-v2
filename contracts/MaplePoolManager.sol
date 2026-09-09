@@ -93,8 +93,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Migration Functions                                                                                                            ***/
     /**************************************************************************************************************************************/
 
-    // NOTE: Can't add whenProtocolNotPaused modifier here, as globals won't be set until
-    //       initializer.initialize() is called, and this function is what triggers that initialization.
     function migrate(address migrator_, bytes calldata arguments_) external override whenNotPaused {
         require(msg.sender == _factory(),        "PM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "PM:M:FAILED");
@@ -106,15 +104,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function upgrade(uint256 version_, bytes calldata arguments_) external override whenNotPaused {
-        IGlobalsLike globals_ = IGlobalsLike(globals());
-
-        if (msg.sender == poolDelegate) {
-            require(globals_.isValidScheduledCall(msg.sender, address(this), "PM:UPGRADE", msg.data), "PM:U:INVALID_SCHED_CALL");
-
-            globals_.unscheduleCall(msg.sender, "PM:UPGRADE", msg.data);
-        } else {
-            require(msg.sender == globals_.securityAdmin(), "PM:U:NO_AUTH");
-        }
+        require(msg.sender == IGlobalsLike(globals()).securityAdmin(), "PM:U:NO_AUTH");
 
         emit Upgraded(version_, arguments_);
 
@@ -181,7 +171,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         strategyList.push(strategy_);
 
         // Check the accounting of the newly added strategy isn't broken.
-        // NOTE: This can occur if a newly added CoreStrategy creates an accounting loop between two or more Maple pools.
         ( bool success_, ) = strategy_.staticcall(abi.encodeWithSelector(IStrategyLike.assetsUnderManagement.selector));
 
         require(success_, "PM:AS:AUM_FAILURE");

@@ -51,7 +51,6 @@ contract MockGlobals {
     bool internal _failTransferOwnedPoolManager;
     bool internal _instanceSet;
     bool internal _isFunctionPaused;
-    bool internal _isValidScheduledCall;
 
     mapping(bytes32 => mapping(address => bool)) public _validFactory;
     mapping(bytes32 => mapping(address => bool)) public _validInstance;
@@ -79,10 +78,6 @@ contract MockGlobals {
 
     function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
         isFunctionPaused_ = _isFunctionPaused;
-    }
-
-    function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
-        isValid_ = _isValidScheduledCall;
     }
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
@@ -139,8 +134,6 @@ contract MockGlobals {
         require(!(_failTransferOwnedPoolManager = _failTransferOwnedPoolManager), "MG:TOPM:FAILED");
     }
 
-    function unscheduleCall(address, bytes32, bytes calldata) external {}
-
     function __setBootstrapMint(uint256 bootstrapMint_) external {
         _bootstrapMint = bootstrapMint_;
     }
@@ -151,10 +144,6 @@ contract MockGlobals {
 
     function __setFunctionPaused(bool paused_) external {
         _isFunctionPaused = paused_;
-    }
-
-    function __setIsValidScheduledCall(bool isValid_) external {
-        _isValidScheduledCall = isValid_;
     }
 
     function __setOperationalAdmin(address admin_) external {

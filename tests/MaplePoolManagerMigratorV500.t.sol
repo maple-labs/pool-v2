@@ -21,6 +21,7 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
     address strategyFactory = makeAddr("strategyFactory");
     address governor        = makeAddr("governor");
     address poolDelegate    = makeAddr("poolDelegate");
+    address securityAdmin   = makeAddr("securityAdmin");
 
     address asset   = address(new MockERC20("USD Coin", "USDC", 6));
     address globals = address(new MockGlobals(governor));
@@ -34,7 +35,7 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         MockGlobals(globals).setValidPoolDeployer(address(this), true);
         MockGlobals(globals).setValidInstance("FT_LOAN_MANAGER_FACTORY", ftlmFactory, true);
         MockGlobals(globals).setValidInstance("OT_LOAN_MANAGER_FACTORY", otlmFactory, true);
-        MockGlobals(globals).__setIsValidScheduledCall(true);
+        MockGlobals(globals).__setSecurityAdmin(securityAdmin);
 
         address implementationV1 = address(new MaplePoolManagerHarness());
         address implementationV2 = address(new MaplePoolManager());
@@ -133,7 +134,7 @@ contract MigrateFailureTests is MaplePoolManagerMigratorV500TestBase {
     function test_migrate_revert_nonZeroAum_ftlm() external {
         createAndAddFixedTermLoanManager({ aum_: 1 });
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         vm.expectRevert("MPF:UI:FAILED");
         poolManager.upgrade(2, "");
     }
@@ -145,7 +146,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     function test_migrate_success_emptyStrategyList() external {
         assertEq(poolManager.strategyListLength(), 0);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertEq(poolManager.strategyListLength(), 0);
@@ -162,7 +163,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         assertEq(poolManager.isStrategy(otlm2), true);
         assertEq(poolManager.isStrategy(otlm3), true);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(array(otlm1, otlm2, otlm3));
@@ -182,7 +183,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(new address[](0));
@@ -202,7 +203,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(array(otlm));
@@ -230,7 +231,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(ftlm1);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(array(otlm1, otlm2));
@@ -251,7 +252,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(strategy);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(new address[](0));
@@ -269,7 +270,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(strategy);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(new address[](0));
@@ -297,7 +298,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(aave);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(new address[](0));
@@ -333,7 +334,7 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
         vm.expectEmit();
         emit MaplePoolManagerMigratorV500.StrategyRemoved(aave);
 
-        vm.prank(poolDelegate);
+        vm.prank(securityAdmin);
         poolManager.upgrade(2, "");
 
         assertStrategyList(array(otlm1, otlm3, otlm2));
