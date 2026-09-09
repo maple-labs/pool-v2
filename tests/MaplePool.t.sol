@@ -867,13 +867,6 @@ contract RequestRedeemTests is PoolTestBase {
         assertEq(pool.balanceOf(user),                1_000e6);
     }
 
-    function test_requestRedeem_zeroSharesAndNotOwnerAndNoAllowance() public {
-        assertEq(pool.allowance(user, address(this)), 0);
-
-        vm.expectRevert("PM:RR:NO_ALLOWANCE");
-        pool.requestRedeem(0, address(user));
-    }
-
 }
 
 contract RequestWithdraw is PoolTestBase {

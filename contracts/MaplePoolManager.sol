@@ -333,10 +333,6 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
         require(ERC20Helper.approve(pool_, withdrawalManager, shares_), "PM:RR:APPROVE_FAIL");
 
-        if (sender_ != owner_ && shares_ == 0) {
-            require(IPoolLike(pool_).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
-        }
-
         IWithdrawalManagerLike(withdrawalManager).addShares(shares_, owner_);
 
         emit RedeemRequested(owner_, shares_);

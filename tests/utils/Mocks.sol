@@ -302,11 +302,7 @@ contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
         require(false, "PM:PW:NOT_ENABLED");
     }
 
-    function requestRedeem(uint256 shares_, address owner_, address sender_) external view {
-        if (sender_ != owner_ && shares_ == 0) {
-            require(MaplePool(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
-        }
-    }
+    function requestRedeem(uint256, address, address) external {}
 
     function requestWithdraw(uint256, uint256, address, address) external pure {
         require(false, "PM:RW:NOT_ENABLED");
