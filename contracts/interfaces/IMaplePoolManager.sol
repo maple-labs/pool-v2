@@ -124,7 +124,8 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function acceptPoolDelegate() external;
 
     /**
-     *  @dev   Sets an address as the pending pool delegate.
+     *  @dev   Sets an address as the pending pool delegate. Passing address(0) cancels a pending transfer.
+     *         Can only be called by the operational admin.
      *  @param pendingPoolDelegate The address of the new pool delegate.
      */
     function setPendingPoolDelegate(address pendingPoolDelegate) external;

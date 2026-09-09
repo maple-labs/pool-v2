@@ -79,8 +79,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         _;
     }
 
-    modifier onlyPoolDelegateOrProtocolAdmins() {
-        _revertIfNeitherPoolDelegateNorProtocolAdmins();
+    modifier onlyOperationalAdmin() {
+        _revertIfNotOperationalAdmin();
         _;
     }
 
@@ -147,7 +147,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         pendingPoolDelegate = address(0);
     }
 
-    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyPoolDelegateOrProtocolAdmins {
+    function setPendingPoolDelegate(address pendingPoolDelegate_) external override whenNotPaused onlyOperationalAdmin {
         pendingPoolDelegate = pendingPoolDelegate_;
 
         emit PendingDelegateSet(poolDelegate, pendingPoolDelegate_);
@@ -217,8 +217,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         }
     }
 
-    function removeStrategyManager(address strategyManager_) external override whenNotPaused {
-        require(msg.sender == IGlobalsLike(globals()).operationalAdmin(),            "PM:RSM:NOT_OPERATIONAL_ADMIN");
+    function removeStrategyManager(address strategyManager_) external override whenNotPaused onlyOperationalAdmin {
         require(isStrategyManager[strategyManager_],                                 "PM:RSM:NOT_STRATEGY_MANAGER");
         require(IStrategyManagerLike(strategyManager_).assetsOf(address(this)) == 0, "PM:RSM:NON_ZERO_ASSETS");
 
@@ -280,7 +279,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit PoolPermissionManagerSet(poolPermissionManager = poolPermissionManager_);
     }
 
-    function triggerDefault(address loan_) external override whenNotPaused nonReentrant onlyPoolDelegateOrProtocolAdmins {
+    function triggerDefault(address loan_) external override whenNotPaused nonReentrant {
+        require(
+            msg.sender == poolDelegate ||
+            msg.sender == governor()   ||
+            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            "PM:NOT_PD_OR_GOV_OR_OA"
+        );
+
         ( , uint256 losses_, ) = ILoanManagerLike(ILoanLike(loan_).lender()).triggerDefault(loan_, address(0));
 
         emit CollateralLiquidationFinished(loan_, losses_);
@@ -588,17 +594,12 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         );
     }
 
-    function _revertIfNotPool() internal view {
-        require(msg.sender == pool, "PM:NOT_POOL");
+    function _revertIfNotOperationalAdmin() internal view {
+        require(msg.sender == IGlobalsLike(globals()).operationalAdmin(), "PM:NOT_OPERATIONAL_ADMIN");
     }
 
-    function _revertIfNeitherPoolDelegateNorProtocolAdmins() internal view {
-        require(
-            msg.sender == poolDelegate ||
-            msg.sender == governor()   ||
-            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
-            "PM:NOT_PD_OR_GOV_OR_OA"
-        );
+    function _revertIfNotPool() internal view {
+        require(msg.sender == pool, "PM:NOT_POOL");
     }
 
     function _revertIfPaused() internal view {

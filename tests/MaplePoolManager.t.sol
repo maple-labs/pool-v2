@@ -298,7 +298,7 @@ contract AcceptPoolDelegate_SetterTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
-        vm.prank(POOL_DELEGATE);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
@@ -344,41 +344,61 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerTestBase {
     function test_setPendingPoolDelegate_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
-        vm.prank(POOL_DELEGATE);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:PAUSED");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_notPoolDelegateOrProtocolAdmins() external {
-        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
+    function test_setPendingPoolDelegate_notOperationalAdmin() external {
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_asPoolDelegate_success() external {
-        assertEq(poolManager.pendingPoolDelegate(), address(0));
-
+    function test_setPendingPoolDelegate_asPoolDelegate() external {
         vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
-
-        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_asGovernor_success() external {
-        assertEq(poolManager.pendingPoolDelegate(), address(0));
-
+    function test_setPendingPoolDelegate_asGovernor() external {
         vm.prank(GOVERNOR);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
-
-        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
     }
 
     function test_setPendingPoolDelegate_asOperationalAdmin_success() external {
         assertEq(poolManager.pendingPoolDelegate(), address(0));
 
-        vm.prank(MockGlobals(globals).operationalAdmin());
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
 
         assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+    }
+
+    function test_setPendingPoolDelegate_cancelWithZeroAddress() external {
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(address(0));
+
+        assertEq(poolManager.pendingPoolDelegate(), address(0));
+    }
+
+    function test_setPendingPoolDelegate_overwrite() external {
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+
+        address nextPoolDelegate = makeAddr("nextPoolDelegate");
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(nextPoolDelegate);
+
+        assertEq(poolManager.pendingPoolDelegate(), nextPoolDelegate);
     }
 
 }
@@ -1300,17 +1320,17 @@ contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
         addStrategyManager(strategyManager);
 
         // Default caller
-        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
 
         // Pool delegate cannot remove
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
 
         // Governor cannot remove
         vm.prank(GOVERNOR);
-        vm.expectRevert("PM:RSM:NOT_OPERATIONAL_ADMIN");
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.removeStrategyManager(address(strategyManager));
     }
 
