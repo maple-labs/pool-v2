@@ -5,7 +5,7 @@ import { IMaplePoolManagerStorage } from "../interfaces/IMaplePoolManagerStorage
 
 abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
-    uint256 internal _locked;  // Used when checking for reentrancy.
+    uint256 internal _locked; // Used when checking for reentrancy.
 
     address public override poolDelegate;
     address public override pendingPoolDelegate;
@@ -19,7 +19,7 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
     bool public override active;
     bool public override configured;
-    
+
     bool __deprecated_openToPublic;
 
     uint256 public override liquidityCap;

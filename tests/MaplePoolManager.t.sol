@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }      from "../modules/forge-std/src/Test.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
-import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
 import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
@@ -30,9 +30,9 @@ contract PoolManagerTestBase is TestBase {
 
     address internal POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
-    MockERC20                 internal asset;
-    MockERC20Pool             internal pool;
-    MockFactory               internal withdrawalManagerFactory;
+    MockERC20 internal asset;
+    MockERC20Pool internal pool;
+    MockFactory internal withdrawalManagerFactory;
     MockPoolPermissionManager internal mockPoolPermissionManager;
 
     MaplePoolManagerHarness internal poolManager;
@@ -64,10 +64,8 @@ contract PoolManagerTestBase is TestBase {
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
-        poolManager = MaplePoolManagerHarness(MaplePoolManagerFactory(factory).createInstance(
-            arguments,
-            keccak256(abi.encode(POOL_DELEGATE))
-        ));
+        poolManager =
+            MaplePoolManagerHarness(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
 
         mockPoolPermissionManager = new MockPoolPermissionManager();
         mockPoolPermissionManager.__setAllowed(true);
@@ -431,6 +429,7 @@ contract SetActive_SetterTests is PoolManagerTestBase {
 
         assertTrue(!poolManager.active());
     }
+
 }
 
 contract SetLiquidityCap_SetterTests is PoolManagerTestBase {
@@ -540,10 +539,10 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerTestBase {
 
 contract SetStrategyCap_SetterTests is PoolManagerTestBase {
 
-    MockFactory  internal strategyFactory;          // registered under STRATEGY_FACTORY
-    MockFactory  internal strategyManagerFactory;   // registered under STRATEGY_MANAGER_FACTORY
-    MockStrategy internal strategy;                 // valid instance of strategyFactory
-    MockStrategy internal strategyManager;          // valid instance of strategyManagerFactory
+    MockFactory internal strategyFactory; // registered under STRATEGY_FACTORY
+    MockFactory internal strategyManagerFactory; // registered under STRATEGY_MANAGER_FACTORY
+    MockStrategy internal strategy; // valid instance of strategyFactory
+    MockStrategy internal strategyManager; // valid instance of strategyManagerFactory
 
     uint256 internal newCap = 1_000_000e18;
 
@@ -559,14 +558,14 @@ contract SetStrategyCap_SetterTests is PoolManagerTestBase {
         strategy.__setFactory(address(strategyFactory));
         strategyManager.__setFactory(address(strategyManagerFactory));
 
-        poolManager.__setIsStrategy(address(strategy),               true);
+        poolManager.__setIsStrategy(address(strategy), true);
         poolManager.__setIsStrategyManager(address(strategyManager), true);
         poolManager.__setConfigured(true);
 
-        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",         address(strategyFactory),        true);
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), true);
         MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
 
-        strategyFactory.__setIsInstance(address(strategy),               true);
+        strategyFactory.__setIsInstance(address(strategy), true);
         strategyManagerFactory.__setIsInstance(address(strategyManager), true);
     }
 
@@ -660,7 +659,7 @@ contract SetStrategyCap_SetterTests is PoolManagerTestBase {
         assertEq(poolManager.isStrategy(address(strategy)),        true);
         assertEq(poolManager.isStrategyManager(address(strategy)), true);
 
-        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY",         address(strategyFactory)), true);
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY", address(strategyFactory)),         true);
         assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_MANAGER_FACTORY", address(strategyFactory)), false);
 
         vm.prank(POOL_DELEGATE);
@@ -1020,7 +1019,7 @@ contract AddStrategy_SetterTests is PoolManagerTestBase {
 
 contract AddStrategyManager_SetterTests is PoolManagerTestBase {
 
-    MockFactory  internal strategyManagerFactory;
+    MockFactory internal strategyManagerFactory;
     MockStrategy internal strategyManager;
 
     function setUp() public override {
@@ -1286,7 +1285,7 @@ contract AddStrategyManager_SetterTests is PoolManagerTestBase {
 
 contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
 
-    MockFactory  strategyManagerFactory;
+    MockFactory strategyManagerFactory;
     MockStrategy strategyManager;
 
     function setUp() public override {
@@ -1583,7 +1582,7 @@ contract SetWithdrawalManager_SetterTests is PoolManagerTestBase {
 
 contract TriggerDefaultTests is PoolManagerTestBase {
 
-    MockLoan        internal loan;
+    MockLoan internal loan;
     MockLoanManager internal loanManager;
 
     function setUp() public override {
@@ -1658,7 +1657,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1675,14 +1674,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1698,7 +1697,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1713,7 +1712,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1730,14 +1729,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1752,7 +1751,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1767,7 +1766,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1784,14 +1783,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1806,7 +1805,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1821,7 +1820,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1838,14 +1837,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1860,7 +1859,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1871,7 +1870,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(this), address(this));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1882,7 +1881,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1893,7 +1892,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1904,7 +1903,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1921,14 +1920,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(recipient_, uint256(1_000e6));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1945,14 +1944,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1963,97 +1962,97 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1), address(2));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
     }
 
     function test_canCall_paused_transfer() external {
-        bytes32 functionId_ = bytes32("P:transfer");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:transfer");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_redeem() external {
-        bytes32 functionId_ = bytes32("P:redeem");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:redeem");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_withdraw() external {
-        bytes32 functionId_ = bytes32("P:withdraw");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:withdraw");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_removeShares() external {
-        bytes32 functionId_ = bytes32("P:removeShares");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:removeShares");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_requestRedeem() external {
-        bytes32 functionId_ = bytes32("P:requestRedeem");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:requestRedeem");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_requestWithdraw() external {
-        bytes32 functionId_ = bytes32("P:requestWithdraw");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:requestWithdraw");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
@@ -2065,7 +2064,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory data = abi.encode(caller, caller);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId, caller, data);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:INVALID_FUNCTION_ID");
@@ -2112,7 +2111,7 @@ contract MaxDepositTests is PoolManagerTestBase {
 
         poolManager.setLiquidityCap(1);
 
-        asset.mint(address(pool), 1);  // Set totalAssets to 1
+        asset.mint(address(pool), 1); // Set totalAssets to 1
 
         assertEq(poolManager.maxDeposit(lp1), 0);
         assertEq(poolManager.maxDeposit(lp2), 0);
@@ -2127,7 +2126,7 @@ contract MaxDepositTests is PoolManagerTestBase {
         assertEq(poolManager.maxDeposit(lp1), 99);
         assertEq(poolManager.maxDeposit(lp2), 99);
 
-        asset.mint(address(pool), 100);  // Set totalAssets to 101, higher than liquidity cap
+        asset.mint(address(pool), 100); // Set totalAssets to 101, higher than liquidity cap
 
         assertEq(poolManager.maxDeposit(lp1), 0);
         assertEq(poolManager.maxDeposit(lp2), 0);
@@ -2154,7 +2153,7 @@ contract MaxMintTests is PoolManagerTestBase {
         super.setUp();
 
         asset.burn(address(pool), 1_000_000e18);
-        pool.burn(address(1), 1);  // Revert setup mint
+        pool.burn(address(1), 1); // Revert setup mint
     }
 
     function _doInitialDeposit() internal {
@@ -2230,7 +2229,7 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp1), 100);
         assertEq(poolManager.maxMint(lp2), 100);
 
-        poolManager.setLiquidityCap(99);  // Set totalAssets to 99, lower than totalAssets
+        poolManager.setLiquidityCap(99); // Set totalAssets to 99, lower than totalAssets
 
         assertEq(poolManager.maxMint(lp1), 0);
         assertEq(poolManager.maxMint(lp2), 0);
@@ -2251,7 +2250,7 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp1), 100);
         assertEq(poolManager.maxMint(lp2), 100);
 
-        asset.mint(address(pool), 100);  // Set totalAssets to 200 so 2:1
+        asset.mint(address(pool), 100); // Set totalAssets to 200 so 2:1
 
         assertEq(poolManager.maxMint(lp1), 0);
         assertEq(poolManager.maxMint(lp2), 0);
@@ -2262,10 +2261,18 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp2), 50);
     }
 
-    function testFuzz_maxMint_liquidityCap(address lp1, address lp2, uint256 liquidityCap, uint256 initialDeposit, uint256 totalAssets) external {
-        liquidityCap   = bound(liquidityCap,   1,              1e29);
-        initialDeposit = bound(initialDeposit, 1,              liquidityCap);
-        totalAssets    = bound(totalAssets,    initialDeposit, 1e29);
+    function testFuzz_maxMint_liquidityCap(
+        address lp1,
+        address lp2,
+        uint256 liquidityCap,
+        uint256 initialDeposit,
+        uint256 totalAssets
+    )
+        external
+    {
+        liquidityCap   = bound(liquidityCap, 1, 1e29);
+        initialDeposit = bound(initialDeposit, 1, liquidityCap);
+        totalAssets    = bound(totalAssets, initialDeposit, 1e29);
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -2279,7 +2286,7 @@ contract MaxMintTests is PoolManagerTestBase {
         asset.approve(address(pool), initialDeposit);
         pool.deposit(initialDeposit, address(this));
 
-        asset.mint(address(pool), totalAssets - initialDeposit);  // Account for initial deposit
+        asset.mint(address(pool), totalAssets - initialDeposit); // Account for initial deposit
 
         uint256 expectedMaxDeposit = totalAssets > liquidityCap ? 0 : liquidityCap - totalAssets;
 
@@ -2439,7 +2446,7 @@ contract UnrealizedLossesTests is PoolManagerTestBase {
 
     function test_unrealizedLosses_singleStrategy() external {
         uint256 strategyAssets = 1_000_000e18;
-        uint256 strategyLosses =   100_000e18;
+        uint256 strategyLosses = 100_000e18;
 
         assertEq(poolManager.unrealizedLosses(), 0);
 
@@ -2453,7 +2460,7 @@ contract UnrealizedLossesTests is PoolManagerTestBase {
 
     function test_unrealizedLosses_singleStrategyManager() external {
         uint256 managerAssets = 1_000_000e18;
-        uint256 managerLosses =   175_000e18;
+        uint256 managerLosses = 175_000e18;
 
         assertEq(poolManager.unrealizedLosses(), 0);
 
@@ -2468,8 +2475,8 @@ contract UnrealizedLossesTests is PoolManagerTestBase {
     function test_unrealizedLosses_mixed() external {
         uint256 strategyAssets = 1_000_000e18;
         uint256 managerAssets  = 1_000_000e18;
-        uint256 strategyLosses =   100_000e18;
-        uint256 managerLosses  =   175_000e18;
+        uint256 strategyLosses = 100_000e18;
+        uint256 managerLosses  = 175_000e18;
 
         assertEq(poolManager.unrealizedLosses(), 0);
 
@@ -2489,8 +2496,8 @@ contract UnrealizedLossesTests is PoolManagerTestBase {
     function test_unrealizedLosses_mixed_partialThenFullRecovery() external {
         uint256 strategyAssets = 100_000e18;
         uint256 managerAssets  = 100_000e18;
-        uint256 strategyLosses =   1_600e18;
-        uint256 managerLosses  =     800e18;
+        uint256 strategyLosses = 1_600e18;
+        uint256 managerLosses  = 800e18;
 
         /**********************************************************************************************************************************/
         /*** Step 1: Baseline                                                                                                           ***/
@@ -2576,22 +2583,22 @@ contract RequestFundsTests is PoolManagerTestBase {
         strategyFactory        = address(new MockFactory());
         strategyManagerFactory = address(new MockFactory());
 
-        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",                 strategyFactory,                   true);
-        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY",         strategyManagerFactory,            true);
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", strategyFactory, true);
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", strategyManagerFactory, true);
         MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerFactory), true);
 
         MockStrategy(strategy).__setFactory(strategyFactory);
         MockStrategy(strategyManager).__setFactory(strategyManagerFactory);
 
-        poolManager.__setIsStrategy(strategy,               true);
+        poolManager.__setIsStrategy(strategy, true);
         poolManager.__setIsStrategyManager(strategyManager, true);
 
-        MockFactory(strategyFactory).__setIsInstance(strategy,               true);
+        MockFactory(strategyFactory).__setIsInstance(strategy, true);
         MockFactory(strategyManagerFactory).__setIsInstance(strategyManager, true);
 
         vm.startPrank(POOL_DELEGATE);
         poolManager.setWithdrawalManager(withdrawalManager);
-        poolManager.setStrategyCap(strategy,        type(uint256).max);
+        poolManager.setStrategyCap(strategy, type(uint256).max);
         poolManager.setStrategyCap(strategyManager, type(uint256).max);
         vm.stopPrank();
     }
@@ -2717,7 +2724,7 @@ contract RequestFundsTests is PoolManagerTestBase {
         assertEq(poolManager.isStrategy(strategy),        true);
         assertEq(poolManager.isStrategyManager(strategy), true);
 
-        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY",         strategyFactory), true);
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY", strategyFactory),         true);
         assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_MANAGER_FACTORY", strategyFactory), false);
 
         vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
@@ -2871,7 +2878,7 @@ contract RequestFundsTests is PoolManagerTestBase {
         uint256 strategyManagerCap = 700e18;
 
         vm.startPrank(POOL_DELEGATE);
-        poolManager.setStrategyCap(strategy,        strategyCap);
+        poolManager.setStrategyCap(strategy, strategyCap);
         poolManager.setStrategyCap(strategyManager, strategyManagerCap);
         vm.stopPrank();
 

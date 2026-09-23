@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.34;
 
-import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
-import { IMapleProxied }         from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
+import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+import { IMapleProxied } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import { MaplePoolManagerStorage } from "./proxy/MaplePoolManagerStorage.sol";
@@ -43,7 +43,7 @@ import { IMaplePoolManager } from "./interfaces/IMaplePoolManager.sol";
 
 contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePoolManagerStorage {
 
-    uint256 public constant HUNDRED_PERCENT = 100_0000;  // Four decimal precision.
+    uint256 public constant HUNDRED_PERCENT = 100_0000; // Four decimal precision.
 
     /**************************************************************************************************************************************/
     /*** Modifiers                                                                                                                      ***/
@@ -156,22 +156,28 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Delegate Admin Functions                                                                                                  ***/
     /**************************************************************************************************************************************/
 
-    function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata extraDeploymentData_)
-        external override whenNotPaused onlyGovernorOrNotConfigured returns (address strategy_)
+    function addStrategy(
+        address strategyFactory_,
+        bytes32 salt_,
+        bytes calldata extraDeploymentData_
+    )
+        external
+        override
+        whenNotPaused
+        onlyGovernorOrNotConfigured
+        returns (address strategy_)
     {
         require(IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", strategyFactory_), "PM:AS:INVALID_FACTORY");
 
-        strategy_ = IMapleProxyFactory(strategyFactory_).createInstance(
-            bytes.concat(abi.encode(address(this)), extraDeploymentData_),
-            salt_
-        );
+        strategy_ =
+            IMapleProxyFactory(strategyFactory_).createInstance(bytes.concat(abi.encode(address(this)), extraDeploymentData_), salt_);
 
         isStrategy[strategy_] = true;
 
         strategyList.push(strategy_);
 
         // Check the accounting of the newly added strategy isn't broken.
-        ( bool success_, ) = strategy_.staticcall(abi.encodeWithSelector(IStrategyLike.assetsUnderManagement.selector));
+        (bool success_,) = strategy_.staticcall(abi.encodeWithSelector(IStrategyLike.assetsUnderManagement.selector));
 
         require(success_, "PM:AS:AUM_FAILURE");
 
@@ -187,7 +193,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         isStrategyManager[strategyManager_] = true;
         strategyList.push(strategyManager_);
 
-        ( bool success_, ) = strategyManager_.staticcall(abi.encodeWithSelector(IStrategyManagerLike.assetsOf.selector, address(this)));
+        (bool success_,) = strategyManager_.staticcall(abi.encodeWithSelector(IStrategyManagerLike.assetsOf.selector, address(this)));
 
         require(success_, "PM:ASM:ASSETS_OF_FAILURE");
 
@@ -196,7 +202,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function multicall(bytes[] calldata data_) external override {
         for (uint256 i = 0; i < data_.length; i++) {
-            ( bool success_, bytes memory returnData_ ) = address(this).delegatecall(data_[i]);
+            (bool success_, bytes memory returnData_) = address(this).delegatecall(data_[i]);
 
             if (!success_) {
                 assembly ("memory-safe") {
@@ -233,7 +239,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_)
-        external override whenNotPaused onlyProtocolAdminsOrNotConfigured
+        external
+        override
+        whenNotPaused
+        onlyProtocolAdminsOrNotConfigured
     {
         require(delegateManagementFeeRate_ <= HUNDRED_PERCENT, "PM:SDMFR:OOB");
 
@@ -270,13 +279,11 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function triggerDefault(address loan_) external override whenNotPaused nonReentrant {
         require(
-            msg.sender == poolDelegate ||
-            msg.sender == governor()   ||
-            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            msg.sender == poolDelegate || msg.sender == governor() || msg.sender == IGlobalsLike(globals()).operationalAdmin(),
             "PM:NOT_PD_OR_GOV_OR_OA"
         );
 
-        ( , uint256 losses_, ) = ILoanManagerLike(ILoanLike(loan_).lender()).triggerDefault(loan_, address(0));
+        (, uint256 losses_,) = ILoanManagerLike(ILoanLike(loan_).lender()).triggerDefault(loan_, address(0));
 
         emit CollateralLiquidationFinished(loan_, losses_);
     }
@@ -289,10 +296,10 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         address pool_   = pool;
         address caller_ = msg.sender;
 
-        require(destination_                    != address(0), "PM:RF:ZERO_DESTINATION");
-        require(amount_                         != 0,          "PM:RF:ZERO_AMOUNT");
-        require(IERC20Like(pool_).totalSupply() != 0,          "PM:RF:ZERO_SUPPLY");
-        require(_isValidStrategyOrManager(caller_),            "PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        require(destination_ != address(0),           "PM:RF:ZERO_DESTINATION");
+        require(amount_ != 0,                         "PM:RF:ZERO_AMOUNT");
+        require(IERC20Like(pool_).totalSupply() != 0, "PM:RF:ZERO_SUPPLY");
+        require(_isValidStrategyOrManager(caller_),   "PM:RF:INVALID_STRATEGY_OR_MANAGER");
 
         require(_assetsUnderManagement(caller_) + amount_ <= strategyCapOf[caller_], "PM:RF:STRATEGY_CAP");
 
@@ -303,29 +310,55 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** Pool Exit Functions                                                                                                            ***/
     /**************************************************************************************************************************************/
 
-    function processRedeem(uint256 shares_, address owner_, address sender_)
-        external override whenNotPaused nonReentrant onlyPool returns (uint256 redeemableShares_, uint256 resultingAssets_)
+    function processRedeem(
+        uint256 shares_,
+        address owner_,
+        address sender_
+    )
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        onlyPool
+        returns (uint256 redeemableShares_, uint256 resultingAssets_)
     {
         require(owner_ == sender_ || IPoolLike(pool).allowance(owner_, sender_) > 0, "PM:PR:NO_ALLOWANCE");
 
-        ( redeemableShares_, resultingAssets_ ) = IWithdrawalManagerLike(withdrawalManager).processExit(shares_, owner_);
+        (redeemableShares_, resultingAssets_) = IWithdrawalManagerLike(withdrawalManager).processExit(shares_, owner_);
         emit RedeemProcessed(owner_, redeemableShares_, resultingAssets_);
     }
 
-    function processWithdraw(uint256 assets_, address owner_, address sender_)
-        external override whenNotPaused nonReentrant returns (uint256 redeemableShares_, uint256 resultingAssets_)
+    function processWithdraw(
+        uint256 assets_,
+        address owner_,
+        address sender_
+    )
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        returns (uint256 redeemableShares_, uint256 resultingAssets_)
     {
-        assets_; owner_; sender_; redeemableShares_; resultingAssets_;  // Silence compiler warnings
+        assets_; // Silence compiler warnings
+        owner_;
+        sender_;
+        redeemableShares_;
+        resultingAssets_;
         require(false, "PM:PW:NOT_ENABLED");
     }
 
-    function removeShares(uint256 shares_, address owner_)
-        external override whenNotPaused nonReentrant onlyPool returns (uint256 sharesReturned_)
+    function removeShares(
+        uint256 shares_,
+        address owner_
+    )
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        onlyPool
+        returns (uint256 sharesReturned_)
     {
-        emit SharesRemoved(
-            owner_,
-            sharesReturned_ = IWithdrawalManagerLike(withdrawalManager).removeShares(shares_, owner_)
-        );
+        emit SharesRemoved(owner_, sharesReturned_ = IWithdrawalManagerLike(withdrawalManager).removeShares(shares_, owner_));
     }
 
     function requestRedeem(uint256 shares_, address owner_, address sender_) external override whenNotPaused nonReentrant onlyPool {
@@ -338,10 +371,21 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         emit RedeemRequested(owner_, shares_);
     }
 
-    function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_)
-        external override whenNotPaused nonReentrant
+    function requestWithdraw(
+        uint256 shares_,
+        uint256 assets_,
+        address owner_,
+        address sender_
+    )
+        external
+        override
+        whenNotPaused
+        nonReentrant
     {
-        shares_; assets_; owner_; sender_;  // Silence compiler warnings
+        shares_; // Silence compiler warnings
+        assets_;
+        owner_;
+        sender_;
         require(false, "PM:RW:NOT_ENABLED");
     }
 
@@ -349,8 +393,15 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     /*** View Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function canCall(bytes32 functionId_, address caller_, bytes calldata data_)
-        external view override returns (bool canCall_, string memory errorMessage_)
+    function canCall(
+        bytes32 functionId_,
+        address caller_,
+        bytes calldata data_
+    )
+        external
+        view
+        override
+        returns (bool canCall_, string memory errorMessage_)
     {
         if (IGlobalsLike(globals()).isFunctionPaused(msg.sig)) return (false, "PM:CC:PAUSED");
 
@@ -363,21 +414,19 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         if (functionId_ == "P:mint" || functionId_ == "P:mintWithPermit") assets_ = IPoolLike(pool).previewMint(params_[0]);
 
         // Redeem and withdraw require getting the third word from the calldata.
-        if ( functionId_ == "P:redeem" || functionId_ == "P:withdraw") lender_ = _address(params_[2]);
+        if (functionId_ == "P:redeem" || functionId_ == "P:withdraw") lender_ = _address(params_[2]);
 
         // Transfers need to check both the sender and the recipient.
         if (functionId_ == "P:transfer" || functionId_ == "P:transferFrom") {
             address[] memory lenders_ = new address[](2);
 
-            ( lenders_[0], lenders_[1] ) = functionId_ == "P:transfer" ?
-                (caller_,              _address(params_[0])) :
-                (_address(params_[0]), _address(params_[1]));
+            (lenders_[0], lenders_[1]) =
+                functionId_ == "P:transfer" ? (caller_, _address(params_[0])) : (_address(params_[0]), _address(params_[1]));
 
             // Check both lenders in a single call.
             if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lenders_, functionId_)) {
                 return (false, "PM:CC:NOT_ALLOWED");
             }
-
         } else {
             if (!IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), lender_, functionId_)) {
                 return (false, "PM:CC:NOT_ALLOWED");
@@ -385,20 +434,13 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         }
 
         if (
-            functionId_ == "P:redeem"          ||
-            functionId_ == "P:withdraw"        ||
-            functionId_ == "P:removeShares"    ||
-            functionId_ == "P:requestRedeem"   ||
-            functionId_ == "P:requestWithdraw" ||
-            functionId_ == "P:transfer"        ||
-            functionId_ == "P:transferFrom"
+            functionId_ == "P:redeem" || functionId_ == "P:withdraw" || functionId_ == "P:removeShares" || functionId_ == "P:requestRedeem"
+                || functionId_ == "P:requestWithdraw" || functionId_ == "P:transfer" || functionId_ == "P:transferFrom"
         ) return (true, "");
 
         if (
-            functionId_ == "P:deposit"           ||
-            functionId_ == "P:depositWithPermit" ||
-            functionId_ == "P:mint"              ||
-            functionId_ == "P:mintWithPermit"
+            functionId_ == "P:deposit" || functionId_ == "P:depositWithPermit" || functionId_ == "P:mint"
+                || functionId_ == "P:mintWithPermit"
         ) return _canDeposit(assets_);
 
         return (false, "PM:CC:INVALID_FUNCTION_ID");
@@ -449,7 +491,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function getEscrowParams(address, uint256 shares_) external view override returns (uint256 escrowShares_, address destination_) {
         // NOTE: `owner_` param not named to avoid compiler warning.
-        ( escrowShares_, destination_) = (shares_, address(this));
+        (escrowShares_, destination_) = (shares_, address(this));
     }
 
     function maxDeposit(address receiver_) external view virtual override returns (uint256 maxAssets_) {
@@ -469,16 +511,16 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function maxWithdraw(address owner_) external view virtual override returns (uint256 maxAssets_) {
-        owner_;          // Silence compiler warning
-        maxAssets_ = 0;  // NOTE: always returns 0 as withdraw is not implemented
+        owner_; // Silence compiler warning
+        maxAssets_ = 0; // NOTE: always returns 0 as withdraw is not implemented
     }
 
     function previewRedeem(address owner_, uint256 shares_) external view virtual override returns (uint256 assets_) {
-        ( , assets_ ) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, shares_);
+        (, assets_) = IWithdrawalManagerLike(withdrawalManager).previewRedeem(owner_, shares_);
     }
 
     function previewWithdraw(address owner_, uint256 assets_) external view virtual override returns (uint256 shares_) {
-        ( , shares_ ) = IWithdrawalManagerLike(withdrawalManager).previewWithdraw(owner_, assets_);
+        (, shares_) = IWithdrawalManagerLike(withdrawalManager).previewWithdraw(owner_, assets_);
     }
 
     function unrealizedLosses() public view override returns (uint256 unrealizedLosses_) {
@@ -506,22 +548,22 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
     }
 
     function _canDeposit(uint256 assets_) internal view returns (bool canDeposit_, string memory errorMessage_) {
-        if (!active)                                return (false, "P:NOT_ACTIVE");
+        if (!active) return (false, "P:NOT_ACTIVE");
         if (assets_ + totalAssets() > liquidityCap) return (false, "P:DEPOSIT_GT_LIQ_CAP");
 
         return (true, "");
     }
 
     function _decodeParameters(bytes calldata data_) internal pure returns (uint256[3] memory words) {
-        if (data_.length > 64)  {
-            ( words[0], words[1], words[2] ) = abi.decode(data_, (uint256, uint256, uint256));
+        if (data_.length > 64) {
+            (words[0], words[1], words[2]) = abi.decode(data_, (uint256, uint256, uint256));
         } else {
-            ( words[0], words[1] ) = abi.decode(data_, (uint256, uint256));
+            (words[0], words[1]) = abi.decode(data_, (uint256, uint256));
         }
     }
 
     function _getMaxAssets(address receiver_, uint256 totalAssets_, bytes32 functionId_) internal view returns (uint256 maxAssets_) {
-        bool    depositAllowed_ = IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this),  receiver_, functionId_);
+        bool    depositAllowed_ = IPoolPermissionManagerLike(poolPermissionManager).hasPermission(address(this), receiver_, functionId_);
         uint256 liquidityCap_   = liquidityCap;
         maxAssets_              = liquidityCap_ > totalAssets_ && depositAllowed_ ? liquidityCap_ - totalAssets_ : 0;
     }
@@ -532,7 +574,7 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         address factory_ = IMapleProxied(strategy_).factory();
 
         if (!IGlobalsLike(globals()).isInstanceOf("STRATEGY_FACTORY", factory_)) return false;
-        if (!IMapleProxyFactory(factory_).isInstance(strategy_))                 return false;
+        if (!IMapleProxyFactory(factory_).isInstance(strategy_)) return false;
 
         return true;
     }
@@ -543,14 +585,14 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
         address factory_ = IMapleProxied(strategyManager_).factory();
 
         if (!IGlobalsLike(globals()).isInstanceOf("STRATEGY_MANAGER_FACTORY", factory_)) return false;
-        if (!IMapleProxyFactory(factory_).isInstance(strategyManager_))                  return false;
+        if (!IMapleProxyFactory(factory_).isInstance(strategyManager_)) return false;
 
         return true;
     }
 
     function _isValidStrategyOrManager(address caller_) internal view returns (bool) {
         if (isStrategyManager[caller_]) return _isValidStrategyManager(caller_);
-        if (isStrategy[caller_])        return _isValidStrategy(caller_);
+        if (isStrategy[caller_]) return _isValidStrategy(caller_);
 
         return false;
     }
@@ -571,10 +613,8 @@ contract MaplePoolManager is IMaplePoolManager, MapleProxiedInternals, MaplePool
 
     function _revertIfConfiguredAndNotProtocolAdmins() internal view {
         require(
-            !configured ||
-            msg.sender == poolDelegate ||
-            msg.sender == governor()   ||
-            msg.sender == IGlobalsLike(globals()).operationalAdmin(),
+            !configured || msg.sender == poolDelegate || msg.sender == governor()
+                || msg.sender == IGlobalsLike(globals()).operationalAdmin(),
             "PM:NOT_PA_OR_NOT_CONFIGURED"
         );
     }

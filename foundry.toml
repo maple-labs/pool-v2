@@ -8,6 +8,26 @@ verbosity       = 3              # The verbosity of tests
 block_timestamp = 1_622_400_000  # Timestamp for tests (non-zero)
 fuzz_runs       = 100            # Number of fuzz runs
 
+[profile.default.fmt]
+line_length                  = 140
+tab_width                    = 4
+style                        = "space"
+bracket_spacing              = true
+contract_new_lines           = true
+prefer_compact               = "none"
+multiline_func_header        = "all"
+quote_style                  = "double"
+int_types                    = "long"
+number_underscore            = "preserve"
+hex_underscore               = "remove"
+single_line_statement_blocks = "preserve"
+sort_imports                 = false
+override_spacing             = false
+pow_no_space                 = false
+wrap_comments                = true
+docs_style                   = "block"
+ignore                       = []
+
 [profile.deep]
 fuzz_runs = 1000
 

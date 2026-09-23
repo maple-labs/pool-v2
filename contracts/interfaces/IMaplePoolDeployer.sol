@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 struct PoolManagerInitParams {
     address asset;
     uint256 initialSupply;
-    string  name;
-    string  symbol;
+    string name;
+    string symbol;
 }
 
 struct PoolConfigParams {
@@ -18,7 +18,7 @@ struct StrategyDeployParams {
     address factory;
     uint256 cap;
     bytes32 salt;
-    bytes   deploymentData;
+    bytes deploymentData;
 }
 
 struct StrategyManagerParams {
@@ -37,11 +37,11 @@ interface IMaplePoolDeployer {
      *  @param strategyManagers  Addresses of the StrategyManagers registered on the PoolManager.
      */
     event PoolDeployed(
-        address   indexed pool,
-        address   indexed poolManager,
-        address   indexed withdrawalManager,
-        address[]         strategies,
-        address[]         strategyManagers
+        address indexed pool,
+        address indexed poolManager,
+        address indexed withdrawalManager,
+        address[] strategies,
+        address[] strategyManagers
     );
 
     /**
@@ -56,11 +56,11 @@ interface IMaplePoolDeployer {
      *  @return poolManager              The address of the deployed PoolManager.
      */
     function deployPool(
-        address                          poolManagerFactory,
-        address                          withdrawalManagerFactory,
-        PoolManagerInitParams   calldata poolManagerInitParams,
-        PoolConfigParams        calldata poolConfigParams,
-        StrategyDeployParams[]  calldata strategiesParams,
+        address poolManagerFactory,
+        address withdrawalManagerFactory,
+        PoolManagerInitParams calldata poolManagerInitParams,
+        PoolConfigParams calldata poolConfigParams,
+        StrategyDeployParams[] calldata strategiesParams,
         StrategyManagerParams[] calldata strategyManagersParams
     )
         external
@@ -90,7 +90,10 @@ interface IMaplePoolDeployer {
         uint256 initialSupply,
         string memory name,
         string memory symbol
-    ) external view returns (address poolManager, address pool);
+    )
+        external
+        view
+        returns (address poolManager, address pool);
 
     /**
      *  @dev    Gets the address of the Queue Withdrawal Manager that would result from a deployment.
@@ -103,7 +106,10 @@ interface IMaplePoolDeployer {
         address withdrawalManagerFactory,
         address pool,
         address poolManager
-    ) external view returns (address withdrawalManager);
+    )
+        external
+        view
+        returns (address withdrawalManager);
 
     /**
      *  @dev    Gets the addresses of the Strategies that would result from a deployment.
@@ -114,10 +120,13 @@ interface IMaplePoolDeployer {
      *  @return strategies             The addresses of the Strategy contracts that will be deployed.
      */
     function getStrategiesAddresses(
-        address          poolManager,
+        address poolManager,
         address[] memory strategyFactories,
-        bytes[]   memory strategyDeploymentData,
+        bytes[] memory strategyDeploymentData,
         bytes32[] memory strategySalts
-    ) external view returns (address[] memory strategies);
+    )
+        external
+        view
+        returns (address[] memory strategies);
 
 }

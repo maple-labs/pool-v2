@@ -237,7 +237,11 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @return redeemableShares The amount of shares redeemed.
      *  @return resultingAssets  The amount of assets withdrawn.
      */
-    function processRedeem(uint256 shares, address owner, address sender)
+    function processRedeem(
+        uint256 shares,
+        address owner,
+        address sender
+    )
         external
         returns (uint256 redeemableShares, uint256 resultingAssets);
 
@@ -249,7 +253,11 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @return redeemableShares The amount of shares redeemed.
      *  @return resultingAssets  The amount of assets withdrawn.
      */
-    function processWithdraw(uint256 assets, address owner, address sender)
+    function processWithdraw(
+        uint256 assets,
+        address owner,
+        address sender
+    )
         external
         returns (uint256 redeemableShares, uint256 resultingAssets);
 
@@ -276,7 +284,7 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @param owner  The address of the owner of the shares.
      *  @param sender The address of the sender of the shares.
      */
-     function requestWithdraw(uint256 shares, uint256 assets, address owner, address sender) external;
+    function requestWithdraw(uint256 shares, uint256 assets, address owner, address sender) external;
 
     /**************************************************************************************************************************************/
     /*** LP Token View Functions                                                                                                        ***/
@@ -354,9 +362,7 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
      *  @return canCall      True if the call can be executed, false otherwise.
      *  @return errorMessage The error message if the call cannot be executed.
      */
-    function canCall(bytes32 functionId, address caller, bytes memory data)
-        external view
-        returns (bool canCall, string memory errorMessage);
+    function canCall(bytes32 functionId, address caller, bytes memory data) external view returns (bool canCall, string memory errorMessage);
 
     /**
      *  @dev    Gets the address of the globals.

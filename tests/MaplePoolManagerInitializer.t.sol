@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MaplePoolManagerFactory }      from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { IMaplePoolManagerInitializer } from "../contracts/interfaces/IMaplePoolManagerInitializer.sol";
 
 import { MaplePool } from "../contracts/MaplePool.sol";
@@ -18,7 +18,7 @@ contract PoolManagerInitializerTestBase is TestBase {
 
     address internal poolDelegate = makeAddr("poolDelegate");
 
-    MockERC20               internal asset;
+    MockERC20 internal asset;
     MaplePoolManagerFactory internal factory;
 
     MaplePoolManagerInitializerHarness internal initializer;

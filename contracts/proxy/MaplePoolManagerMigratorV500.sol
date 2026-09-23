@@ -5,11 +5,7 @@ import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/inter
 
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import {
-    IGlobalsLike,
-    IMapleProxyFactoryLike,
-    IStrategyLike
-} from "../interfaces/Interfaces.sol";
+import { IGlobalsLike, IMapleProxyFactoryLike, IStrategyLike } from "../interfaces/Interfaces.sol";
 
 import { MaplePoolManagerStorage } from "./MaplePoolManagerStorage.sol";
 
@@ -43,13 +39,11 @@ contract MaplePoolManagerMigratorV500 is MapleProxiedInternals, MaplePoolManager
     }
 
     function _isFixedTermLoanManager(address globals_, address strategy_) internal view returns (bool isFixedTermLoanManager_) {
-        isFixedTermLoanManager_ =
-            IGlobalsLike(globals_).isInstanceOf("FT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
+        isFixedTermLoanManager_ = IGlobalsLike(globals_).isInstanceOf("FT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
     }
 
     function _isOpenTermLoanManager(address globals_, address strategy_) internal view returns (bool isOpenTermLoanManager_) {
-        isOpenTermLoanManager_ =
-            IGlobalsLike(globals_).isInstanceOf("OT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
+        isOpenTermLoanManager_ = IGlobalsLike(globals_).isInstanceOf("OT_LOAN_MANAGER_FACTORY", IMapleProxied(strategy_).factory());
     }
 
 }

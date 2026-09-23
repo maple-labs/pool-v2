@@ -51,40 +51,41 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     /**************************************************************************************************************************************/
 
     function deployPool(
-        address                          poolManagerFactory_,
-        address                          withdrawalManagerFactory_,
-        PoolManagerInitParams   calldata poolManagerInitParams_,
-        PoolConfigParams        calldata poolConfigParams_,
-        StrategyDeployParams[]  calldata strategiesParams_,
+        address poolManagerFactory_,
+        address withdrawalManagerFactory_,
+        PoolManagerInitParams calldata poolManagerInitParams_,
+        PoolConfigParams calldata poolConfigParams_,
+        StrategyDeployParams[] calldata strategiesParams_,
         StrategyManagerParams[] calldata strategyManagersParams_
     )
-        external override returns (address poolManager_)
+        external
+        override
+        returns (address poolManager_)
     {
         address      poolPermissionManager_ = poolConfigParams_.poolPermissionManager;
         IGlobalsLike globals_               = IGlobalsLike(globals);
 
         require(globals_.isPoolDelegate(msg.sender), "PD:DP:INVALID_PD");
 
-        require(globals_.isInstanceOf("POOL_MANAGER_FACTORY",             poolManagerFactory_),       "PD:DP:INVALID_PM_FACTORY");
+        require(globals_.isInstanceOf("POOL_MANAGER_FACTORY", poolManagerFactory_),                   "PD:DP:INVALID_PM_FACTORY");
         require(globals_.isInstanceOf("WITHDRAWAL_MANAGER_QUEUE_FACTORY", withdrawalManagerFactory_), "PD:DP:INVALID_WM_FACTORY");
-        require(globals_.isInstanceOf("POOL_PERMISSION_MANAGER",          poolPermissionManager_),    "PD:DP:INVALID_PPM");
+        require(globals_.isInstanceOf("POOL_PERMISSION_MANAGER", poolPermissionManager_),             "PD:DP:INVALID_PPM");
 
-        poolManager_ = IMapleProxyFactory(poolManagerFactory_).createInstance(
-            abi.encode(
-                msg.sender,
-                poolManagerInitParams_.asset,
-                poolManagerInitParams_.initialSupply,
-                poolManagerInitParams_.name,
-                poolManagerInitParams_.symbol
-            ),
-            keccak256(abi.encode(msg.sender))
-        );
+        poolManager_ = IMapleProxyFactory(poolManagerFactory_)
+            .createInstance(
+                abi.encode(
+                    msg.sender,
+                    poolManagerInitParams_.asset,
+                    poolManagerInitParams_.initialSupply,
+                    poolManagerInitParams_.name,
+                    poolManagerInitParams_.symbol
+                ),
+                keccak256(abi.encode(msg.sender))
+            );
 
-        address pool_              = IPoolManagerLike(poolManager_).pool();
-        address withdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).createInstance(
-            abi.encode(pool_),
-            keccak256(abi.encode(poolManager_))
-        );
+        address pool_ = IPoolManagerLike(poolManager_).pool();
+        address withdrawalManager_ =
+            IMapleProxyFactory(withdrawalManagerFactory_).createInstance(abi.encode(pool_), keccak256(abi.encode(poolManager_)));
 
         address[] memory strategies_       = _deployStrategies(poolManager_, strategiesParams_);
         address[] memory strategyManagers_ = _addStrategyManagers(poolManager_, strategyManagersParams_);
@@ -102,8 +103,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
     /*** Pool deployment internal helper functions                                                                                      ***/
     /**************************************************************************************************************************************/
 
-    function _addStrategyManagers(address poolManager_, StrategyManagerParams[] calldata strategyManagersParams_)
-        internal returns (address[] memory strategyManagers_)
+    function _addStrategyManagers(
+        address poolManager_,
+        StrategyManagerParams[] calldata strategyManagersParams_
+    )
+        internal
+        returns (address[] memory strategyManagers_)
     {
         strategyManagers_ = new address[](strategyManagersParams_.length);
 
@@ -119,8 +124,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         }
     }
 
-    function _deployStrategies(address poolManager_, StrategyDeployParams[] calldata strategiesParams_)
-        internal returns (address[] memory strategies_)
+    function _deployStrategies(
+        address poolManager_,
+        StrategyDeployParams[] calldata strategiesParams_
+    )
+        internal
+        returns (address[] memory strategies_)
     {
         strategies_ = new address[](strategiesParams_.length);
 
@@ -149,11 +158,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         string memory name_,
         string memory symbol_
     )
-        external view override returns (address poolManager_, address pool_)
+        external
+        view
+        override
+        returns (address poolManager_, address pool_)
     {
-        ( pool_, poolManager_ ) = _getPoolAddresses(
-            poolManagerFactory_, poolDelegate_, asset_, initialSupply_, name_, symbol_
-        );
+        (pool_, poolManager_) = _getPoolAddresses(poolManagerFactory_, poolDelegate_, asset_, initialSupply_, name_, symbol_);
     }
 
     function getQueueWithdrawalManagerAddress(
@@ -161,18 +171,23 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address pool_,
         address poolManager_
     )
-        external view override returns (address withdrawalManager_)
+        external
+        view
+        override
+        returns (address withdrawalManager_)
     {
         return _getQueueWithdrawalManagerAddress(withdrawalManagerFactory_, pool_, poolManager_);
     }
 
     function getStrategiesAddresses(
-        address          poolManager_,
+        address poolManager_,
         address[] memory strategyFactories_,
-        bytes[]   memory strategyDeploymentData_,
+        bytes[] memory strategyDeploymentData_,
         bytes32[] memory strategySalts_
     )
-        external view returns (address[] memory strategies_)
+        external
+        view
+        returns (address[] memory strategies_)
     {
         return _getStrategiesAddresses(poolManager_, strategyFactories_, strategyDeploymentData_, strategySalts_);
     }
@@ -186,13 +201,12 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         address pool_,
         address poolManager_
     )
-        internal view
+        internal
+        view
         returns (address queueWithdrawalManager_)
     {
-        queueWithdrawalManager_ = IMapleProxyFactory(withdrawalManagerFactory_).getInstanceAddress(
-            abi.encode(pool_),
-            keccak256(abi.encode(poolManager_))
-        );
+        queueWithdrawalManager_ =
+            IMapleProxyFactory(withdrawalManagerFactory_).getInstanceAddress(abi.encode(pool_), keccak256(abi.encode(poolManager_)));
     }
 
     function _getPoolAddresses(
@@ -203,45 +217,51 @@ contract MaplePoolDeployer is IMaplePoolDeployer {
         string memory name_,
         string memory symbol_
     )
-        internal view returns (address pool_, address poolManager_)
+        internal
+        view
+        returns (address pool_, address poolManager_)
     {
         bytes memory constructorArgs = abi.encode(poolDelegate_, asset_, initialSupply_, name_, symbol_);
-        bytes32 salt                 = keccak256(abi.encode(poolDelegate_));
+        bytes32      salt            = keccak256(abi.encode(poolDelegate_));
 
         poolManager_ = IMapleProxyFactory(poolManagerFactory_).getInstanceAddress(constructorArgs, salt);
         pool_        = _addressFrom(poolManager_, 1);
     }
 
     function _getStrategiesAddresses(
-        address          poolManager_,
+        address poolManager_,
         address[] memory strategyFactories_,
-        bytes[]   memory strategyDeploymentData_,
+        bytes[] memory strategyDeploymentData_,
         bytes32[] memory strategySalts_
     )
-        internal view
+        internal
+        view
         returns (address[] memory strategiesAddresses_)
     {
         strategiesAddresses_ = new address[](strategyFactories_.length);
 
         for (uint256 i_; i_ < strategyFactories_.length; ++i_) {
-            strategiesAddresses_[i_] = IMapleProxyFactory(strategyFactories_[i_]).getInstanceAddress(
-                bytes.concat(abi.encode(poolManager_), strategyDeploymentData_[i_]),
-                strategySalts_[i_]
-            );
+            strategiesAddresses_[i_] = IMapleProxyFactory(strategyFactories_[i_])
+                .getInstanceAddress(bytes.concat(abi.encode(poolManager_), strategyDeploymentData_[i_]), strategySalts_[i_]);
         }
-    } 
+    }
 
     function _addressFrom(address origin_, uint256 nonce_) internal pure returns (address address_) {
         address_ = address(
             uint160(
                 uint256(
                     keccak256(
-                        nonce_ == 0x00     ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, bytes1(0x80))                 :
-                        nonce_ <= 0x7f     ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, uint8(nonce_))                :
-                        nonce_ <= 0xff     ? abi.encodePacked(bytes1(0xd7), bytes1(0x94), origin_, bytes1(0x81), uint8(nonce_))  :
-                        nonce_ <= 0xffff   ? abi.encodePacked(bytes1(0xd8), bytes1(0x94), origin_, bytes1(0x82), uint16(nonce_)) :
-                        nonce_ <= 0xffffff ? abi.encodePacked(bytes1(0xd9), bytes1(0x94), origin_, bytes1(0x83), uint24(nonce_)) :
-                                             abi.encodePacked(bytes1(0xda), bytes1(0x94), origin_, bytes1(0x84), uint32(nonce_))
+                        nonce_ == 0x00
+                            ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, bytes1(0x80))
+                            : nonce_ <= 0x7f
+                                ? abi.encodePacked(bytes1(0xd6), bytes1(0x94), origin_, uint8(nonce_))
+                                : nonce_ <= 0xff
+                                    ? abi.encodePacked(bytes1(0xd7), bytes1(0x94), origin_, bytes1(0x81), uint8(nonce_))
+                                    : nonce_ <= 0xffff
+                                        ? abi.encodePacked(bytes1(0xd8), bytes1(0x94), origin_, bytes1(0x82), uint16(nonce_))
+                                        : nonce_ <= 0xffffff
+                                            ? abi.encodePacked(bytes1(0xd9), bytes1(0x94), origin_, bytes1(0x83), uint24(nonce_))
+                                            : abi.encodePacked(bytes1(0xda), bytes1(0x94), origin_, bytes1(0x84), uint32(nonce_))
                     )
                 )
             )

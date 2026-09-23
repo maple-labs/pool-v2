@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { MapleProxyFactory }  from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
-import { MaplePoolDeployer }        from "../contracts/MaplePoolDeployer.sol";
-import { MaplePoolManagerFactory }  from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolDeployer } from "../contracts/MaplePoolDeployer.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 
-import { IMaplePool }         from "../contracts/interfaces/IMaplePool.sol";
-import { IMaplePoolManager }  from "../contracts/interfaces/IMaplePoolManager.sol";
+import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
+import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
 
 import {
     IMaplePoolDeployer,
@@ -18,14 +18,7 @@ import {
     StrategyManagerParams
 } from "../contracts/interfaces/IMaplePoolDeployer.sol";
 
-import {
-    MockFactory,
-    MockGlobals,
-    MockMigrator,
-    MockPoolPermissionManager,
-    MockProxied,
-    MockStrategy
-} from "./utils/Mocks.sol";
+import { MockFactory, MockGlobals, MockMigrator, MockPoolPermissionManager, MockProxied, MockStrategy } from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 
@@ -42,7 +35,7 @@ contract PoolDeployerTestBase is TestBase {
 
     bytes32 strategySalt = keccak256("strategy-1");
 
-    uint256 delegateManagementFeeRate = 0.1e6;  // 10% delegate fee
+    uint256 delegateManagementFeeRate = 0.1e6; // 10% delegate fee
     uint256 liquidityCap              = 1_000_000e18;
 
     string poolName   = "Pool";
@@ -56,12 +49,12 @@ contract PoolDeployerTestBase is TestBase {
     address strategyManagerFactory;
     address withdrawalManagerFactory;
 
-    MockERC20               asset;
+    MockERC20 asset;
     MaplePoolManagerFactory factory;
-    MaplePoolDeployer       poolDeployer;
+    MaplePoolDeployer poolDeployer;
 
     PoolManagerInitParams poolManagerInitParams;
-    PoolConfigParams      poolConfigParams;
+    PoolConfigParams poolConfigParams;
 
     function setUp() public virtual {
         asset = new MockERC20("Asset", "AT", 18);
@@ -96,11 +89,11 @@ contract PoolDeployerTestBase is TestBase {
         poolDeployer = new MaplePoolDeployer(globals);
         MockGlobals(globals).setValidPoolDeployer(address(poolDeployer), true);
 
-        MockGlobals(globals).setValidInstance("POOL_MANAGER_FACTORY",             address(factory),         true);
+        MockGlobals(globals).setValidInstance("POOL_MANAGER_FACTORY", address(factory), true);
         MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", withdrawalManagerFactory, true);
-        MockGlobals(globals).setValidInstance("POOL_PERMISSION_MANAGER",          poolPermissionManager,    true);
-        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",                 strategyFactory,          true);
-        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY",         strategyManagerFactory,   true);
+        MockGlobals(globals).setValidInstance("POOL_PERMISSION_MANAGER", poolPermissionManager, true);
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", strategyFactory, true);
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", strategyManagerFactory, true);
 
         poolManagerInitParams = PoolManagerInitParams({
             asset:         address(asset),
@@ -117,15 +110,11 @@ contract PoolDeployerTestBase is TestBase {
     }
 
     function _getExpectedPoolManagerAddress(uint256 initialSupply) internal view returns (address poolManager_) {
-        ( poolManager_, ) = poolDeployer.getPoolDeploymentAddresses(
-            address(factory), PD, address(asset), initialSupply, poolName, poolSymbol
-        );
+        (poolManager_,) = poolDeployer.getPoolDeploymentAddresses(address(factory), PD, address(asset), initialSupply, poolName, poolSymbol);
     }
 
     function _getExpectedPoolAddress(uint256 initialSupply) internal view returns (address pool_) {
-        ( , pool_ ) = poolDeployer.getPoolDeploymentAddresses(
-            address(factory), PD, address(asset), initialSupply, poolName, poolSymbol
-        );
+        (, pool_) = poolDeployer.getPoolDeploymentAddresses(address(factory), PD, address(asset), initialSupply, poolName, poolSymbol);
     }
 
     function _getExpectedWMAddress(address pool, address poolManager) internal view returns (address withdrawalManager_) {
@@ -134,7 +123,7 @@ contract PoolDeployerTestBase is TestBase {
 
     function _getExpectedStrategyAddress(address poolManager, bytes32 salt) internal view returns (address strategy_) {
         address[] memory factories      = new address[](1);
-        bytes[]   memory deploymentData = new bytes[](1);
+        bytes[] memory   deploymentData = new bytes[](1);
         bytes32[] memory salts          = new bytes32[](1);
 
         factories[0]      = strategyFactory;
@@ -157,8 +146,7 @@ contract PoolDeployerTestBase is TestBase {
         });
     }
 
-    function _strategyManagerParams(uint256 cap) internal view returns (StrategyManagerParams[] memory strategyManagers_)
-    {
+    function _strategyManagerParams(uint256 cap) internal view returns (StrategyManagerParams[] memory strategyManagers_) {
         strategyManagers_ = new StrategyManagerParams[](1);
 
         strategyManagers_[0] = StrategyManagerParams({
@@ -182,7 +170,7 @@ contract PoolDeployerTestBase is TestBase {
 
 contract DeployPoolFailureTests is PoolDeployerTestBase {
 
-    StrategyDeployParams[]  strategiesParams;
+    StrategyDeployParams[] strategiesParams;
     StrategyManagerParams[] strategyManagersParams;
 
     function test_deployPool_revert_invalidPoolDelegate() external {
@@ -191,12 +179,7 @@ contract DeployPoolFailureTests is PoolDeployerTestBase {
         vm.prank(PD);
         vm.expectRevert("PD:DP:INVALID_PD");
         poolDeployer.deployPool(
-            address(factory),
-            withdrawalManagerFactory,
-            poolManagerInitParams,
-            poolConfigParams,
-            strategiesParams,
-            strategyManagersParams
+            address(factory), withdrawalManagerFactory, poolManagerInitParams, poolConfigParams, strategiesParams, strategyManagersParams
         );
     }
 
@@ -206,12 +189,7 @@ contract DeployPoolFailureTests is PoolDeployerTestBase {
         vm.prank(PD);
         vm.expectRevert("PD:DP:INVALID_PM_FACTORY");
         poolDeployer.deployPool(
-            address(factory),
-            withdrawalManagerFactory,
-            poolManagerInitParams,
-            poolConfigParams,
-            strategiesParams,
-            strategyManagersParams
+            address(factory), withdrawalManagerFactory, poolManagerInitParams, poolConfigParams, strategiesParams, strategyManagersParams
         );
     }
 
@@ -221,12 +199,7 @@ contract DeployPoolFailureTests is PoolDeployerTestBase {
         vm.prank(PD);
         vm.expectRevert("PD:DP:INVALID_WM_FACTORY");
         poolDeployer.deployPool(
-            address(factory),
-            withdrawalManagerFactory,
-            poolManagerInitParams,
-            poolConfigParams,
-            strategiesParams,
-            strategyManagersParams
+            address(factory), withdrawalManagerFactory, poolManagerInitParams, poolConfigParams, strategiesParams, strategyManagersParams
         );
     }
 
@@ -236,12 +209,7 @@ contract DeployPoolFailureTests is PoolDeployerTestBase {
         vm.prank(PD);
         vm.expectRevert("PD:DP:INVALID_PPM");
         poolDeployer.deployPool(
-            address(factory),
-            withdrawalManagerFactory,
-            poolManagerInitParams,
-            poolConfigParams,
-            strategiesParams,
-            strategyManagersParams
+            address(factory), withdrawalManagerFactory, poolManagerInitParams, poolConfigParams, strategiesParams, strategyManagersParams
         );
     }
 
@@ -250,9 +218,16 @@ contract DeployPoolFailureTests is PoolDeployerTestBase {
 contract DeployPoolSuccessTests is PoolDeployerTestBase {
 
     function test_deployPool_success_emptyStrategiesAndManagers() external {
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -297,10 +272,20 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
     }
 
     function test_deployPool_success_withStrategiesAndManagers_noCaps() external {
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
-        address expectedStrategy          = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
+        address expectedStrategy = _getExpectedStrategyAddress({
+            poolManager: expectedPoolManager,
+            salt:        strategySalt
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -326,11 +311,11 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
 
         assertEq(poolManagerAddress, expectedPoolManager);
 
-        assertEq(poolManager.strategyListLength(),                  2);
-        assertEq(poolManager.strategyList(0),                       expectedStrategy);
-        assertEq(poolManager.strategyList(1),                       strategyManager);
-        assertEq(poolManager.strategyCapOf(expectedStrategy),       0);
-        assertEq(poolManager.strategyCapOf(strategyManager),        0);
+        assertEq(poolManager.strategyListLength(),            2);
+        assertEq(poolManager.strategyList(0),                 expectedStrategy);
+        assertEq(poolManager.strategyList(1),                 strategyManager);
+        assertEq(poolManager.strategyCapOf(expectedStrategy), 0);
+        assertEq(poolManager.strategyCapOf(strategyManager),  0);
 
         assertEq(poolManager.isStrategy(expectedStrategy),       true);
         assertEq(poolManager.isStrategyManager(strategyManager), true);
@@ -347,10 +332,20 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
         uint256 strategyCap        = 500_000e18;
         uint256 strategyManagerCap = 250_000e18;
 
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
-        address expectedStrategy          = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
+        address expectedStrategy = _getExpectedStrategyAddress({
+            poolManager: expectedPoolManager,
+            salt:        strategySalt
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -410,9 +405,16 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
 
         poolManagerInitParams.initialSupply = initialSupply;
 
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: initialSupply });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: initialSupply });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: initialSupply
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: initialSupply
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -478,11 +480,24 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
         MockFactory(strategyManagerFactory).__setIsInstance(strategyManager1, true);
         MockFactory(strategyManagerFactory).__setIsInstance(strategyManager2, true);
 
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
-        address expectedStrategy1         = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt1 });
-        address expectedStrategy2         = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt2 });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
+        address expectedStrategy1 = _getExpectedStrategyAddress({
+            poolManager: expectedPoolManager,
+            salt:        strategySalt1
+        });
+        address expectedStrategy2 = _getExpectedStrategyAddress({
+            poolManager: expectedPoolManager,
+            salt:        strategySalt2
+        });
 
         StrategyDeployParams[] memory strategies = new StrategyDeployParams[](2);
 
@@ -502,8 +517,14 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
 
         StrategyManagerParams[] memory strategyManagers = new StrategyManagerParams[](2);
 
-        strategyManagers[0] = StrategyManagerParams({ instance: strategyManager1, cap: strategyManagerCap1 });
-        strategyManagers[1] = StrategyManagerParams({ instance: strategyManager2, cap: strategyManagerCap2 });
+        strategyManagers[0] = StrategyManagerParams({
+            instance: strategyManager1,
+            cap:      strategyManagerCap1
+        });
+        strategyManagers[1] = StrategyManagerParams({
+            instance: strategyManager2,
+            cap:      strategyManagerCap2
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -511,17 +532,12 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
             expectedPoolManager,
             expectedWithdrawalManager,
             array(expectedStrategy1, expectedStrategy2),
-            array(strategyManager1,  strategyManager2)
+            array(strategyManager1, strategyManager2)
         );
 
         vm.prank(PD);
         address poolManagerAddress = poolDeployer.deployPool(
-            address(factory),
-            withdrawalManagerFactory,
-            poolManagerInitParams,
-            poolConfigParams,
-            strategies,
-            strategyManagers
+            address(factory), withdrawalManagerFactory, poolManagerInitParams, poolConfigParams, strategies, strategyManagers
         );
 
         IMaplePoolManager poolManager = IMaplePoolManager(poolManagerAddress);
@@ -566,10 +582,20 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
     function test_deployPool_success_onlyStrategy() external {
         uint256 strategyCap = 500_000e18;
 
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
-        address expectedStrategy          = _getExpectedStrategyAddress({ poolManager: expectedPoolManager, salt: strategySalt });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
+        address expectedStrategy = _getExpectedStrategyAddress({
+            poolManager: expectedPoolManager,
+            salt:        strategySalt
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(
@@ -620,9 +646,16 @@ contract DeployPoolSuccessTests is PoolDeployerTestBase {
     function test_deployPool_success_onlyStrategyManager() external {
         uint256 strategyManagerCap = 250_000e18;
 
-        address expectedPoolManager       = _getExpectedPoolManagerAddress({ initialSupply: 0 });
-        address expectedPool              = _getExpectedPoolAddress({ initialSupply: 0 });
-        address expectedWithdrawalManager = _getExpectedWMAddress({ pool: expectedPool, poolManager: expectedPoolManager });
+        address expectedPoolManager = _getExpectedPoolManagerAddress({
+            initialSupply: 0
+        });
+        address expectedPool = _getExpectedPoolAddress({
+            initialSupply: 0
+        });
+        address expectedWithdrawalManager = _getExpectedWMAddress({
+            pool:        expectedPool,
+            poolManager: expectedPoolManager
+        });
 
         vm.expectEmit();
         emit IMaplePoolDeployer.PoolDeployed(

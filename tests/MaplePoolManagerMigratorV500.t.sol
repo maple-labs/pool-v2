@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }      from "../modules/forge-std/src/Test.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
 
-import { MaplePoolManagerFactory }      from "../contracts/proxy/MaplePoolManagerFactory.sol";
-import { MaplePoolManagerInitializer }  from "../contracts/proxy/MaplePoolManagerInitializer.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 import { MaplePoolManagerMigratorV500 } from "../contracts/proxy/MaplePoolManagerMigratorV500.sol";
 
 import { MaplePoolManagerHarness } from "./utils/Harnesses.sol";
@@ -51,10 +51,7 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         factory.setDefaultVersion(1);
         vm.stopPrank();
 
-        poolManager = MaplePoolManagerHarness(factory.createInstance(
-            abi.encode(poolDelegate, asset, 0, "Maple Pool", "MP"),
-            "salt"
-        ));
+        poolManager = MaplePoolManagerHarness(factory.createInstance(abi.encode(poolDelegate, asset, 0, "Maple Pool", "MP"), "salt"));
     }
 
     function _createAndAddStrategy(address factory_, uint256 aum_) private returns (address strategy_) {
@@ -115,9 +112,7 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
         array_[3] = d_;
     }
 
-    function array(address a_, address b_, address c_, address d_, address e_, address f_)
-        internal pure returns (address[] memory array_)
-    {
+    function array(address a_, address b_, address c_, address d_, address e_, address f_) internal pure returns (address[] memory array_) {
         array_    = new address[](6);
         array_[0] = a_;
         array_[1] = b_;
@@ -132,7 +127,9 @@ abstract contract MaplePoolManagerMigratorV500TestBase is Test {
 contract MigrateFailureTests is MaplePoolManagerMigratorV500TestBase {
 
     function test_migrate_revert_nonZeroAum_ftlm() external {
-        createAndAddFixedTermLoanManager({ aum_: 1 });
+        createAndAddFixedTermLoanManager({
+            aum_: 1
+        });
 
         vm.prank(securityAdmin);
         vm.expectRevert("MPF:UI:FAILED");
@@ -153,9 +150,15 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_keepsOpenTermLoanManagers() external {
-        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 0 });
-        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 1_000e6 });
-        address otlm3 = createAndAddOpenTermLoanManager({ aum_: 42 });
+        address otlm1 = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
+        address otlm2 = createAndAddOpenTermLoanManager({
+            aum_: 1_000e6
+        });
+        address otlm3 = createAndAddOpenTermLoanManager({
+            aum_: 42
+        });
 
         assertStrategyList(array(otlm1, otlm2, otlm3));
 
@@ -174,7 +177,9 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_singleFixedTermLoanManager() external {
-        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address ftlm = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
 
         assertStrategyList(array(ftlm));
 
@@ -192,8 +197,12 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_removesFixedTermLoanManagerKeepsOpenTerm() external {
-        address otlm = createAndAddOpenTermLoanManager({ aum_: 0 });
-        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address otlm = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
+        address ftlm = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
 
         assertStrategyList(array(otlm, ftlm));
 
@@ -213,10 +222,18 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_multipleFixedTermLoanManagers() external {
-        address ftlm1 = createAndAddFixedTermLoanManager({ aum_: 0 });
-        address ftlm2 = createAndAddFixedTermLoanManager({ aum_: 0 });
-        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 10_000e6 });
-        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address ftlm1 = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
+        address ftlm2 = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
+        address otlm1 = createAndAddOpenTermLoanManager({
+            aum_: 10_000e6
+        });
+        address otlm2 = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
 
         assertStrategyList(array(ftlm1, ftlm2, otlm1, otlm2));
 
@@ -243,7 +260,9 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_removesStrategy() external {
-        address strategy = createAndAddStrategy({ aum_: 0 });
+        address strategy = createAndAddStrategy({
+            aum_: 0
+        });
 
         assertStrategyList(array(strategy));
 
@@ -261,7 +280,9 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_removesStrategyWithNonZeroAum() external {
-        address strategy = createAndAddStrategy({ aum_: 1_000e6 });
+        address strategy = createAndAddStrategy({
+            aum_: 1_000e6
+        });
 
         assertStrategyList(array(strategy));
 
@@ -279,9 +300,15 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_removesAllRemovableStrategies() external {
-        address aave = createAndAddStrategy({ aum_: 0 });
-        address sky  = createAndAddStrategy({ aum_: 0 });
-        address ftlm = createAndAddFixedTermLoanManager({ aum_: 0 });
+        address aave = createAndAddStrategy({
+            aum_: 0
+        });
+        address sky = createAndAddStrategy({
+            aum_: 0
+        });
+        address ftlm = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
 
         assertStrategyList(array(aave, sky, ftlm));
 
@@ -309,12 +336,24 @@ contract MigrateSuccessTests is MaplePoolManagerMigratorV500TestBase {
     }
 
     function test_migrate_success_scramblesOrderOfSurvivingOpenTermLoanManagers() external {
-        address otlm1 = createAndAddOpenTermLoanManager({ aum_: 0 });
-        address aave  = createAndAddStrategy({ aum_: 0 });
-        address otlm2 = createAndAddOpenTermLoanManager({ aum_: 0 });
-        address sky   = createAndAddStrategy({ aum_: 0 });
-        address ftlm  = createAndAddFixedTermLoanManager({ aum_: 0 });
-        address otlm3 = createAndAddOpenTermLoanManager({ aum_: 0 });
+        address otlm1 = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
+        address aave = createAndAddStrategy({
+            aum_: 0
+        });
+        address otlm2 = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
+        address sky = createAndAddStrategy({
+            aum_: 0
+        });
+        address ftlm = createAndAddFixedTermLoanManager({
+            aum_: 0
+        });
+        address otlm3 = createAndAddOpenTermLoanManager({
+            aum_: 0
+        });
 
         assertStrategyList(array(otlm1, aave, otlm2, sky, ftlm, otlm3));
 
