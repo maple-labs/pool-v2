@@ -11,6 +11,27 @@ permissions:
 
 jobs:
 
+  # Check formatting.
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5  # v2.7.0
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09  # v1.9.1
+        with:
+          version: v1.8.3
+          cache: false
+
+      - name: Install Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Check formatting
+        run: make check-format
+
   # Run all tests.
   test:
     runs-on: ubuntu-latest
@@ -21,7 +42,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09  # v1.9.1
         with:
-          version: v1.7.1
+          version: v1.8.3
           cache: false
 
       - name: Install submodules
@@ -43,7 +64,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09  # v1.9.1
         with:
-          version: v1.7.1
+          version: v1.8.3
           cache: false
 
       - name: Install submodules
@@ -68,7 +89,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09  # v1.9.1
         with:
-          version: v1.7.1
+          version: v1.8.3
           cache: false
 
       - name: Install submodules
