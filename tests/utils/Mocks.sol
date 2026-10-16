@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
+import { StdUtils } from "../../modules/forge-std/src/StdUtils.sol";
+import { VmSafe } from "../../modules/forge-std/src/Vm.sol";
 import { MapleProxiedInternals } from "../../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
-import { MockERC20 }             from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { ERC20Helper }           from "../../modules/erc20-helper/src/ERC20Helper.sol";
+import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MaplePool }        from "../../contracts/MaplePool.sol";         // TODO: This should not be used in mocks.
-import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol";  // TODO: This should not be used in mocks.
+import { MaplePool } from "../../contracts/MaplePool.sol"; // TODO: This should not be used in mocks.
+import { MaplePoolManager } from "../../contracts/MaplePoolManager.sol"; // TODO: This should not be used in mocks.
 
-import { MaplePoolManagerStorage } from "../../contracts/proxy/MaplePoolManagerStorage.sol";  // TODO: This should not be used in mocks.
+import { MaplePoolManagerStorage } from "../../contracts/proxy/MaplePoolManagerStorage.sol"; // TODO: This should not be used in mocks.
 
 contract MockProxied is MapleProxiedInternals {
 
@@ -20,14 +21,23 @@ contract MockProxied is MapleProxiedInternals {
         return _implementation();
     }
 
-    function migrate(address migrator_, bytes calldata arguments_) external {}
+    function migrate(address migrator_, bytes calldata arguments_) external { }
+
+    function assetsUnderManagement() external pure returns (uint256 aum) { }
+
 }
 
 contract MockERC20Pool is MaplePool {
 
-    constructor(address manager_, address asset_, string memory name_, string memory symbol_)
-        MaplePool(manager_, asset_, address(0), 0, 0, name_, symbol_) {
-            MockERC20(asset_).approve(manager_, type(uint256).max);
+    constructor(
+        address manager_,
+        address asset_,
+        string memory name_,
+        string memory symbol_
+    )
+        MaplePool(manager_, asset_, address(0), 0, 0, name_, symbol_)
+    {
+        MockERC20(asset_).approve(manager_, type(uint256).max);
     }
 
     function mint(address recipient_, uint256 amount_) external {
@@ -48,7 +58,6 @@ contract MockGlobals {
     bool internal _failTransferOwnedPoolManager;
     bool internal _instanceSet;
     bool internal _isFunctionPaused;
-    bool internal _isValidScheduledCall;
 
     mapping(bytes32 => mapping(address => bool)) public _validFactory;
     mapping(bytes32 => mapping(address => bool)) public _validInstance;
@@ -66,9 +75,6 @@ contract MockGlobals {
     mapping(address => bool) public isPoolDelegate;
     mapping(address => bool) public isPoolDeployer;
 
-    mapping(address => uint256) public maxCoverLiquidationPercent;
-    mapping(address => uint256) public minCoverAmount;
-
     mapping(address => address) public ownedPoolManager;
 
     uint256 internal _bootstrapMint;
@@ -79,10 +85,6 @@ contract MockGlobals {
 
     function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
         isFunctionPaused_ = _isFunctionPaused;
-    }
-
-    function isValidScheduledCall(address, address, bytes32, bytes calldata) external view returns (bool isValid_) {
-        isValid_ = _isValidScheduledCall;
     }
 
     function bootstrapMint(address asset_) external view returns (uint256 bootstrapMint_) {
@@ -101,16 +103,6 @@ contract MockGlobals {
         migrationAdmin = migrationAdmin_;
     }
 
-    function setMaxCoverLiquidationPercent(address poolManager_, uint256 maxCoverLiquidationPercent_) external {
-        require(maxCoverLiquidationPercent_ <= HUNDRED_PERCENT, "MG:SMCLP:GT_100");
-
-        maxCoverLiquidationPercent[poolManager_] = maxCoverLiquidationPercent_;
-    }
-
-    function setMinCoverAmount(address poolManager_, uint256 minCoverAmount_) external {
-        minCoverAmount[poolManager_] = minCoverAmount_;
-    }
-
     function setProtocolPause(bool paused_) external {
         protocolPaused = paused_;
     }
@@ -124,12 +116,12 @@ contract MockGlobals {
     }
 
     function setValidFactory(bytes32 factoryId_, address factory_, bool isValid_) external {
-        _factorySet = true;
+        _factorySet                         = true;
         _validFactory[factoryId_][factory_] = isValid_;
     }
 
     function setValidInstance(bytes32 instanceId_, address instance_, bool isInstance_) external {
-        _instanceSet = true;
+        _instanceSet                           = true;
         _validInstance[instanceId_][instance_] = isInstance_;
     }
 
@@ -149,8 +141,6 @@ contract MockGlobals {
         require(!(_failTransferOwnedPoolManager = _failTransferOwnedPoolManager), "MG:TOPM:FAILED");
     }
 
-    function unscheduleCall(address, bytes32, bytes calldata) external {}
-
     function __setBootstrapMint(uint256 bootstrapMint_) external {
         _bootstrapMint = bootstrapMint_;
     }
@@ -163,10 +153,6 @@ contract MockGlobals {
         _isFunctionPaused = paused_;
     }
 
-    function __setIsValidScheduledCall(bool isValid_) external {
-        _isValidScheduledCall = isValid_;
-    }
-    
     function __setOperationalAdmin(address admin_) external {
         operationalAdmin = admin_;
     }
@@ -183,133 +169,91 @@ contract MockGlobals {
 
 contract MockLoan {
 
-    address public borrower;
-
-    address public factory;
     address public lender;
-
-    uint256 public nextPaymentDueDate;
-    uint256 public paymentsRemaining;
-
-    mapping(address => uint256) public unaccountedAmounts;
-
-    constructor(address collateralAsset_, address fundsAsset_) {}
-
-    function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_) {
-        return unaccountedAmounts[asset_];
-    }
-
-    function skim(address asset_, address destination_) external returns (uint256 skimmed_) {
-        skimmed_ = unaccountedAmounts[asset_];
-        ERC20Helper.transfer(asset_, destination_, skimmed_);
-    }
-
-    function __setBorrower(address borrower_) external {
-        borrower = borrower_;
-    }
-
-    function __setFactory(address factory_) external {
-        factory = factory_;
-    }
 
     function __setLender(address lender_) external {
         lender = lender_;
-    }
-
-    function __setPaymentsRemaining(uint256 paymentsRemaining_) external {
-        paymentsRemaining = paymentsRemaining_;
-    }
-
-    function __setUnaccountedAmount(address asset_, uint256 unaccountedAmount_) external {
-        unaccountedAmounts[asset_] = unaccountedAmount_;
     }
 
 }
 
 contract MockLoanManager {
 
-    uint128 public unrealizedLosses;  // uint128 - 16 bytes: max = 3.4e38
+    uint256 internal _remainingLosses;
+
+    function triggerDefault(
+        address,
+        address
+    )
+        external
+        view
+        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 unrecoveredPlatformFees_)
+    {
+        liquidationComplete_     = true;
+        remainingLosses_         = _remainingLosses;
+        unrecoveredPlatformFees_ = 0;
+    }
+
+    function __setTriggerDefaultReturn(uint256 remainingLosses_) external {
+        _remainingLosses = remainingLosses_;
+    }
+
+}
+
+contract MockStrategy {
+
+    uint256 public assetsUnderManagement;
+    uint256 public unrealizedLosses;
 
     address public factory;
 
-    bool public wasRemoveLoanImpairmentCalledByGovernor;
-    bool public wasImpairLoanCalledByGovernor;
+    bool internal _revertOnAssetsOf;
 
-    uint256 public delegateManagementFee;
-    uint256 public platformManagementFee;
-    uint256 public poolAmount;
+    mapping(address => uint256) internal _assetsOf;
+    mapping(address => uint256) internal _unrealizedLossesOf;
 
-    uint256 public remainingLosses;
-    uint128 public increasedUnrealizedLosses;
-    uint256 public serviceFee;  // Management + Platform
+    mapping(address => bool) public isAssetSupported;
 
-    constructor(address pool_, address treasury_, address poolDelegate_) {}
+    constructor(address pool_, address treasury_, address poolDelegate_) { }
 
-    function acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {}
-
-    // NOTE: Used to satisfy min condition in unrealizedLosses
-    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_) {
-        assetsUnderManagement_ = unrealizedLosses;
+    function assetsOf(address poolManager_) external view returns (uint256 assets_) {
+        require(!_revertOnAssetsOf, "MS:AO:REVERT");
+        assets_ = _assetsOf[poolManager_];
     }
 
-    function fund(address) external {}
-
-    function removeLoanImpairment(address, bool isCalledByGovernor_) external {
-        wasRemoveLoanImpairmentCalledByGovernor = isCalledByGovernor_;
+    function unrealizedLossesOf(address poolManager_) external view returns (uint256 unrealizedLosses_) {
+        unrealizedLosses_ = _unrealizedLossesOf[poolManager_];
     }
 
-    function triggerDefault(address, address)
-        external
-        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_)
-    {
-        liquidationComplete_ = true;
-        remainingLosses_     = 0;
-        platformFees_        = 0;
+    function fund(address) external { }
 
-        unrealizedLosses += increasedUnrealizedLosses;
+    function __setAssetsOf(address poolManager_, uint256 assets_) external {
+        _assetsOf[poolManager_] = assets_;
     }
 
-    function impairLoan(address , bool isGovernor_) external {
-        wasImpairLoanCalledByGovernor = isGovernor_;
-    }
-
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 platformFees_) {
-        loan_;
-
-        unrealizedLosses -= increasedUnrealizedLosses;
-        remainingLosses_  = remainingLosses;
-        platformFees_     = serviceFee;
+    function __setAssetsUnderManagement(uint256 assetsUnderManagement_) external {
+        assetsUnderManagement = assetsUnderManagement_;
     }
 
     function __setFactory(address factory_) external {
         factory = factory_;
     }
 
-    function __setFinishCollateralLiquidationReturn(uint256 remainingLosses_, uint256 serviceFee_) external {
-        remainingLosses = remainingLosses_;
-        serviceFee      = serviceFee_;
+    function __setIsAssetSupported(address asset_, bool isSupported_) external {
+        isAssetSupported[asset_] = isSupported_;
     }
 
-    function __setTriggerDefaultReturn(uint256 increasedUnrealizedLosses_) external {
-        increasedUnrealizedLosses = _uint128(increasedUnrealizedLosses_);
+    function __setRevertOnAssetsOf(bool reverts_) external {
+        _revertOnAssetsOf = reverts_;
     }
 
     function __setUnrealizedLosses(uint256 unrealizedLosses_) external {
-        unrealizedLosses = _uint128(unrealizedLosses_);
+        unrealizedLosses = unrealizedLosses_;
     }
 
-    function _uint128(uint256 value_) internal pure returns (uint128 castedValue_) {
-        require(value_ <= type(uint128).max, "LM:UINT128_CAST");
-        castedValue_ = uint128(value_);
+    function __setUnrealizedLossesOf(address poolManager_, uint256 unrealizedLosses_) external {
+        _unrealizedLossesOf[poolManager_] = unrealizedLosses_;
     }
-
-}
-
-contract MockOpenTermLoanManager is MockLoanManager {
-
-    constructor(address pool_, address treasury_, address poolDelegate_) MockLoanManager(pool_, treasury_, poolDelegate_) {}
-
-    function proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {}
 
 }
 
@@ -339,17 +283,17 @@ contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
     mapping(address => uint256) public maxRedeem;
     mapping(address => uint256) public maxWithdraw;
 
-    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external view returns (address strategy_) {}
+    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external view returns (address strategy_) { }
 
     function canCall(bytes32, address, bytes memory) external view returns (bool canCall_, string memory errorMessage_) {
         canCall_      = _canCall;
         errorMessage_ = errorMessage;
     }
 
-    function completeConfiguration() external view {}
+    function completeConfiguration() external view { }
 
     function getEscrowParams(address, uint256 shares_) external view returns (uint256 escrowShares_, address destination_) {
-        ( escrowShares_, destination_) = (shares_, address(this));
+        (escrowShares_, destination_) = (shares_, address(this));
     }
 
     function previewRedeem(address, uint256) external view returns (uint256 assets_) {
@@ -366,25 +310,22 @@ contract MockPoolManager is MockProxied, MaplePoolManagerStorage {
     }
 
     function processWithdraw(uint256, address, address) external pure returns (uint256 redeemableShares_, uint256 assets_) {
-        redeemableShares_; assets_;  // Silence compiler warnings.
+        redeemableShares_; // Silence compiler warnings.
+        assets_;
         require(false, "PM:PW:NOT_ENABLED");
     }
 
-    function requestRedeem(uint256 shares_, address owner_, address sender_) external view {
-        if (sender_ != owner_ && shares_ == 0) {
-            require(MaplePool(pool).allowance(owner_, sender_) > 0, "PM:RR:NO_ALLOWANCE");
-        }
-    }
+    function requestRedeem(uint256, address, address) external { }
 
     function requestWithdraw(uint256, uint256, address, address) external pure {
         require(false, "PM:RW:NOT_ENABLED");
     }
 
-    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) {}
+    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_) { }
 
-    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external {}
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external { }
 
-    function setLiquidityCap(uint256 liquidityCap_) external {}
+    function setLiquidityCap(uint256 liquidityCap_) external { }
 
     function setWithdrawalManager(address withdrawalManager_) external {
         withdrawalManager = withdrawalManager_;
@@ -421,7 +362,7 @@ contract MockReenteringERC20 is MockERC20 {
 
     address pool;
 
-    constructor() MockERC20("Asset", "AST", 18) {}
+    constructor() MockERC20("Asset", "AST", 18) { }
 
     function transfer(address recipient_, uint256 amount_) public virtual override returns (bool success_) {
         if (pool != address(0)) {
@@ -488,14 +429,6 @@ contract MockPoolManagerMigrator is MaplePoolManagerStorage {
 
 }
 
-contract MockPoolManagerMigratorInvalidPoolDelegateCover is MaplePoolManagerStorage {
-
-    fallback() external {
-        poolDelegateCover = address(0);
-    }
-
-}
-
 contract MockPoolPermissionManager {
 
     bool _allowed;
@@ -507,7 +440,7 @@ contract MockPoolPermissionManager {
     function hasPermission(address, address[] calldata, bytes32) external view returns (bool allowed_) {
         allowed_ = _allowed;
     }
-    
+
     function __setAllowed(bool allowed_) external {
         _allowed = allowed_;
     }
@@ -524,59 +457,68 @@ contract MockMigrator {
 
 contract MockWithdrawalManager is MapleProxiedInternals {
 
-    uint256 public lockedLiquidity;
-
-    function addShares(uint256 shares_, address owner_) external {}
+    function addShares(uint256 shares_, address owner_) external { }
 
     function factory() external view returns (address factory_) {
         factory_ = _factory();
     }
 
-    function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) {}
+    function processExit(uint256 shares_, address owner_) external returns (uint256 redeemableShares_, uint256 resultingAssets_) { }
 
-    function removeShares(uint256 shares_, address owner_) external {}
+    function removeShares(uint256 shares_, address owner_) external { }
 
     function __setFactory(address factory_) external {
         _setFactory(factory_);
     }
 
-    function __setLockedLiquidity(uint256 lockedLiquidity_) external {
-        lockedLiquidity = lockedLiquidity_;
-    }
 }
 
 contract MockImplementation {
+
+    bool _reverts;
 
     fallback() external {
         // Do nothing.
     }
 
+    function __setReverts(bool reverts_) external {
+        _reverts = reverts_;
+    }
+
+    function assetsUnderManagement() external view returns (uint256) {
+        if (_reverts) {
+            revert();
+        }
+
+        return 0;
+    }
+
 }
 
-contract MockFactory {
+contract MockFactory is StdUtils {
+
+    bool _reverts;
 
     mapping(address => bool) public isInstance;
 
-    function createInstance(bytes calldata, bytes32) external returns (address instance_) {
-        instance_ = address(new MockImplementation());
+    function createInstance(bytes calldata, bytes32) external returns (address instance) {
+        instance = address(new MockImplementation());
+
+        MockImplementation(instance).__setReverts(_reverts);
+    }
+
+    function getNextStrategyAddress() external view returns (address) {
+        VmSafe vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
+        return computeCreateAddress(address(this), vm.getNonce(address(this)));
     }
 
     function __setIsInstance(address instance, bool status) external {
         isInstance[instance] = status;
     }
 
-}
-
-contract MockLoanFactory {
-
-    mapping(address => bool) public isLoan;
-
-    function createInstance(bytes calldata, bytes32) external returns (address instance_) {
-        instance_ = address(new MockImplementation());
-    }
-
-    function __setIsLoan(address instance, bool status) external {
-        isLoan[instance] = status;
+    function __setReverts(bool reverts) external {
+        _reverts = reverts;
     }
 
 }
+

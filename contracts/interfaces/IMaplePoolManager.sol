@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.0;
 
 import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
@@ -19,68 +19,55 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     event CollateralLiquidationFinished(address indexed loan_, uint256 unrealizedLosses_);
 
     /**
-     *  @dev   Emitted when a collateral liquidations is triggered.
-     *  @param loan_ The address of the loan.
-     */
-    event CollateralLiquidationTriggered(address indexed loan_);
-
-    /**
-     *  @dev   Emitted when cover is deposited.
-     *  @param amount_ The amount of cover deposited.
-     */
-    event CoverDeposited(uint256 amount_);
-
-    /**
-     *  @dev   Emitted when cover is liquidated in the case of a loan defaulting.
-     *  @param toTreasury_ The amount of cover sent to the Treasury.
-     *  @param toPool_     The amount of cover sent to the Pool.
-     */
-    event CoverLiquidated(uint256 toTreasury_, uint256 toPool_);
-
-    /**
-     *  @dev   Emitted when cover is withdrawn.
-     *  @param amount_ The amount of cover withdrawn.
-     */
-    event CoverWithdrawn(uint256 amount_);
-
-    /**
      *  @dev   Emitted when a new management fee rate is set.
-     *  @param managementFeeRate_ The amount of management fee rate.
+     *  @param managementFeeRate The amount of management fee rate.
      */
-    event DelegateManagementFeeRateSet(uint256 managementFeeRate_);
-
-    /**
-     *  @dev   Emitted when a strategy is set as valid.
-     *  @param strategy_   The address of the strategy.
-     *  @param isStrategy_ Whether the strategy is valid.
-     */
-    event IsStrategySet(address indexed strategy_, bool isStrategy_);
+    event DelegateManagementFeeRateSet(uint256 managementFeeRate);
 
     /**
      *  @dev   Emitted when a new liquidity cap is set.
-     *  @param liquidityCap_ The value of liquidity cap.
+     *  @param liquidityCap The value of liquidity cap.
      */
-    event LiquidityCapSet(uint256 liquidityCap_);
+    event LiquidityCapSet(uint256 liquidityCap);
 
     /**
      *  @dev   Emitted when a new strategy is added.
-     *  @param strategy_ The address of the new strategy.
+     *  @param strategy The address of the new strategy.
      */
-    event StrategyAdded(address indexed strategy_);
+    event StrategyAdded(address indexed strategy);
+
+    /**
+     *  @dev   Emitted when the pool's AUM exposure cap to a strategy is set.
+     *  @param strategy The address of the strategy.
+     *  @param cap      The pool's AUM exposure cap to the strategy.
+     */
+    event StrategyCapSet(address indexed strategy, uint256 cap);
+
+    /**
+     *  @dev   Emitted when a strategy manager is registered with the pool.
+     *  @param strategyManager The address of the strategy manager.
+     */
+    event StrategyManagerAdded(address indexed strategyManager);
+
+    /**
+     *  @dev   Emitted when a strategy manager is removed from the pool.
+     *  @param strategyManager The address of the strategy manager.
+     */
+    event StrategyManagerRemoved(address indexed strategyManager);
 
     /**
      *  @dev   Emitted when the pending pool delegate accepts the ownership transfer.
-     *  @param previousDelegate_ The address of the previous delegate.
-     *  @param newDelegate_      The address of the new delegate.
+     *  @param previousDelegate The address of the previous delegate.
+     *  @param newDelegate      The address of the new delegate.
      */
-    event PendingDelegateAccepted(address indexed previousDelegate_, address indexed newDelegate_);
+    event PendingDelegateAccepted(address indexed previousDelegate, address indexed newDelegate);
 
     /**
      *  @dev   Emitted when the pending pool delegate is set.
-     *  @param previousDelegate_ The address of the previous delegate.
-     *  @param newDelegate_      The address of the new delegate.
+     *  @param previousDelegate The address of the previous delegate.
+     *  @param newDelegate      The address of the new delegate.
      */
-    event PendingDelegateSet(address indexed previousDelegate_, address indexed newDelegate_);
+    event PendingDelegateSet(address indexed previousDelegate, address indexed newDelegate);
 
     /**
      *  @dev Emitted when the pool configuration is marked as complete.
@@ -89,51 +76,43 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev   Emitted when the pool permission manager is set.
-     *  @param poolPermissionManager_ The address of the pool permission manager.
+     *  @param poolPermissionManager The address of the pool permission manager.
      */
-    event PoolPermissionManagerSet(address indexed poolPermissionManager_);
+    event PoolPermissionManagerSet(address indexed poolPermissionManager);
 
     /**
      *  @dev   Emitted when a redemption of shares from the pool is processed.
-     *  @param owner_            The owner of the shares.
-     *  @param redeemableShares_ The amount of redeemable shares.
-     *  @param resultingAssets_  The amount of assets redeemed.
+     *  @param owner            The owner of the shares.
+     *  @param redeemableShares The amount of redeemable shares.
+     *  @param resultingAssets  The amount of assets redeemed.
      */
-    event RedeemProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
+    event RedeemProcessed(address indexed owner, uint256 redeemableShares, uint256 resultingAssets);
 
     /**
      *  @dev   Emitted when a redemption of shares from the pool is requested.
-     *  @param owner_  The owner of the shares.
-     *  @param shares_ The amount of redeemable shares.
+     *  @param owner  The owner of the shares.
+     *  @param shares The amount of redeemable shares.
      */
-    event RedeemRequested(address indexed owner_, uint256 shares_);
+    event RedeemRequested(address indexed owner, uint256 shares);
 
     /**
      *  @dev   Emitted when a pool is sets to be active or inactive.
-     *  @param active_ Whether the pool is active.
+     *  @param active Whether the pool is active.
      */
-    event SetAsActive(bool active_);
+    event SetAsActive(bool active);
 
     /**
      *  @dev   Emitted when shares are removed from the pool.
-     *  @param owner_  The address of the owner of the shares.
-     *  @param shares_ The amount of shares removed.
+     *  @param owner  The address of the owner of the shares.
+     *  @param shares The amount of shares removed.
      */
-    event SharesRemoved(address indexed owner_, uint256 shares_);
+    event SharesRemoved(address indexed owner, uint256 shares);
 
     /**
      *  @dev   Emitted when the withdrawal manager is set.
-     *  @param withdrawalManager_ The address of the withdrawal manager.
+     *  @param withdrawalManager The address of the withdrawal manager.
      */
-    event WithdrawalManagerSet(address indexed withdrawalManager_);
-
-    /**
-     *  @dev   Emitted when withdrawal of assets from the pool is processed.
-     *  @param owner_            The owner of the assets.
-     *  @param redeemableShares_ The amount of redeemable shares.
-     *  @param resultingAssets_  The amount of assets redeemed.
-     */
-    event WithdrawalProcessed(address indexed owner_, uint256 redeemableShares_, uint256 resultingAssets_);
+    event WithdrawalManagerSet(address indexed withdrawalManager);
 
     /**************************************************************************************************************************************/
     /*** Ownership Transfer Functions                                                                                                   ***/
@@ -145,10 +124,11 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     function acceptPoolDelegate() external;
 
     /**
-     *  @dev   Sets an address as the pending pool delegate.
-     *  @param pendingPoolDelegate_ The address of the new pool delegate.
+     *  @dev   Sets an address as the pending pool delegate. Passing address(0) cancels a pending transfer.
+     *         Can only be called by the operational admin.
+     *  @param pendingPoolDelegate The address of the new pool delegate.
      */
-    function setPendingPoolDelegate(address pendingPoolDelegate_) external;
+    function setPendingPoolDelegate(address pendingPoolDelegate) external;
 
     /**************************************************************************************************************************************/
     /*** Administrative Functions                                                                                                       ***/
@@ -157,11 +137,33 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
     /**
      *  @dev    Adds a new strategy.
      *          NOTE: The PoolManager address is encoded and prepended to the extraDeploymentData.
-     *  @param  strategyFactory_     The address of the strategy factory to use.
-     *  @param  extraDeploymentData_ The data to construct the strategy.
-     *  @return strategy_            The address of the new strategy.
+     *  @param  strategyFactory     The address of the strategy factory to use.
+     *  @param  salt                The salt used by the factory to deploy the strategy instance.
+     *  @param  extraDeploymentData The data to construct the strategy.
+     *  @return strategy            The address of the new strategy.
      */
-    function addStrategy(address strategyFactory_, bytes calldata extraDeploymentData_) external returns (address strategy_);
+    function addStrategy(address strategyFactory, bytes32 salt, bytes calldata extraDeploymentData) external returns (address strategy);
+
+    /**
+     *  @dev   Registers an already-deployed strategy manager with the pool.
+     *         Callable by any caller while the pool manager is not yet configured (typically during deployment).
+     *         Once `completeConfiguration()` has been called, only the governor (timelock-gated) may call this function.
+     *  @param strategyManager The address of the strategy manager.
+     */
+    function addStrategyManager(address strategyManager) external;
+
+    /**
+     *  @dev   Allows EOAs to batch admin calls.
+     *  @param data Array of calldata.
+     */
+    function multicall(bytes[] calldata data) external;
+
+    /**
+     *  @dev   Removes a strategy manager from the pool and clears its strategy cap.
+     *         Only callable by the operational admin after this pool manager has no assets in the strategy manager.
+     *  @param strategyManager The address of the strategy manager.
+     */
+    function removeStrategyManager(address strategyManager) external;
 
     /**
      *  @dev Complete the configuration.
@@ -170,40 +172,47 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev   Sets a the pool to be active or inactive.
-     *  @param active_ Whether the pool is active.
+     *  @param active Whether the pool is active.
      */
-    function setActive(bool active_) external;
+    function setActive(bool active) external;
 
     /**
      *  @dev   Sets the value for the delegate management fee rate.
-     *  @param delegateManagementFeeRate_ The value for the delegate management fee rate.
+     *  @param delegateManagementFeeRate The value for the delegate management fee rate.
      */
-    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate_) external;
-
-    /**
-     *  @dev   Sets if the strategy is valid in the isStrategy mapping.
-     *  @param strategy_   The address of the strategy
-     *  @param isStrategy_ Whether the strategy is valid.
-     */
-    function setIsStrategy(address strategy_, bool isStrategy_) external;
+    function setDelegateManagementFeeRate(uint256 delegateManagementFeeRate) external;
 
     /**
      *  @dev   Sets the value for liquidity cap.
-     *  @param liquidityCap_ The value for liquidity cap.
+     *  @param liquidityCap The value for liquidity cap.
      */
-    function setLiquidityCap(uint256 liquidityCap_) external;
+    function setLiquidityCap(uint256 liquidityCap) external;
+
+    /**
+     *  @dev   Sets the pool's AUM exposure cap to a strategy.
+     *         The strategy must be an instance of a valid strategy factory if the cap is non-zero.
+     *  @param strategy The address of the strategy.
+     *  @param cap      The pool's AUM exposure cap to the strategy.
+     */
+    function setStrategyCap(address strategy, uint256 cap) external;
 
     /**
      *  @dev   Sets the address of the pool permission manager.
-     *  @param poolPermission_ The address of the pool permission manager.
+     *  @param poolPermission The address of the pool permission manager.
      */
-    function setPoolPermissionManager(address poolPermission_) external;
+    function setPoolPermissionManager(address poolPermission) external;
 
     /**
      *  @dev   Sets the address of the withdrawal manager.
-     *  @param withdrawalManager_ The address of the withdrawal manager.
+     *  @param withdrawalManager The address of the withdrawal manager.
      */
-    function setWithdrawalManager(address withdrawalManager_) external;
+    function setWithdrawalManager(address withdrawalManager) external;
+
+    /**
+     *  @dev   Triggers the default of a loan held by the pool's loan manager.
+     *  @param loan_ The address of the loan to default.
+     */
+    function triggerDefault(address loan_) external;
 
     /**************************************************************************************************************************************/
     /*** Funding Functions                                                                                                              ***/
@@ -211,27 +220,10 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev   Strategy can request funds from the pool via the poolManager.
-     *  @param destination_ The address to send the funds to.
-     *  @param principal_   The principal amount to fund the strategy with.
+     *  @param destination The address to send the funds to.
+     *  @param amount      Amount to fund the strategy with.
      */
-    function requestFunds(address destination_, uint256 principal_) external;
-
-    /**************************************************************************************************************************************/
-    /*** Liquidation Functions                                                                                                          ***/
-    /**************************************************************************************************************************************/
-
-    /**
-     *  @dev   Finishes the collateral liquidation
-     *  @param loan_ Loan that had its collateral liquidated.
-     */
-    function finishCollateralLiquidation(address loan_) external;
-
-    /**
-     *  @dev   Triggers the default of a loan.
-     *  @param loan_              Loan to trigger the default.
-     *  @param liquidatorFactory_ Factory used to deploy the liquidator.
-     */
-    function triggerDefault(address loan_, address liquidatorFactory_) external;
+    function requestFunds(address destination, uint256 amount) external;
 
     /**************************************************************************************************************************************/
     /*** Exit Functions                                                                                                                 ***/
@@ -239,69 +231,60 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev    Processes a redemptions of shares for assets from the pool.
-     *  @param  shares_           The amount of shares to redeem.
-     *  @param  owner_            The address of the owner of the shares.
-     *  @param  sender_           The address of the sender of the redeem call.
-     *  @return redeemableShares_ The amount of shares redeemed.
-     *  @return resultingAssets_  The amount of assets withdrawn.
+     *  @param  shares           The amount of shares to redeem.
+     *  @param  owner            The address of the owner of the shares.
+     *  @param  sender           The address of the sender of the redeem call.
+     *  @return redeemableShares The amount of shares redeemed.
+     *  @return resultingAssets  The amount of assets withdrawn.
      */
-    function processRedeem(uint256 shares_, address owner_, address sender_)
+    function processRedeem(
+        uint256 shares,
+        address owner,
+        address sender
+    )
         external
-        returns (uint256 redeemableShares_, uint256 resultingAssets_);
+        returns (uint256 redeemableShares, uint256 resultingAssets);
 
     /**
      *  @dev    Processes a redemptions of shares for assets from the pool.
-     *  @param  assets_           The amount of assets to withdraw.
-     *  @param  owner_            The address of the owner of the shares.
-     *  @param  sender_           The address of the sender of the withdraw call.
-     *  @return redeemableShares_ The amount of shares redeemed.
-     *  @return resultingAssets_  The amount of assets withdrawn.
+     *  @param  assets           The amount of assets to withdraw.
+     *  @param  owner            The address of the owner of the shares.
+     *  @param  sender           The address of the sender of the withdraw call.
+     *  @return redeemableShares The amount of shares redeemed.
+     *  @return resultingAssets  The amount of assets withdrawn.
      */
-    function processWithdraw(uint256 assets_, address owner_, address sender_)
+    function processWithdraw(
+        uint256 assets,
+        address owner,
+        address sender
+    )
         external
-        returns (uint256 redeemableShares_, uint256 resultingAssets_);
+        returns (uint256 redeemableShares, uint256 resultingAssets);
 
     /**
      *  @dev    Requests a redemption of shares from the pool.
-     *  @param  shares_         The amount of shares to redeem.
-     *  @param  owner_          The address of the owner of the shares.
-     *  @return sharesReturned_ The amount of shares withdrawn.
+     *  @param  shares         The amount of shares to redeem.
+     *  @param  owner          The address of the owner of the shares.
+     *  @return sharesReturned The amount of shares withdrawn.
      */
-    function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
+    function removeShares(uint256 shares, address owner) external returns (uint256 sharesReturned);
 
     /**
      *  @dev   Requests a redemption of shares from the pool.
-     *  @param shares_ The amount of shares to redeem.
-     *  @param owner_  The address of the owner of the shares.
-     *  @param sender_ The address of the sender of the shares.
+     *  @param shares The amount of shares to redeem.
+     *  @param owner  The address of the owner of the shares.
+     *  @param sender The address of the sender of the shares.
      */
-    function requestRedeem(uint256 shares_, address owner_, address sender_) external;
+    function requestRedeem(uint256 shares, address owner, address sender) external;
 
     /**
      *  @dev   Requests a withdrawal of assets from the pool.
-     *  @param shares_ The amount of shares to redeem.
-     *  @param assets_ The amount of assets to withdraw.
-     *  @param owner_  The address of the owner of the shares.
-     *  @param sender_ The address of the sender of the shares.
+     *  @param shares The amount of shares to redeem.
+     *  @param assets The amount of assets to withdraw.
+     *  @param owner  The address of the owner of the shares.
+     *  @param sender The address of the sender of the shares.
      */
-     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
-
-    /**************************************************************************************************************************************/
-    /*** Cover Functions                                                                                                                ***/
-    /**************************************************************************************************************************************/
-
-    /**
-     *  @dev   Deposits cover into the pool.
-     *  @param amount_ The amount of cover to deposit.
-     */
-    function depositCover(uint256 amount_) external;
-
-    /**
-     *  @dev   Withdraws cover from the pool.
-     *  @param amount_    The amount of cover to withdraw.
-     *  @param recipient_ The address of the recipient.
-     */
-    function withdrawCover(uint256 amount_, address recipient_) external;
+    function requestWithdraw(uint256 shares, uint256 assets, address owner, address sender) external;
 
     /**************************************************************************************************************************************/
     /*** LP Token View Functions                                                                                                        ***/
@@ -309,63 +292,63 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev    Returns the amount of exit shares for the input amount.
-     *  @param  amount_  Address of the account.
-     *  @return shares_  Amount of shares able to be exited.
+     *  @param  amount  Address of the account.
+     *  @return shares  Amount of shares able to be exited.
      */
-    function convertToExitShares(uint256 amount_) external view returns (uint256 shares_);
+    function convertToExitShares(uint256 amount) external view returns (uint256 shares);
 
     /**
      *  @dev    Gets the information of escrowed shares.
-     *  @param  owner_        The address of the owner of the shares.
-     *  @param  shares_       The amount of shares to get the information of.
-     *  @return escrowShares_ The amount of escrowed shares.
-     *  @return destination_  The address of the destination.
+     *  @param  owner        The address of the owner of the shares.
+     *  @param  shares       The amount of shares to get the information of.
+     *  @return escrowShares The amount of escrowed shares.
+     *  @return destination  The address of the destination.
      */
-    function getEscrowParams(address owner_, uint256 shares_) external view returns (uint256 escrowShares_, address destination_);
+    function getEscrowParams(address owner, uint256 shares) external view returns (uint256 escrowShares, address destination);
 
     /**
      *  @dev   Gets the amount of assets that can be deposited.
-     *  @param receiver_  The address to check the deposit for.
-     *  @param maxAssets_ The maximum amount assets to deposit.
+     *  @param receiver  The address to check the deposit for.
+     *  @param maxAssets The maximum amount assets to deposit.
      */
-    function maxDeposit(address receiver_) external view returns (uint256 maxAssets_);
+    function maxDeposit(address receiver) external view returns (uint256 maxAssets);
 
     /**
      *  @dev   Gets the amount of shares that can be minted.
-     *  @param receiver_  The address to check the mint for.
-     *  @param maxShares_ The maximum amount shares to mint.
+     *  @param receiver  The address to check the mint for.
+     *  @param maxShares The maximum amount shares to mint.
      */
-    function maxMint(address receiver_) external view returns (uint256 maxShares_);
+    function maxMint(address receiver) external view returns (uint256 maxShares);
 
     /**
      *  @dev   Gets the amount of shares that can be redeemed.
-     *  @param owner_     The address to check the redemption for.
-     *  @param maxShares_ The maximum amount shares to redeem.
+     *  @param owner     The address to check the redemption for.
+     *  @param maxShares The maximum amount shares to redeem.
      */
-    function maxRedeem(address owner_) external view returns (uint256 maxShares_);
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
 
     /**
      *  @dev   Gets the amount of assets that can be withdrawn.
-     *  @param owner_     The address to check the withdraw for.
-     *  @param maxAssets_ The maximum amount assets to withdraw.
+     *  @param owner     The address to check the withdraw for.
+     *  @param maxAssets The maximum amount assets to withdraw.
      */
-    function maxWithdraw(address owner_) external view returns (uint256 maxAssets_);
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
 
     /**
      *  @dev    Gets the amount of shares that can be redeemed.
-     *  @param  owner_   The address to check the redemption for.
-     *  @param  shares_  The amount of requested shares to redeem.
-     *  @return assets_  The amount of assets that will be returned for `shares_`.
+     *  @param  owner   The address to check the redemption for.
+     *  @param  shares  The amount of requested shares to redeem.
+     *  @return assets  The amount of assets that will be returned for `shares`.
      */
-    function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
+    function previewRedeem(address owner, uint256 shares) external view returns (uint256 assets);
 
     /**
      *  @dev    Gets the amount of assets that can be redeemed.
-     *  @param  owner_   The address to check the redemption for.
-     *  @param  assets_  The amount of requested shares to redeem.
-     *  @return shares_  The amount of assets that will be returned for `assets_`.
+     *  @param  owner   The address to check the redemption for.
+     *  @param  assets  The amount of requested shares to redeem.
+     *  @return shares  The amount of assets that will be returned for `assets`.
      */
-    function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
+    function previewWithdraw(address owner, uint256 assets) external view returns (uint256 shares);
 
     /**************************************************************************************************************************************/
     /*** View Functions                                                                                                                 ***/
@@ -373,50 +356,48 @@ interface IMaplePoolManager is IMapleProxied, IMaplePoolManagerStorage {
 
     /**
      *  @dev    Checks if a scheduled call can be executed.
-     *  @param  functionId_   The function to check.
-     *  @param  caller_       The address of the caller.
-     *  @param  data_         The data of the call.
-     *  @return canCall_      True if the call can be executed, false otherwise.
-     *  @return errorMessage_ The error message if the call cannot be executed.
+     *  @param  functionId   The function to check.
+     *  @param  caller       The address of the caller.
+     *  @param  data         The data of the call.
+     *  @return canCall      True if the call can be executed, false otherwise.
+     *  @return errorMessage The error message if the call cannot be executed.
      */
-    function canCall(bytes32 functionId_, address caller_, bytes memory data_)
-        external view
-        returns (bool canCall_, string memory errorMessage_);
+    function canCall(bytes32 functionId, address caller, bytes memory data) external view returns (bool canCall, string memory errorMessage);
 
     /**
      *  @dev    Gets the address of the globals.
-     *  @return globals_ The address of the globals.
+     *  @return globals The address of the globals.
      */
-    function globals() external view returns (address globals_);
+    function globals() external view returns (address globals);
 
     /**
      *  @dev    Gets the address of the governor.
-     *  @return governor_ The address of the governor.
+     *  @return governor The address of the governor.
      */
-    function governor() external view returns (address governor_);
+    function governor() external view returns (address governor);
 
     /**
-     *  @dev    Returns if pool has sufficient cover.
-     *  @return hasSufficientCover_ True if pool has sufficient cover.
+     *  @dev    Returns whether the pool has sufficient cover. Pool delegate cover is deprecated, so this always returns true.
+     *  @return hasSufficientCover True.
      */
-    function hasSufficientCover() external view returns (bool hasSufficientCover_);
+    function hasSufficientCover() external pure returns (bool hasSufficientCover);
 
     /**
      *  @dev    Returns the length of the `strategyList`.
-     *  @return strategyListLength_ The length of the `strategyList`.
+     *  @return strategyListLength The length of the `strategyList`.
      */
-    function strategyListLength() external view returns (uint256 strategyListLength_);
+    function strategyListLength() external view returns (uint256 strategyListLength);
 
     /**
      *  @dev    Returns the amount of total assets.
-     *  @return totalAssets_ Amount of of total assets.
+     *  @return totalAssets Amount of of total assets.
      */
-    function totalAssets() external view returns (uint256 totalAssets_);
+    function totalAssets() external view returns (uint256 totalAssets);
 
     /**
-     *  @dev    Returns the amount unrealized losses.
-     *  @return unrealizedLosses_ Amount of unrealized losses.
+     *  @dev    Returns the sum of unrealized losses reported by every registered strategy and strategy manager.
+     *  @return unrealizedLosses Aggregate unrealized losses across all strategies and strategy managers.
      */
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses);
 
 }

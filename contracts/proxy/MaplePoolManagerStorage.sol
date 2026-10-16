@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.34;
 
 import { IMaplePoolManagerStorage } from "../interfaces/IMaplePoolManagerStorage.sol";
 
 abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
 
-    uint256 internal _locked;  // Used when checking for reentrancy.
+    uint256 internal _locked; // Used when checking for reentrancy.
 
     address public override poolDelegate;
     address public override pendingPoolDelegate;
@@ -13,12 +13,13 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
     address public override asset;
     address public override pool;
 
-    address public override poolDelegateCover;
+    address __deprecated_poolDelegateCover;
+
     address public override withdrawalManager;
 
     bool public override active;
     bool public override configured;
-    
+
     bool __deprecated_openToPublic;
 
     uint256 public override liquidityCap;
@@ -31,5 +32,9 @@ abstract contract MaplePoolManagerStorage is IMaplePoolManagerStorage {
     address[] public override strategyList;
 
     address public override poolPermissionManager;
+
+    mapping(address => bool) public override isStrategyManager;
+
+    mapping(address => uint256) public override strategyCapOf;
 
 }

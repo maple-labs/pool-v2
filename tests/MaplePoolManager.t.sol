@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }      from "../modules/forge-std/src/Test.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
-import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
+
+import { IMaplePoolManager } from "../contracts/interfaces/IMaplePoolManager.sol";
 
 import {
     MockERC20Pool,
     MockFactory,
-    MockLoanFactory,
     MockGlobals,
     MockLoan,
     MockLoanManager,
     MockPoolManagerMigrator,
-    MockPoolManagerMigratorInvalidPoolDelegateCover,
     MockPoolPermissionManager,
+    MockStrategy,
     MockWithdrawalManager
-} from "./mocks/Mocks.sol";
+} from "./utils/Mocks.sol";
 
-import { MaplePoolManagerHarness } from "./harnesses/MaplePoolManagerHarness.sol";
+import { MaplePoolManagerHarness } from "./utils/Harnesses.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 
@@ -29,10 +30,9 @@ contract PoolManagerTestBase is TestBase {
 
     address internal POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
-    MockERC20                 internal asset;
-    MockERC20Pool             internal pool;
-    MockFactory               internal liquidatorFactory;
-    MockFactory               internal withdrawalManagerFactory;
+    MockERC20 internal asset;
+    MockERC20Pool internal pool;
+    MockFactory internal withdrawalManagerFactory;
     MockPoolPermissionManager internal mockPoolPermissionManager;
 
     MaplePoolManagerHarness internal poolManager;
@@ -64,10 +64,8 @@ contract PoolManagerTestBase is TestBase {
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
-        poolManager = MaplePoolManagerHarness(MaplePoolManagerFactory(factory).createInstance(
-            arguments,
-            keccak256(abi.encode(POOL_DELEGATE))
-        ));
+        poolManager =
+            MaplePoolManagerHarness(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE))));
 
         mockPoolPermissionManager = new MockPoolPermissionManager();
         mockPoolPermissionManager.__setAllowed(true);
@@ -96,8 +94,50 @@ contract PoolManagerTestBase is TestBase {
 
         vm.prank(globals);
         poolManager.setActive(true);
+    }
 
-        liquidatorFactory = new MockFactory();
+    function array(address a_) internal pure returns (address[] memory arr_) {
+        arr_    = new address[](1);
+        arr_[0] = a_;
+    }
+
+    function array(address a_, address b_) internal pure returns (address[] memory arr_) {
+        arr_    = new address[](2);
+        arr_[0] = a_;
+        arr_[1] = b_;
+    }
+
+    function array(address a_, address b_, address c_) internal pure returns (address[] memory arr_) {
+        arr_    = new address[](3);
+        arr_[0] = a_;
+        arr_[1] = b_;
+        arr_[2] = c_;
+    }
+
+    function assertStrategyList(address[] memory expected_) internal {
+        assertEq(poolManager.strategyListLength(), expected_.length);
+
+        for (uint256 i_; i_ < expected_.length; ++i_) {
+            assertEq(poolManager.strategyList(i_), expected_[i_]);
+        }
+    }
+
+    function assertStrategyList_Empty() internal {
+        assertEq(poolManager.strategyListLength(), 0);
+    }
+
+    function addStrategyManager(MockStrategy strategyManager_) internal {
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager_));
+    }
+
+    function createStrategyManager(MockFactory strategyManagerFactory_) internal returns (MockStrategy strategyManager_) {
+        strategyManager_ = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        strategyManager_.__setFactory(address(strategyManagerFactory_));
+        strategyManager_.__setIsAssetSupported(address(asset), true);
+
+        strategyManagerFactory_.__setIsInstance(address(strategyManager_), true);
     }
 
 }
@@ -128,8 +168,7 @@ contract CompleteConfigurationTests is PoolManagerTestBase {
 
 contract MigrateTests is PoolManagerTestBase {
 
-    address internal invalidMigrator = address(new MockPoolManagerMigratorInvalidPoolDelegateCover());
-    address internal migrator        = address(new MockPoolManagerMigrator());
+    address internal migrator = address(new MockPoolManagerMigrator());
 
     function test_migrate_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
@@ -147,12 +186,6 @@ contract MigrateTests is PoolManagerTestBase {
         vm.prank(poolManager.factory());
         vm.expectRevert("PM:M:FAILED");
         poolManager.migrate(migrator, "");
-    }
-
-    function test_migrate_invalidPoolDelegateCover() external {
-        vm.prank(poolManager.factory());
-        vm.expectRevert("PM:M:DELEGATE_NOT_SET");
-        poolManager.migrate(invalidMigrator, "");
     }
 
     function test_migrate_success() external {
@@ -202,6 +235,8 @@ contract UpgradeTests is PoolManagerTestBase {
     function setUp() public override {
         super.setUp();
 
+        MockGlobals(globals).__setSecurityAdmin(SECURITY_ADMIN);
+
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(2, newImplementation, address(0));
         factory.enableUpgradePath(1, 2, address(0));
@@ -220,36 +255,26 @@ contract UpgradeTests is PoolManagerTestBase {
         poolManager.upgrade(2, "");
     }
 
-    function test_upgrade_notScheduled() external {
+    function test_upgrade_notSecurityAdmin() external {
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:U:INVALID_SCHED_CALL");
+        vm.expectRevert("PM:U:NO_AUTH");
+        poolManager.upgrade(2, "");
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:U:NO_AUTH");
         poolManager.upgrade(2, "");
     }
 
     function test_upgrade_upgradeFailed() external {
-        MockGlobals(globals).__setIsValidScheduledCall(true);
-        vm.prank(POOL_DELEGATE);
+        vm.prank(SECURITY_ADMIN);
         vm.expectRevert("MPF:UI:FAILED");
         poolManager.upgrade(2, "1");
     }
 
     function test_upgrade_successWithSecurityAdmin() external {
-        MockGlobals(globals).__setSecurityAdmin(SECURITY_ADMIN);
-
         assertEq(poolManager.implementation(), implementation);
 
-        // No need to schedule call
         vm.prank(SECURITY_ADMIN);
-        poolManager.upgrade(2, "");
-
-        assertEq(poolManager.implementation(), newImplementation);
-    }
-
-    function test_upgrade_successWithPoolDelegate() external {
-        assertEq(poolManager.implementation(), implementation);
-
-        MockGlobals(globals).__setIsValidScheduledCall(true);
-        vm.prank(POOL_DELEGATE);
         poolManager.upgrade(2, "");
 
         assertEq(poolManager.implementation(), newImplementation);
@@ -263,7 +288,7 @@ contract AcceptPoolDelegate_SetterTests is PoolManagerTestBase {
 
     function setUp() public override {
         super.setUp();
-        vm.prank(POOL_DELEGATE);
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
@@ -309,41 +334,61 @@ contract SetPendingPoolDelegate_SetterTests is PoolManagerTestBase {
     function test_setPendingPoolDelegate_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
-        vm.prank(POOL_DELEGATE);
+        vm.prank(OPERATIONAL_ADMIN);
         vm.expectRevert("PM:PAUSED");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_notPoolDelegateOrProtocolAdmins() external {
-        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
+    function test_setPendingPoolDelegate_notOperationalAdmin() external {
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_asPoolDelegate_success() external {
-        assertEq(poolManager.pendingPoolDelegate(), address(0));
-
+    function test_setPendingPoolDelegate_asPoolDelegate() external {
         vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
-
-        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
     }
 
-    function test_setPendingPoolDelegate_asGovernor_success() external {
-        assertEq(poolManager.pendingPoolDelegate(), address(0));
-
+    function test_setPendingPoolDelegate_asGovernor() external {
         vm.prank(GOVERNOR);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
-
-        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
     }
 
     function test_setPendingPoolDelegate_asOperationalAdmin_success() external {
         assertEq(poolManager.pendingPoolDelegate(), address(0));
 
-        vm.prank(MockGlobals(globals).operationalAdmin());
+        vm.prank(OPERATIONAL_ADMIN);
         poolManager.setPendingPoolDelegate(SET_ADDRESS);
 
         assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+    }
+
+    function test_setPendingPoolDelegate_cancelWithZeroAddress() external {
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(address(0));
+
+        assertEq(poolManager.pendingPoolDelegate(), address(0));
+    }
+
+    function test_setPendingPoolDelegate_overwrite() external {
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(SET_ADDRESS);
+
+        assertEq(poolManager.pendingPoolDelegate(), SET_ADDRESS);
+
+        address nextPoolDelegate = makeAddr("nextPoolDelegate");
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.setPendingPoolDelegate(nextPoolDelegate);
+
+        assertEq(poolManager.pendingPoolDelegate(), nextPoolDelegate);
     }
 
 }
@@ -384,6 +429,7 @@ contract SetActive_SetterTests is PoolManagerTestBase {
 
         assertTrue(!poolManager.active());
     }
+
 }
 
 contract SetLiquidityCap_SetterTests is PoolManagerTestBase {
@@ -491,426 +537,314 @@ contract SetDelegateManagementFeeRate_SetterTests is PoolManagerTestBase {
 
 }
 
-contract SetIsStrategy_SetterTests is PoolManagerTestBase {
+contract SetStrategyCap_SetterTests is PoolManagerTestBase {
 
-    address strategy1;
-    address strategy2;
+    MockFactory internal strategyFactory; // registered under STRATEGY_FACTORY
+    MockFactory internal strategyManagerFactory; // registered under STRATEGY_MANAGER_FACTORY
+    MockStrategy internal strategy; // valid instance of strategyFactory
+    MockStrategy internal strategyManager; // valid instance of strategyManagerFactory
 
-    function setUp() public override {
-        super.setUp();
-
-        strategy1 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-        strategy2 = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-
-        poolManager.__setIsStrategy(strategy1, true);
-        poolManager.__setIsStrategy(strategy2, true);
-        poolManager.__pushToStrategyList(strategy1);
-        poolManager.__pushToStrategyList(strategy2);
-    }
-
-    function test_setIsStrategy_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.expectRevert("PM:PAUSED");
-        poolManager.setIsStrategy(strategy2, false);
-    }
-
-    function test_setIsStrategy_notPoolDelegate() external {
-        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
-        poolManager.setIsStrategy(strategy2, false);
-    }
-
-    function test_setIsStrategy_invalidLM() external {
-        address invalidStrategy = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-
-        vm.startPrank(POOL_DELEGATE);
-        vm.expectRevert("PM:SIS:INVALID_STRATEGY");
-        poolManager.setIsStrategy(invalidStrategy, false);
-    }
-
-    function test_setIsStrategy_successWithPoolDelegate() external {
-        assertTrue(poolManager.isStrategy(strategy2));
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.setIsStrategy(strategy2, false);
-
-        assertTrue(!poolManager.isStrategy(strategy2));
-
-        poolManager.setIsStrategy(strategy2, true);
-
-        assertTrue(poolManager.isStrategy(strategy2));
-    }
-
-    function test_setIsStrategy_success_asGovernor() external {
-        assertTrue(poolManager.isStrategy(strategy2));
-
-        vm.startPrank(GOVERNOR);
-        poolManager.setIsStrategy(strategy2, false);
-
-        assertTrue(!poolManager.isStrategy(strategy2));
-
-        poolManager.setIsStrategy(strategy2, true);
-
-        assertTrue(poolManager.isStrategy(strategy2));
-    }
-
-    function test_setIsStrategy_success_asOperationalAdmin() external {
-        assertTrue(poolManager.isStrategy(strategy2));
-
-        vm.startPrank(OPERATIONAL_ADMIN);
-        poolManager.setIsStrategy(strategy2, false);
-
-        assertTrue(!poolManager.isStrategy(strategy2));
-
-        poolManager.setIsStrategy(strategy2, true);
-
-        assertTrue(poolManager.isStrategy(strategy2));
-    }
-
-}
-
-contract TriggerDefault is PoolManagerTestBase {
-
-    address internal AUCTIONEER = makeAddr("AUCTIONEER");
-    address internal BORROWER   = makeAddr("BORROWER");
-    address internal LP         = makeAddr("LP");
-
-    address internal loan;
-    address internal poolDelegateCover;
-
-    MockLoanManager internal loanManager;
+    uint256 internal newCap = 1_000_000e18;
 
     function setUp() public override {
         super.setUp();
 
-        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
+        strategyFactory        = new MockFactory();
+        strategyManagerFactory = new MockFactory();
 
-        poolDelegateCover = poolManager.poolDelegateCover();
+        strategy        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
 
-        MockLoanFactory loanFactory = new MockLoanFactory();
+        strategy.__setFactory(address(strategyFactory));
+        strategyManager.__setFactory(address(strategyManagerFactory));
 
-        MockFactory loanManagerFactory = new MockFactory();
+        poolManager.__setIsStrategy(address(strategy), true);
+        poolManager.__setIsStrategyManager(address(strategyManager), true);
+        poolManager.__setConfigured(true);
 
-        loanManager.__setFactory(address(loanManagerFactory));
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), true);
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
 
-        loan = address(new MockLoan(address(asset), address(asset)));
-        MockLoan(loan).__setBorrower(BORROWER);
-        MockLoan(loan).__setFactory(address(loanFactory));
-        MockLoan(loan).__setLender(address(loanManager));
-        MockLoan(loan).__setPaymentsRemaining(3);
-        MockGlobals(globals).setValidBorrower(BORROWER, true);
-        MockGlobals(globals).setValidInstance("LOAN",                       address(loanFactory),              true);
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",         address(liquidatorFactory),        true);
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       address(loanManagerFactory),       true);
-        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
-
-        loanFactory.__setIsLoan(loan, true);
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.__setIsStrategy(address(loanManager), true);
-        poolManager.__pushToStrategyList(address(loanManager));
-        poolManager.setWithdrawalManager(withdrawalManager);
-        vm.stopPrank();
+        strategyFactory.__setIsInstance(address(strategy), true);
+        strategyManagerFactory.__setIsInstance(address(strategyManager), true);
     }
 
-    function test_triggerDefault_paused() external {
+    function test_setStrategyCap_revert_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+        poolManager.setStrategyCap(address(strategy), newCap);
     }
 
-    function test_triggerDefault_notAuthorized() external {
-        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    function test_setStrategyCap_revert_notPoolDelegate() external {
+        poolManager.__setConfigured(true);
+
+        vm.expectRevert("PM:NOT_PA_OR_NOT_CONFIGURED");
+        poolManager.setStrategyCap(address(strategy), newCap);
     }
 
-    function test_triggerDefault_invalidFactory() external {
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY", address(liquidatorFactory), false);
+    function test_setStrategyCap_revert_noChange() external {
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NO_CHANGE");
+        poolManager.setStrategyCap(address(strategy), 0);
 
         vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:TD:NOT_FACTORY");
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY", address(liquidatorFactory), true);
+        poolManager.setStrategyCap(address(strategy), newCap);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+        vm.expectRevert("PM:SSC:NO_CHANGE");
+        poolManager.setStrategyCap(address(strategy), newCap);
     }
 
-    function test_triggerDefault_success_asPoolDelegate() external {
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-    }
-
-    function test_triggerDefault_success_asGovernor() external {
-        vm.prank(GOVERNOR);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-    }
-
-    function test_triggerDefault_success_asOperationalAdmin() external {
-        MockGlobals(globals).__setOperationalAdmin(OPERATIONAL_ADMIN);
-
-        vm.prank(OPERATIONAL_ADMIN);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-    }
-
-}
-
-contract FinishCollateralLiquidation is PoolManagerTestBase {
-
-    address internal BORROWER = makeAddr("BORROWER");
-    address internal LOAN     = makeAddr("LOAN");
-    address internal LP       = makeAddr("LP");
-
-    address internal loan;
-    address internal poolDelegateCover;
-
-    MockLoanManager loanManager;
-
-    function setUp() public override {
-        super.setUp();
-
-        loanManager = new MockLoanManager(address(pool), TREASURY, POOL_DELEGATE);
-
-        poolDelegateCover = poolManager.poolDelegateCover();
-
-        _bootstrapGlobals(address(asset), POOL_DELEGATE);
-
-        MockLoanFactory loanFactory = new MockLoanFactory();
-
-        MockFactory loanManagerFactory = new MockFactory();
-
-        loanManager.__setFactory(address(loanManagerFactory));
-
-        MockGlobals(globals).setValidInstance("LOAN_MANAGER_FACTORY",       address(loanManagerFactory),       true);
-        MockGlobals(globals).setValidInstance("LOAN",                       address(loanFactory),              true);
-        MockGlobals(globals).setValidInstance("LIQUIDATOR_FACTORY",         address(liquidatorFactory),        true);
-        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
-
-        loan = address(new MockLoan(address(asset), address(asset)));
-        MockLoan(loan).__setBorrower(BORROWER);
-        MockLoan(loan).__setFactory(address(loanFactory));
-        MockLoan(loan).__setLender(address(loanManager));
-        MockLoan(loan).__setPaymentsRemaining(3);
-        MockGlobals(globals).setValidBorrower(BORROWER, true);
-
-        loanFactory.__setIsLoan(loan, true);
-
-        vm.startPrank(POOL_DELEGATE);
-        poolManager.__setIsStrategy(address(loanManager), true);
-        poolManager.__pushToStrategyList(address(loanManager));
-        poolManager.setWithdrawalManager(withdrawalManager);
-        vm.stopPrank();
-    }
-
-    function test_finishCollateralLiquidation_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.expectRevert("PM:PAUSED");
-        poolManager.finishCollateralLiquidation(loan);
-    }
-
-    function test_finishCollateralLiquidation_notAuthorized() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-
-        loanManager.__setTriggerDefaultReturn(2_000e18);
+    function test_setStrategyCap_revert_notStrategyOrManager() external {
+        address unregisteredStrategy = makeAddr("unregisteredStrategy");
 
         vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
-
-        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
-        poolManager.finishCollateralLiquidation(loan);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(unregisteredStrategy, newCap);
     }
 
-    function test_finishCollateralLiquidation_success_noCover_asPoolDelegate() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(poolManager.unrealizedLosses(),                0);
-
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
+    function test_setStrategyCap_revert_strategy_factoryNotRegistered() external {
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), false);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
-
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategy), newCap);
     }
 
-    function test_finishCollateralLiquidation_success_noCover_asGovernor() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
+    function test_setStrategyCap_revert_strategy_factoryRegisteredAsManagerOnly() external {
+        strategy.__setFactory(address(strategyManagerFactory));
 
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(poolManager.unrealizedLosses(),                0);
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
 
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-        vm.prank(GOVERNOR);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+    function test_setStrategyCap_revert_strategy_invalidInstance() external {
+        strategyFactory.__setIsInstance(address(strategy), false);
 
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
 
-        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
+    function test_setStrategyCap_revert_strategyManager_factoryNotRegistered() external {
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+    }
+
+    function test_setStrategyCap_revert_strategyManager_factoryRegisteredAsStrategyOnly() external {
+        strategyManager.__setFactory(address(strategyFactory));
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+    }
+
+    function test_setStrategyCap_revert_strategyManager_invalidInstance() external {
+        strategyManagerFactory.__setIsInstance(address(strategyManager), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategyManager), newCap);
+    }
+
+    function test_setStrategyCap_revert_bothMappingsTrue_strategyManagerTakesPrecedence() external {
+        poolManager.__setIsStrategyManager(address(strategy), true);
+
+        assertEq(poolManager.isStrategy(address(strategy)),        true);
+        assertEq(poolManager.isStrategyManager(address(strategy)), true);
+
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY", address(strategyFactory)),         true);
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_MANAGER_FACTORY", address(strategyFactory)), false);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(strategy), newCap);
+    }
+
+    function test_setStrategyCap_revert_zeroAddress_isStrategyTrue() external {
+        poolManager.__setIsStrategy(address(0), true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(0), newCap);
+    }
+
+    function test_setStrategyCap_revert_zeroAddress_isStrategyManagerTrue() external {
+        poolManager.__setIsStrategyManager(address(0), true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:SSC:NOT_STRATEGY_OR_MANAGER");
+        poolManager.setStrategyCap(address(0), newCap);
+    }
+
+    function test_setStrategyCap_success_asPoolDelegate() external {
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategy), newCap);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+    }
+
+    function test_setStrategyCap_success_asGovernor() external {
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
 
         vm.prank(GOVERNOR);
-        poolManager.finishCollateralLiquidation(loan);
+        poolManager.setStrategyCap(address(strategy), newCap);
 
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
     }
 
-    function test_finishCollateralLiquidation_success_noCover_asOperationalAdmin() external {
-        MockGlobals(globals).__setOperationalAdmin(OPERATIONAL_ADMIN);
-
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(poolManager.unrealizedLosses(),                0);
-
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-        vm.prank(OPERATIONAL_ADMIN);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 1_000e18, serviceFee_: 100e18 });
+    function test_setStrategyCap_success_asOperationalAdmin() external {
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
 
         vm.prank(OPERATIONAL_ADMIN);
-        poolManager.finishCollateralLiquidation(loan);
+        poolManager.setStrategyCap(address(strategy), newCap);
 
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
-        assertEq(MockERC20(asset).balanceOf(TREASURY),          0);  // No cover, no fees paid to treasury.
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
     }
 
-    function test_finishCollateralLiquidation_success_noRemainingLossAfterCollateralLiquidation() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+    function test_setStrategyCap_success_strategy_whenNotConfigured_asAnyone() external {
+        poolManager.__setConfigured(false);
 
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
-        assertEq(poolManager.unrealizedLosses(),                0);
+        address anyone = makeAddr("anyone");
 
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+        assertEq(poolManager.configured(),                     false);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
 
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
+        vm.prank(anyone);
+        poolManager.setStrategyCap(address(strategy), newCap);
 
-        loanManager.__setFinishCollateralLiquidationReturn({ remainingLosses_: 0, serviceFee_: 0 });
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
-
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+        assertEq(poolManager.configured(),                     false);
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
     }
 
-    function test_finishCollateralLiquidation_success_coverLeftOver() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 2_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
+    function test_setStrategyCap_success_strategyManager_whenNotConfigured_asAnyone() external {
+        poolManager.__setConfigured(false);
 
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 2_000e18);
-        assertEq(poolManager.unrealizedLosses(),                0);
+        address anyone = makeAddr("anyone");
 
-        loanManager.__setTriggerDefaultReturn(3_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
+        assertEq(poolManager.configured(),                            false);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
 
-        assertEq(poolManager.unrealizedLosses(), 3_000e18);
+        vm.prank(anyone);
+        poolManager.setStrategyCap(address(strategyManager), newCap);
 
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
-
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
+        assertEq(poolManager.configured(),                            false);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), newCap);
     }
 
-    function test_finishCollateralLiquidation_success_noCoverLeftOver() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
-
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
-        assertEq(poolManager.unrealizedLosses(),                0);
-
-        loanManager.__setTriggerDefaultReturn(2_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 2_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
+    function test_setStrategyCap_success_strategyManager() external {
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
+        poolManager.setStrategyCap(address(strategyManager), newCap);
 
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     newCap);
     }
 
-    function test_finishCollateralLiquidation_success_fullCoverLiquidation_preexistingLoss() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), poolManager.HUNDRED_PERCENT());
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
+    function test_setStrategyCap_success_bothMappings() external {
+        poolManager.__setIsStrategy(address(strategyManager), true);
 
-        // There could be unrealizedLosses from a previous ongoing loan default.
-        loanManager.__setUnrealizedLosses(2_000e18);
-
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 1_000e18);
-        assertEq(poolManager.unrealizedLosses(),                2_000e18);
-
-        loanManager.__setTriggerDefaultReturn(3_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 5_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
+        poolManager.setStrategyCap(address(strategyManager), newCap);
 
-        assertEq(poolManager.unrealizedLosses(),                2_000e18);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 0);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     newCap);
     }
 
-    function test_finishCollateralLiquidation_success_exceedMaxCoverLiquidationPercentAmount() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 50_0000);
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
-
-        assertEq(poolManager.unrealizedLosses(), 0);
-
-        loanManager.__setTriggerDefaultReturn(3_000e18);
-        vm.prank(POOL_DELEGATE);
-        poolManager.triggerDefault(address(loan), address(liquidatorFactory));
-
-        assertEq(poolManager.unrealizedLosses(), 3_000e18);
-
-        loanManager.__setFinishCollateralLiquidationReturn(1_000e18, 0);
+    function test_setStrategyCap_success_overwrite() external {
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
 
         vm.prank(POOL_DELEGATE);
-        poolManager.finishCollateralLiquidation(loan);
+        poolManager.setStrategyCap(address(strategy), newCap);
 
-        assertEq(poolManager.unrealizedLosses(),                0);
-        assertEq(MockERC20(asset).balanceOf(poolDelegateCover), 500e18);
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+
+        uint256 updatedCap = 2_000_000e18;
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), updatedCap);
+
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), updatedCap);
+    }
+
+    function test_setStrategyCap_success_zeroCap_bypassesValidation() external {
+        assertEq(poolManager.configured(), true);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategy)), newCap);
+
+        poolManager.__setIsStrategy(address(strategy), false);
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), false);
+        strategyFactory.__setIsInstance(address(strategy), false);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategy), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), 0);
+
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+    }
+
+    function test_setStrategyCap_success_capMax() external {
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), type(uint256).max);
+
+        assertEq(poolManager.configured(),                     true);
+        assertEq(poolManager.strategyCapOf(address(strategy)), type(uint256).max);
+    }
+
+    function test_setStrategyCap_success_multipleStrategies_isolation() external {
+        uint256 strategyManagerCap = 5_000_000e18;
+
+        assertEq(poolManager.configured(),                            true);
+        assertEq(poolManager.strategyCapOf(address(strategy)),        0);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategy), newCap);
+
+        assertEq(poolManager.configured(),                            true);
+        assertEq(poolManager.strategyCapOf(address(strategy)),        newCap);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategyManager), strategyManagerCap);
+
+        assertEq(poolManager.configured(),                            true);
+        assertEq(poolManager.strategyCapOf(address(strategy)),        newCap);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), strategyManagerCap);
     }
 
 }
@@ -927,6 +861,13 @@ contract ProcessRedeemTests is PoolManagerTestBase {
     function test_processRedeem_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
         vm.expectRevert("PM:PAUSED");
+        poolManager.processRedeem(1, address(1), address(1));
+    }
+
+    function test_processRedeem_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
         poolManager.processRedeem(1, address(1), address(1));
     }
 
@@ -960,6 +901,26 @@ contract ProcessRedeemTests is PoolManagerTestBase {
         poolManager.processRedeem(1, user1, user2);
     }
 
+    function test_processWithdraw_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
+        poolManager.processWithdraw(1, address(1), address(1));
+    }
+
+    function test_processWithdraw_notEnabled() external {
+        vm.expectRevert("PM:PW:NOT_ENABLED");
+        poolManager.processWithdraw(0, address(0), address(0));
+    }
+
+}
+
+contract HasSufficientCoverTests is PoolManagerTestBase {
+
+    function test_hasSufficientCover_alwaysTrue() external {
+        assertTrue(poolManager.hasSufficientCover());
+    }
+
 }
 
 contract AddStrategy_SetterTests is PoolManagerTestBase {
@@ -983,65 +944,596 @@ contract AddStrategy_SetterTests is PoolManagerTestBase {
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:PAUSED");
-        poolManager.addStrategy(address(0), deploymentData);
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
     }
 
-    function test_addStrategy_notPoolDelegate() external {
+    function test_addStrategy_notGovernor() external {
         poolManager.__setConfigured(true);
 
-        vm.expectRevert("PM:NOT_PA_OR_NOT_CONFIGURED");
-        poolManager.addStrategy(address(0), deploymentData);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
+    }
+
+    function test_addStrategy_asPoolDelegate_whenConfigured_reverts() external {
+        poolManager.__setConfigured(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
+    }
+
+    function test_addStrategy_asOperationalAdmin_whenConfigured_reverts() external {
+        poolManager.__setConfigured(true);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
     }
 
     function test_addStrategy_invalidFactory() external {
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:AS:INVALID_FACTORY");
-        poolManager.addStrategy(address(0), deploymentData);
+        poolManager.addStrategy(address(0), bytes32("salt"), deploymentData);
+    }
+
+    function test_addStrategy_aumFailure() external {
+        MockFactory(loanManagerFactory).__setReverts(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:AS:AUM_FAILURE");
+        poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
     }
 
     function test_addStrategy_success_whenNotConfigured() external {
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
+        address expectedStrategy = MockFactory(loanManagerFactory).getNextStrategyAddress();
 
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyAdded(expectedStrategy);
 
-        assertEq(poolManager.strategyListLength(), 1);
-    }
+        address strategy_ = poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
 
-    function test_addStrategy_success_asPoolDelegate() external {
-        poolManager.__setConfigured(true);
-
-        vm.startPrank(POOL_DELEGATE);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
-
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
-
-        assertEq(poolManager.strategyListLength(), 1);
+        assertEq(strategy_,                         expectedStrategy);
+        assertEq(poolManager.strategyList(0),       strategy_);
+        assertEq(poolManager.strategyListLength(),  1);
+        assertEq(poolManager.isStrategy(strategy_), true);
     }
 
     function test_addStrategy_success_asGovernor() external {
         poolManager.__setConfigured(true);
 
-        vm.startPrank(GOVERNOR);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
+        address expectedStrategy = MockFactory(loanManagerFactory).getNextStrategyAddress();
 
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyAdded(expectedStrategy);
 
-        assertEq(poolManager.strategyListLength(), 1);
+        vm.prank(GOVERNOR);
+        address strategy_ = poolManager.addStrategy(loanManagerFactory, bytes32("salt"), deploymentData);
+
+        assertEq(strategy_,                         expectedStrategy);
+        assertEq(poolManager.strategyList(0),       strategy_);
+        assertEq(poolManager.strategyListLength(),  1);
+        assertEq(poolManager.isStrategy(strategy_), true);
     }
 
-    function test_addStrategy_success_asOperationalAdmin() external {
+}
+
+contract AddStrategyManager_SetterTests is PoolManagerTestBase {
+
+    MockFactory internal strategyManagerFactory;
+    MockStrategy internal strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategyManagerFactory = new MockFactory();
+        strategyManager        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        strategyManager.__setFactory(address(strategyManagerFactory));
+        strategyManager.__setIsAssetSupported(address(asset), true);
+
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
+
+        strategyManagerFactory.__setIsInstance(address(strategyManager), true);
+    }
+
+    function test_addStrategyManager_revert_paused() external {
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_notGovernor_whenConfigured() external {
         poolManager.__setConfigured(true);
 
-        vm.startPrank(OPERATIONAL_ADMIN);
-        address strategy_ = poolManager.addStrategy(loanManagerFactory, deploymentData);
+        vm.expectRevert("PM:NOT_GOV_OR_NOT_CONFIGURED");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
 
-        assertTrue(strategy_ == poolManager.__getStrategyListValue(0));
-        assertTrue(poolManager.__getStrategyListValue(0) != address(0));
+    function test_addStrategyManager_revert_alreadyStrategy() external {
+        poolManager.__setIsStrategy(address(strategyManager), true);
 
-        assertEq(poolManager.strategyListLength(), 1);
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:ALREADY_STRATEGY");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_alreadyStrategyManager() external {
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:ALREADY_STRATEGY_MANAGER");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_invalidStrategyManager_factoryNotRegistered() external {
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), false);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:INVALID_STRATEGY_MANAGER");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_invalidStrategyManager_factoryRegisteredAsStrategyOnly() external {
+        MockFactory strategyFactory = new MockFactory();
+
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", address(strategyFactory), true);
+
+        strategyManager.__setFactory(address(strategyFactory));
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:INVALID_STRATEGY_MANAGER");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_invalidStrategyManager_invalidInstance() external {
+        strategyManagerFactory.__setIsInstance(address(strategyManager), false);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:INVALID_STRATEGY_MANAGER");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_zeroAddress() external {
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:INVALID_STRATEGY_MANAGER");
+        poolManager.addStrategyManager(address(0));
+    }
+
+    function test_addStrategyManager_revert_assetNotSupported() external {
+        strategyManager.__setIsAssetSupported(address(asset), false);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:ASSET_NOT_SUPPORTED");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_revert_assetsOfFailure() external {
+        strategyManager.__setRevertOnAssetsOf(true);
+
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:ASM:ASSETS_OF_FAILURE");
+        poolManager.addStrategyManager(address(strategyManager));
+    }
+
+    function test_addStrategyManager_success_emptyStrategyManager() external {
+        uint256 initialPoolBalance = asset.balanceOf(address(pool));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance);
+
+        assertStrategyList_Empty();
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerAdded(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance);
+
+        assertStrategyList(array(address(strategyManager)));
+    }
+
+    function test_addStrategyManager_success_whenNotConfigured_asAnyCaller() external {
+        assertEq(poolManager.configured(), false);
+
+        vm.prank(makeAddr("anyone"));
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+
+        assertStrategyList(array(address(strategyManager)));
+    }
+
+    function test_addStrategyManager_success_whenConfigured_asGovernor() external {
+        poolManager.__setConfigured(true);
+
+        assertEq(poolManager.configured(), true);
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+
+        assertStrategyList(array(address(strategyManager)));
+    }
+
+    function test_addStrategyManager_success_nonEmptyStrategyManager() external {
+        uint256 strategyManagerAssets = 500_000e18;
+        uint256 initialPoolBalance    = asset.balanceOf(address(pool));
+
+        strategyManager.__setAssetsOf(address(poolManager), strategyManagerAssets);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance);
+
+        assertStrategyList_Empty();
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerAdded(address(strategyManager));
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategyManagerAssets);
+
+        assertStrategyList(array(address(strategyManager)));
+    }
+
+    function test_addStrategyManager_success_multipleStrategyManagers() external {
+        MockStrategy strategyManager2 = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        strategyManager2.__setFactory(address(strategyManagerFactory));
+        strategyManager2.__setIsAssetSupported(address(asset), true);
+        strategyManagerFactory.__setIsInstance(address(strategyManager2), true);
+
+        uint256 initialPoolBalance = asset.balanceOf(address(pool));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), false);
+        assertEq(poolManager.totalAssets(),                                initialPoolBalance);
+
+        assertStrategyList_Empty();
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), false);
+        assertEq(poolManager.totalAssets(),                                initialPoolBalance);
+
+        assertStrategyList(array(address(strategyManager)));
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager2));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+        assertEq(poolManager.totalAssets(),                                initialPoolBalance);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2)));
+    }
+
+    function test_addStrategyManager_success_appendsAfterExistingStrategy() external {
+        MockStrategy strategy = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        poolManager.__setIsStrategy(address(strategy), true);
+        poolManager.__pushToStrategyList(address(strategy));
+
+        uint256 strategyAssets     = 100_000e18;
+        uint256 initialPoolBalance = asset.balanceOf(address(pool));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategyAssets);
+
+        assertStrategyList(array(address(strategy)));
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategyAssets);
+
+        assertStrategyList(array(address(strategy), address(strategyManager)));
+    }
+
+    function test_addStrategyManager_success_interleavedWithStrategies() external {
+        MockStrategy strategy1 = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        MockStrategy strategy2 = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        poolManager.__setIsStrategy(address(strategy1), true);
+        poolManager.__setIsStrategy(address(strategy2), true);
+
+        uint256 strategy1Assets    = 100_000e18;
+        uint256 strategy2Assets    = 150_000e18;
+        uint256 initialPoolBalance = asset.balanceOf(address(pool));
+
+        strategy1.__setAssetsUnderManagement(strategy1Assets);
+        strategy2.__setAssetsUnderManagement(strategy2Assets);
+
+        poolManager.__pushToStrategyList(address(strategy1));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategy1Assets);
+
+        assertStrategyList(array(address(strategy1)));
+
+        vm.prank(GOVERNOR);
+        poolManager.addStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategy1Assets);
+
+        assertStrategyList(array(address(strategy1), address(strategyManager)));
+
+        poolManager.__pushToStrategyList(address(strategy2));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.totalAssets(),                               initialPoolBalance + strategy1Assets + strategy2Assets);
+
+        assertStrategyList(array(address(strategy1), address(strategyManager), address(strategy2)));
+    }
+
+}
+
+contract RemoveStrategyManager_SetterTests is PoolManagerTestBase {
+
+    MockFactory strategyManagerFactory;
+    MockStrategy strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategyManagerFactory = new MockFactory();
+        strategyManager        = createStrategyManager(strategyManagerFactory);
+
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", address(strategyManagerFactory), true);
+    }
+
+    function test_removeStrategyManager_revert_paused() external {
+        addStrategyManager(strategyManager);
+
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notOperationalAdmin() external {
+        addStrategyManager(strategyManager);
+
+        // Default caller
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        // Pool delegate cannot remove
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        // Governor cannot remove
+        vm.prank(GOVERNOR);
+        vm.expectRevert("PM:NOT_OPERATIONAL_ADMIN");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notStrategyManager() external {
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_nonZeroAssets() external {
+        uint256 managerAssets = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:RSM:NON_ZERO_ASSETS");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_revert_notStrategyManager_afterRemoval() external {
+        addStrategyManager(strategyManager);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        vm.expectRevert("PM:RSM:NOT_STRATEGY_MANAGER");
+        poolManager.removeStrategyManager(address(strategyManager));
+    }
+
+    function test_removeStrategyManager_success() external {
+        addStrategyManager(strategyManager);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+
+        assertStrategyList(array(address(strategyManager)));
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_clearsStrategyCap() external {
+        uint256 managerCap = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(address(strategyManager), managerCap);
+
+        assertEq(poolManager.strategyCapOf(address(strategyManager)), managerCap);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyCapSet(address(strategyManager), 0);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.StrategyManagerRemoved(address(strategyManager));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
+
+        addStrategyManager(strategyManager);
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), true);
+        assertEq(poolManager.strategyCapOf(address(strategyManager)),     0);
+
+        vm.prank(address(strategyManager));
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        poolManager.requestFunds(makeAddr("destination"), 1);
+    }
+
+    function test_removeStrategyManager_success_otherPoolManagerHasAssets() external {
+        address otherPoolManager = makeAddr("otherPoolManager");
+        uint256 managerAssets    = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setAssetsOf(otherPoolManager, managerAssets);
+
+        assertEq(strategyManager.assetsOf(address(poolManager)), 0);
+        assertEq(strategyManager.assetsOf(otherPoolManager),     managerAssets);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(strategyManager.assetsOf(otherPoolManager),              managerAssets);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_otherPoolManagerHasLosses() external {
+        address otherPoolManager = makeAddr("otherPoolManager");
+        uint256 managerLosses    = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setUnrealizedLossesOf(otherPoolManager, managerLosses);
+
+        assertEq(strategyManager.unrealizedLossesOf(address(poolManager)), 0);
+        assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),     managerLosses);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+        assertEq(strategyManager.unrealizedLossesOf(otherPoolManager),    managerLosses);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_nonZeroLosses() external {
+        uint256 managerLosses = 100_000e18;
+
+        addStrategyManager(strategyManager);
+
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertStrategyList(array(address(strategyManager)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)), false);
+
+        assertStrategyList_Empty();
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_middleAndLast() external {
+        MockStrategy strategy         = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+
+        poolManager.__setIsStrategy(address(strategy), true);
+        poolManager.__pushToStrategyList(address(strategy));
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+
+        assertStrategyList(array(address(strategy), address(strategyManager), address(strategyManager2)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+
+        assertStrategyList(array(address(strategy), address(strategyManager2)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager2));
+
+        assertEq(poolManager.isStrategy(address(strategy)),                true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), false);
+
+        assertStrategyList(array(address(strategy)));
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_first() external {
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+        MockStrategy strategyManager3 = createStrategyManager(strategyManagerFactory);
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+        addStrategyManager(strategyManager3);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  false);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager3)), true);
+
+        assertStrategyList(array(address(strategyManager3), address(strategyManager2)));
+    }
+
+    function test_removeStrategyManager_success_unorderedRemoval_last() external {
+        MockStrategy strategyManager2 = createStrategyManager(strategyManagerFactory);
+        MockStrategy strategyManager3 = createStrategyManager(strategyManagerFactory);
+
+        addStrategyManager(strategyManager);
+        addStrategyManager(strategyManager2);
+        addStrategyManager(strategyManager3);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2), address(strategyManager3)));
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.removeStrategyManager(address(strategyManager3));
+
+        assertEq(poolManager.isStrategyManager(address(strategyManager)),  true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager2)), true);
+        assertEq(poolManager.isStrategyManager(address(strategyManager3)), false);
+
+        assertStrategyList(array(address(strategyManager), address(strategyManager2)));
     }
 
 }
@@ -1064,7 +1556,7 @@ contract SetWithdrawalManager_SetterTests is PoolManagerTestBase {
     }
 
     function test_setWithdrawalManager_invalidFactory() external {
-        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), false);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerFactory), false);
 
         vm.prank(POOL_DELEGATE);
         vm.expectRevert("PM:SWM:INVALID_FACTORY");
@@ -1088,6 +1580,72 @@ contract SetWithdrawalManager_SetterTests is PoolManagerTestBase {
 
 }
 
+contract TriggerDefaultTests is PoolManagerTestBase {
+
+    MockLoan internal loan;
+    MockLoanManager internal loanManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        loanManager = new MockLoanManager();
+        loan        = new MockLoan();
+
+        loan.__setLender(address(loanManager));
+    }
+
+    function test_triggerDefault_paused() external {
+        MockGlobals(globals).__setFunctionPaused(true);
+
+        vm.prank(POOL_DELEGATE);
+        vm.expectRevert("PM:PAUSED");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_notAuthorized() external {
+        vm.expectRevert("PM:NOT_PD_OR_GOV_OR_OA");
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asPoolDelegate() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asGovernor() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(GOVERNOR);
+        poolManager.triggerDefault(address(loan));
+    }
+
+    function test_triggerDefault_success_asOperationalAdmin() external {
+        loanManager.__setTriggerDefaultReturn(1_000e18);
+
+        vm.expectEmit();
+        emit IMaplePoolManager.CollateralLiquidationFinished(address(loan), 1_000e18);
+
+        vm.prank(OPERATIONAL_ADMIN);
+        poolManager.triggerDefault(address(loan));
+    }
+
+}
+
 contract CanCallTests is PoolManagerTestBase {
 
     function test_canCall_deposit_notActive() external {
@@ -1099,7 +1657,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1116,14 +1674,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1139,7 +1697,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1154,7 +1712,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1171,14 +1729,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1193,7 +1751,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1208,7 +1766,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1225,14 +1783,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1247,7 +1805,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1262,7 +1820,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:NOT_ACTIVE");
@@ -1279,14 +1837,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1301,7 +1859,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6 + 1, receiver_, uint256(0), uint256(0), uint8(0), bytes32(0), bytes32(0));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "P:DEPOSIT_GT_LIQ_CAP");
@@ -1312,7 +1870,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(this), address(this));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1323,7 +1881,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1334,7 +1892,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1345,7 +1903,7 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1362,14 +1920,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(recipient_, uint256(1_000e6));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1386,14 +1944,14 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(address(1), recipient_, uint256(1_000e6));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:NOT_ALLOWED");
 
         mockPoolPermissionManager.__setAllowed(true);
 
-        ( canCall_, errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (canCall_, errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
@@ -1404,97 +1962,97 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory params = abi.encode(1_000e6, address(1), address(2));
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(pool), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(pool), params);
 
         assertTrue(canCall_);
         assertEq(errorMessage_, "");
     }
 
     function test_canCall_paused_transfer() external {
-        bytes32 functionId_ = bytes32("P:transfer");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:transfer");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_redeem() external {
-        bytes32 functionId_ = bytes32("P:redeem");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:redeem");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_withdraw() external {
-        bytes32 functionId_ = bytes32("P:withdraw");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:withdraw");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_removeShares() external {
-        bytes32 functionId_ = bytes32("P:removeShares");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:removeShares");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_requestRedeem() external {
-        bytes32 functionId_ = bytes32("P:requestRedeem");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:requestRedeem");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
     }
 
     function test_canCall_paused_requestWithdraw() external {
-        bytes32 functionId_ = bytes32("P:requestWithdraw");
-        address recipient_  = address(this);
-        bytes memory params = abi.encode(recipient_, uint256(1_000e6));
+        bytes32      functionId_ = bytes32("P:requestWithdraw");
+        address      recipient_  = address(this);
+        bytes memory params      = abi.encode(recipient_, uint256(1_000e6));
 
         // Set protocol paused
         MockGlobals(globals).__setFunctionPaused(true);
 
         // Call cannot be performed
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId_, address(this), params);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId_, address(this), params);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:PAUSED");
@@ -1506,230 +2064,10 @@ contract CanCallTests is PoolManagerTestBase {
 
         bytes memory data = abi.encode(caller, caller);
 
-        ( bool canCall_, string memory errorMessage_ ) = poolManager.canCall(functionId, caller, data);
+        (bool canCall_, string memory errorMessage_) = poolManager.canCall(functionId, caller, data);
 
         assertTrue(!canCall_);
         assertEq(errorMessage_, "PM:CC:INVALID_FUNCTION_ID");
-    }
-
-}
-
-contract DepositCoverTests is PoolManagerTestBase {
-
-    function setUp() public override {
-        super.setUp();
-
-        asset.mint(POOL_DELEGATE, 1_000e18);
-    }
-
-    function test_depositCover_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.expectRevert("PM:PAUSED");
-        poolManager.depositCover(1_000e18);
-    }
-
-    function test_depositCover_insufficientApproval() external {
-        vm.startPrank(POOL_DELEGATE);
-        asset.approve(address(poolManager), 1_000e18 - 1);
-
-        vm.expectRevert("PM:DC:TRANSFER_FAIL");
-        poolManager.depositCover(1_000e18);
-
-        asset.approve(address(poolManager), 1_000e18);
-        poolManager.depositCover(1_000e18);
-    }
-
-    function test_depositCover_success() external {
-        assertEq(asset.balanceOf(POOL_DELEGATE),                       1_000e18);
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()),     0);
-        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 0);
-
-        vm.startPrank(POOL_DELEGATE);
-
-        asset.approve(address(poolManager), 1_000e18);
-
-        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 1_000e18);
-
-        poolManager.depositCover(1_000e18);
-        assertEq(asset.balanceOf(POOL_DELEGATE),                       0);
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()),     1_000e18);
-        assertEq(asset.allowance(POOL_DELEGATE, address(poolManager)), 0);
-    }
-
-}
-
-contract HandleCoverTests is PoolManagerTestBase {
-
-    address loanManager;
-
-    function setUp() public override {
-        super.setUp();
-
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 1e6);
-
-        loanManager = makeAddr("loanManager");
-
-        poolManager.__setIsStrategy(loanManager, true);
-        poolManager.__pushToStrategyList(loanManager);
-    }
-
-    function test_handleCover_noCover() external {
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-
-        vm.prank(loanManager);
-        poolManager.__handleCover(5_000e18, 1_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-    }
-
-    function test_handleCover_onlyFees() external {
-        asset.mint(poolManager.poolDelegateCover(), 800e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 800e18);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-
-        vm.prank(loanManager);
-        poolManager.__handleCover(5_000e18, 1_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        800e18);
-    }
-
-    function test_handleCover_feesAndSomeLosses() external {
-        asset.mint(poolManager.poolDelegateCover(), 1_800e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_800e18);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-
-        vm.prank(loanManager);
-        poolManager.__handleCover(5_000e18, 1_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 0);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 800e18);
-        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
-    }
-
-    function test_handleCover_fullCoverage() external {
-        asset.mint(poolManager.poolDelegateCover(), 6_100e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-
-        vm.prank(loanManager);
-        poolManager.__handleCover(5_000e18, 1_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 100e18);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 5_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
-    }
-
-    function test_handleCover_halfCoverage() external {
-        MockGlobals(globals).setMaxCoverLiquidationPercent(address(poolManager), 0.5e6);
-
-        asset.mint(poolManager.poolDelegateCover(), 6_100e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18);
-        assertEq(asset.balanceOf(TREASURY),                        0);
-
-        vm.prank(loanManager);
-        poolManager.__handleCover(5_000e18, 1_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 6_100e18 / 2);
-        assertEq(asset.balanceOf(address(pool)),                   1_000_000e18 + 2_050e18);
-        assertEq(asset.balanceOf(TREASURY),                        1_000e18);
-    }
-
-}
-
-contract WithdrawCoverTests is PoolManagerTestBase {
-
-    function test_withdrawCover_paused() external {
-        MockGlobals(globals).__setFunctionPaused(true);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:PAUSED");
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-    }
-
-    function test_withdrawCover_notPoolDelegate() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-
-        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
-
-        vm.expectRevert("PM:NOT_PD");
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-    }
-
-    function test_withdrawCover_tryWithdrawBelowRequired() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-
-        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PM:WC:BELOW_MIN");
-        poolManager.withdrawCover(1_000e18 + 1, POOL_DELEGATE);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-    }
-
-    function test_withdrawCover_noRequirement() external {
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
-
-        // Withdraw all cover, for example in the scenario that a pool closes.
-        vm.prank(POOL_DELEGATE);
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-    }
-
-    function test_withdrawCover_withdrawMoreThanBalance() external {
-        asset.mint(poolManager.poolDelegateCover(), 1_000e18);
-
-        vm.prank(POOL_DELEGATE);
-        vm.expectRevert("PDC:MF:TRANSFER_FAILED");
-        poolManager.withdrawCover(1_000e18 + 1, POOL_DELEGATE);
-    }
-
-    function test_withdrawCover_success() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-
-        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 2_000e18);
-        assertEq(asset.balanceOf(POOL_DELEGATE),                   0);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.withdrawCover(1_000e18, POOL_DELEGATE);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_000e18);
-        assertEq(asset.balanceOf(POOL_DELEGATE),                   1_000e18);
-    }
-
-    function test_withdrawCover_success_zeroRecipient() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1_000e18);
-
-        asset.mint(poolManager.poolDelegateCover(), 2_000e18);
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 2_000e18);
-        assertEq(asset.balanceOf(POOL_DELEGATE),                   0);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.withdrawCover(1_000e18, address(0));
-
-        assertEq(asset.balanceOf(poolManager.poolDelegateCover()), 1_000e18);
-        assertEq(asset.balanceOf(POOL_DELEGATE),                   1_000e18);
     }
 
 }
@@ -1773,7 +2111,7 @@ contract MaxDepositTests is PoolManagerTestBase {
 
         poolManager.setLiquidityCap(1);
 
-        asset.mint(address(pool), 1);  // Set totalAssets to 1
+        asset.mint(address(pool), 1); // Set totalAssets to 1
 
         assertEq(poolManager.maxDeposit(lp1), 0);
         assertEq(poolManager.maxDeposit(lp2), 0);
@@ -1788,7 +2126,7 @@ contract MaxDepositTests is PoolManagerTestBase {
         assertEq(poolManager.maxDeposit(lp1), 99);
         assertEq(poolManager.maxDeposit(lp2), 99);
 
-        asset.mint(address(pool), 100);  // Set totalAssets to 101, higher than liquidity cap
+        asset.mint(address(pool), 100); // Set totalAssets to 101, higher than liquidity cap
 
         assertEq(poolManager.maxDeposit(lp1), 0);
         assertEq(poolManager.maxDeposit(lp2), 0);
@@ -1815,7 +2153,7 @@ contract MaxMintTests is PoolManagerTestBase {
         super.setUp();
 
         asset.burn(address(pool), 1_000_000e18);
-        pool.burn(address(1), 1);  // Revert setup mint
+        pool.burn(address(1), 1); // Revert setup mint
     }
 
     function _doInitialDeposit() internal {
@@ -1891,7 +2229,7 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp1), 100);
         assertEq(poolManager.maxMint(lp2), 100);
 
-        poolManager.setLiquidityCap(99);  // Set totalAssets to 99, lower than totalAssets
+        poolManager.setLiquidityCap(99); // Set totalAssets to 99, lower than totalAssets
 
         assertEq(poolManager.maxMint(lp1), 0);
         assertEq(poolManager.maxMint(lp2), 0);
@@ -1912,7 +2250,7 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp1), 100);
         assertEq(poolManager.maxMint(lp2), 100);
 
-        asset.mint(address(pool), 100);  // Set totalAssets to 200 so 2:1
+        asset.mint(address(pool), 100); // Set totalAssets to 200 so 2:1
 
         assertEq(poolManager.maxMint(lp1), 0);
         assertEq(poolManager.maxMint(lp2), 0);
@@ -1923,10 +2261,18 @@ contract MaxMintTests is PoolManagerTestBase {
         assertEq(poolManager.maxMint(lp2), 50);
     }
 
-    function testFuzz_maxMint_liquidityCap(address lp1, address lp2, uint256 liquidityCap, uint256 initialDeposit, uint256 totalAssets) external {
-        liquidityCap   = bound(liquidityCap,   1,              1e29);
-        initialDeposit = bound(initialDeposit, 1,              liquidityCap);
-        totalAssets    = bound(totalAssets,    initialDeposit, 1e29);
+    function testFuzz_maxMint_liquidityCap(
+        address lp1,
+        address lp2,
+        uint256 liquidityCap,
+        uint256 initialDeposit,
+        uint256 totalAssets
+    )
+        external
+    {
+        liquidityCap   = bound(liquidityCap, 1, 1e29);
+        initialDeposit = bound(initialDeposit, 1, liquidityCap);
+        totalAssets    = bound(totalAssets, initialDeposit, 1e29);
 
         vm.startPrank(POOL_DELEGATE);
 
@@ -1940,7 +2286,7 @@ contract MaxMintTests is PoolManagerTestBase {
         asset.approve(address(pool), initialDeposit);
         pool.deposit(initialDeposit, address(this));
 
-        asset.mint(address(pool), totalAssets - initialDeposit);  // Account for initial deposit
+        asset.mint(address(pool), totalAssets - initialDeposit); // Account for initial deposit
 
         uint256 expectedMaxDeposit = totalAssets > liquidityCap ? 0 : liquidityCap - totalAssets;
 
@@ -1968,116 +2314,652 @@ contract MaxWithdrawTests is PoolManagerTestBase {
 
 }
 
-contract RequestFundsTests is PoolManagerTestBase {
+contract TotalAssetsTests is PoolManagerTestBase {
 
-    address strategy;
-    address strategyFactory;
+    MockStrategy internal strategy;
+    MockStrategy internal strategyManager;
 
     function setUp() public override {
         super.setUp();
 
-        strategy        = address(new MockLoanManager(address(pool), address(0), POOL_DELEGATE));
-        strategyFactory = address(new MockFactory());
+        strategy        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
 
-        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY",           strategyFactory,                   true);
-        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_FACTORY", address(withdrawalManagerFactory), true);
+        poolManager.__setIsStrategyManager(address(strategyManager), true);
+        poolManager.__setIsStrategy(address(strategy), true);
 
-        MockLoanManager(strategy).__setFactory(strategyFactory);
-
-        poolManager.__setIsStrategy(strategy, true);
-
-        MockFactory(strategyFactory).__setIsInstance(address(strategy), true);
-
-        vm.prank(POOL_DELEGATE);
-        poolManager.setWithdrawalManager(withdrawalManager);
+        asset.burn(address(pool), asset.balanceOf(address(pool)));
     }
 
-    function test_requestFunds_paused() external {
+    function test_totalAssets_singleStrategy() external {
+        uint256 strategyAssets = 250_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets);
+    }
+
+    function test_totalAssets_singleStrategyManager() external {
+        uint256 managerAssets = 400_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategyManager));
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), managerAssets);
+    }
+
+    function test_totalAssets_mixed() external {
+        uint256 strategyAssets = 250_000e18;
+        uint256 managerAssets  = 400_000e18;
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets + managerAssets);
+    }
+
+    function test_totalAssets_mixed_partialThenFullLoss() external {
+        uint256 strategyAssets = 1_600e18;
+        uint256 managerAssets  = 800e18;
+
+        /**********************************************************************************************************************************/
+        /*** Step 1: Baseline                                                                                                           ***/
+        /**********************************************************************************************************************************/
+
+        assertEq(poolManager.totalAssets(), 0);
+
+        /**********************************************************************************************************************************/
+        /*** Step 2: Full exposure                                                                                                      ***/
+        /**********************************************************************************************************************************/
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        assertEq(poolManager.totalAssets(), strategyAssets + managerAssets);
+
+        /**********************************************************************************************************************************/
+        /*** Step 3: Partial loss                                                                                                       ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setAssetsUnderManagement(strategyAssets / 16);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets / 19);
+
+        assertEq(poolManager.totalAssets(), strategyAssets / 16 + managerAssets / 19);
+
+        /**********************************************************************************************************************************/
+        /*** Step 4: Full loss                                                                                                          ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setAssetsUnderManagement(0);
+        strategyManager.__setAssetsOf(address(poolManager), 0);
+
+        assertEq(poolManager.totalAssets(), 0);
+    }
+
+    function test_totalAssets_managerWithZeroExposure() external {
+        assertEq(poolManager.totalAssets(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        assertEq(strategy.assetsUnderManagement(),               0);
+        assertEq(strategyManager.assetsOf(address(poolManager)), 0);
+
+        assertEq(poolManager.totalAssets(), 0);
+    }
+
+}
+
+contract UnrealizedLossesTests is PoolManagerTestBase {
+
+    MockStrategy internal strategy;
+    MockStrategy internal strategyManager;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategy        = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+        strategyManager = new MockStrategy(address(pool), address(0), POOL_DELEGATE);
+
+        poolManager.__setIsStrategyManager(address(strategyManager), true);
+        poolManager.__setIsStrategy(address(strategy), true);
+
+        asset.burn(address(pool), asset.balanceOf(address(pool)));
+    }
+
+    function test_unrealizedLosses_emptyStrategyList() external {
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_singleStrategy() external {
+        uint256 strategyAssets = 1_000_000e18;
+        uint256 strategyLosses = 100_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategy.__setUnrealizedLosses(strategyLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses);
+    }
+
+    function test_unrealizedLosses_singleStrategyManager() external {
+        uint256 managerAssets = 1_000_000e18;
+        uint256 managerLosses = 175_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategyManager));
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      managerAssets);
+        assertEq(poolManager.unrealizedLosses(), managerLosses);
+    }
+
+    function test_unrealizedLosses_mixed() external {
+        uint256 strategyAssets = 1_000_000e18;
+        uint256 managerAssets  = 1_000_000e18;
+        uint256 strategyLosses = 100_000e18;
+        uint256 managerLosses  = 175_000e18;
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        strategy.__setUnrealizedLosses(strategyLosses);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets + managerAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses + managerLosses);
+    }
+
+    function test_unrealizedLosses_mixed_partialThenFullRecovery() external {
+        uint256 strategyAssets = 100_000e18;
+        uint256 managerAssets  = 100_000e18;
+        uint256 strategyLosses = 1_600e18;
+        uint256 managerLosses  = 800e18;
+
+        /**********************************************************************************************************************************/
+        /*** Step 1: Baseline                                                                                                           ***/
+        /**********************************************************************************************************************************/
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        /**********************************************************************************************************************************/
+        /*** Step 2: Full impairment                                                                                                    ***/
+        /**********************************************************************************************************************************/
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategyManager.__setAssetsOf(address(poolManager), managerAssets);
+
+        strategy.__setUnrealizedLosses(strategyLosses);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets + managerAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyLosses + managerLosses);
+
+        /**********************************************************************************************************************************/
+        /*** Step 3: Partial recovery                                                                                                   ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setUnrealizedLosses(strategyLosses / 16);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), managerLosses / 19);
+
+        assertEq(poolManager.unrealizedLosses(), strategyLosses / 16 + managerLosses / 19);
+
+        /**********************************************************************************************************************************/
+        /*** Step 4: Full recovery                                                                                                      ***/
+        /**********************************************************************************************************************************/
+
+        strategy.__setUnrealizedLosses(0);
+        strategyManager.__setUnrealizedLossesOf(address(poolManager), 0);
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_managerWithZeroLosses() external {
+        assertEq(poolManager.unrealizedLosses(), 0);
+
+        poolManager.__pushToStrategyList(address(strategy));
+        poolManager.__pushToStrategyList(address(strategyManager));
+
+        assertEq(strategy.unrealizedLosses(),                              0);
+        assertEq(strategyManager.unrealizedLossesOf(address(poolManager)), 0);
+
+        assertEq(poolManager.unrealizedLosses(), 0);
+    }
+
+    function test_unrealizedLosses_clampedToTotalAssets() external {
+        uint256 strategyAssets = 500_000e18;
+        uint256 strategyLosses = 800_000e18;
+
+        poolManager.__pushToStrategyList(address(strategy));
+        strategy.__setAssetsUnderManagement(strategyAssets);
+        strategy.__setUnrealizedLosses(strategyLosses);
+
+        assertEq(poolManager.totalAssets(),      strategyAssets);
+        assertEq(poolManager.unrealizedLosses(), strategyAssets);
+    }
+
+}
+
+contract RequestFundsTests is PoolManagerTestBase {
+
+    address destination = makeAddr("destination");
+
+    address strategy;
+    address strategyManager;
+    address strategyFactory;
+    address strategyManagerFactory;
+
+    function setUp() public override {
+        super.setUp();
+
+        strategy               = address(new MockStrategy(address(pool), address(0), POOL_DELEGATE));
+        strategyManager        = address(new MockStrategy(address(pool), address(0), POOL_DELEGATE));
+        strategyFactory        = address(new MockFactory());
+        strategyManagerFactory = address(new MockFactory());
+
+        MockGlobals(globals).setValidInstance("STRATEGY_FACTORY", strategyFactory, true);
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", strategyManagerFactory, true);
+        MockGlobals(globals).setValidInstance("WITHDRAWAL_MANAGER_QUEUE_FACTORY", address(withdrawalManagerFactory), true);
+
+        MockStrategy(strategy).__setFactory(strategyFactory);
+        MockStrategy(strategyManager).__setFactory(strategyManagerFactory);
+
+        poolManager.__setIsStrategy(strategy, true);
+        poolManager.__setIsStrategyManager(strategyManager, true);
+
+        MockFactory(strategyFactory).__setIsInstance(strategy, true);
+        MockFactory(strategyManagerFactory).__setIsInstance(strategyManager, true);
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setWithdrawalManager(withdrawalManager);
+        poolManager.setStrategyCap(strategy, type(uint256).max);
+        poolManager.setStrategyCap(strategyManager, type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function test_requestFunds_revert_paused() external {
         MockGlobals(globals).__setFunctionPaused(true);
 
         vm.expectRevert("PM:PAUSED");
         poolManager.requestFunds(strategy, 1);
+
+        vm.expectRevert("PM:PAUSED");
+        poolManager.requestFunds(strategyManager, 1);
     }
 
-    function test_requestFunds_zeroPrincipal() external {
-        vm.expectRevert("PM:RF:INVALID_PRINCIPAL");
+    function test_requestFunds_revert_reentrancy() external {
+        poolManager.__setLocked(2);
+
+        vm.expectRevert("PM:LOCKED");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+
+        vm.expectRevert("PM:LOCKED");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+    }
+
+    function test_requestFunds_revert_invalidDestination() external {
+        vm.expectRevert("PM:RF:ZERO_DESTINATION");
+        vm.prank(strategy);
+        poolManager.requestFunds(address(0), 1000e18);
+
+        vm.expectRevert("PM:RF:ZERO_DESTINATION");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(address(0), 1000e18);
+    }
+
+    function test_requestFunds_revert_zeroAmount() external {
+        vm.expectRevert("PM:RF:ZERO_AMOUNT");
         vm.prank(strategy);
         poolManager.requestFunds(strategy, 0);
+
+        vm.expectRevert("PM:RF:ZERO_AMOUNT");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 0);
     }
 
-    function test_requestFunds_invalidFactory() external {
-        MockLoanManager(strategy).__setFactory(address(0));
-
-        vm.expectRevert("PM:RF:INVALID_FACTORY");
-        vm.prank(strategy);
-        poolManager.requestFunds(strategy, 1);
-    }
-
-    function test_requestFunds_invalidInstance() external {
-        MockFactory(strategyFactory).__setIsInstance(address(strategy), false);
-
-        vm.expectRevert("PM:RF:INVALID_INSTANCE");
-        vm.prank(strategy);
-        poolManager.requestFunds(address(strategy), 1);
-    }
-
-    function test_requestFunds_notLM() external {
-        poolManager.__setIsStrategy(strategy, false);
-
-        vm.expectRevert("PM:RF:NOT_STRATEGY");
-        vm.prank(strategy);
-        poolManager.requestFunds(strategy, 1);
-    }
-
-    function test_requestFunds_zeroSupply() external {
-        pool.burn(address(1), 1);
+    function test_requestFunds_revert_zeroSupply() external {
+        pool.burn(address(1), pool.totalSupply());
 
         vm.expectRevert("PM:RF:ZERO_SUPPLY");
         vm.prank(strategy);
         poolManager.requestFunds(strategy, 1);
+
+        vm.expectRevert("PM:RF:ZERO_SUPPLY");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
     }
 
-    function test_requestFunds_insufficientCoverBoundary() external {
-        MockGlobals(globals).setMinCoverAmount(address(poolManager), 1000e18);
+    function test_requestFunds_revert_invalidStrategyOrManager_neitherMapping() external {
+        poolManager.__setIsStrategy(strategy, false);
+        poolManager.__setIsStrategyManager(strategyManager, false);
 
-        asset.mint(poolManager.poolDelegateCover(), 1000e18 - 1);
-
-        vm.expectRevert("PM:RF:INSUFFICIENT_COVER");
-        vm.startPrank(strategy);
-        poolManager.requestFunds(strategy, 1);
-
-        asset.mint(poolManager.poolDelegateCover(), 1);
-
-        poolManager.requestFunds(strategy, 1);
-    }
-
-    function test_requestFunds_lockedLiquidityBoundary() external {
-        MockWithdrawalManager(withdrawalManager).__setLockedLiquidity(1_000_000e18);
-
-        vm.expectRevert("PM:RF:LOCKED_LIQUIDITY");
-        vm.startPrank(strategy);
-        poolManager.requestFunds(strategy, 1);
-
-        asset.mint(poolManager.pool(), 1);
-
-        poolManager.requestFunds(strategy, 1);
-    }
-
-    function test_requestFunds_zeroAddress() external {
-        vm.expectRevert("PM:RF:INVALID_DESTINATION");
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
         vm.prank(strategy);
-        poolManager.requestFunds(address(0), 1000e18);
+        poolManager.requestFunds(strategy, 1);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
     }
 
-    function test_requestFunds_success() external {
-        assertEq(asset.balanceOf(address(pool)), 1_000_000e18);
-        assertEq(asset.balanceOf(strategy),   0);
+    function test_requestFunds_revert_invalidStrategyOrManager_strategy_factoryNotRegistered() external {
+        MockStrategy(strategy).__setFactory(makeAddr("Fake Factory"));
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_strategyManager_factoryNotRegistered() external {
+        MockStrategy(strategyManager).__setFactory(makeAddr("Fake Factory"));
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_strategy_invalidInstance() external {
+        MockFactory(strategyFactory).__setIsInstance(strategy, false);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_strategyManager_invalidInstance() external {
+        MockFactory(strategyManagerFactory).__setIsInstance(strategyManager, false);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_strategy_factoryRegisteredAsManagerOnly() external {
+        MockStrategy(strategy).__setFactory(strategyManagerFactory);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_strategyManager_factoryRegisteredAsStrategyOnly() external {
+        MockStrategy(strategyManager).__setFactory(strategyFactory);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+    }
+
+    function test_requestFunds_revert_invalidStrategyOrManager_bothMappingsTrue_strategyManagerTakesPrecedence() external {
+        poolManager.__setIsStrategyManager(strategy, true);
+
+        assertEq(poolManager.isStrategy(strategy),        true);
+        assertEq(poolManager.isStrategyManager(strategy), true);
+
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_FACTORY", strategyFactory),         true);
+        assertEq(MockGlobals(globals).isInstanceOf("STRATEGY_MANAGER_FACTORY", strategyFactory), false);
+
+        vm.expectRevert("PM:RF:INVALID_STRATEGY_OR_MANAGER");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+    }
+
+    function test_requestFunds_revert_strategyCap() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, 0);
+
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+
+        MockStrategy(strategy).__setAssetsUnderManagement(400e18);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, 1000e18);
+
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 600e18 + 1);
+    }
+
+    function test_requestFunds_revert_strategyCap_strategyManager() external {
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategyManager, 0);
+
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+
+        MockStrategy(strategyManager).__setAssetsOf(address(poolManager), 400e18);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategyManager, 1000e18);
+
+        vm.expectRevert("PM:RF:STRATEGY_CAP");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 600e18 + 1);
+    }
+
+    function test_requestFunds_revert_transferFail() external {
+        asset.burn(address(pool), asset.balanceOf(address(pool)));
+
+        vm.expectRevert("PM:RF:TRANSFER_FAIL");
+        vm.prank(strategy);
+        poolManager.requestFunds(strategy, 1);
+
+        vm.expectRevert("PM:RF:TRANSFER_FAIL");
+        vm.prank(strategyManager);
+        poolManager.requestFunds(strategyManager, 1);
+    }
+
+    function test_requestFunds_success_strategy() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 requestAmount      = 1_000e18;
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance);
+        assertEq(asset.balanceOf(strategy),      0);
+        assertEq(asset.balanceOf(destination),   0);
 
         vm.prank(strategy);
-        poolManager.requestFunds(strategy, 1000e18);
+        poolManager.requestFunds(destination, requestAmount);
 
-        assertEq(asset.balanceOf(address(pool)), 1_000_000e18 - 1000e18);
-        assertEq(asset.balanceOf(strategy),   1000e18);
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - requestAmount);
+        assertEq(asset.balanceOf(strategy),      0);
+        assertEq(asset.balanceOf(destination),   requestAmount);
+    }
+
+    function test_requestFunds_success_strategyManager() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 requestAmount      = 1_000e18;
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance);
+        assertEq(asset.balanceOf(strategyManager), 0);
+        assertEq(asset.balanceOf(destination),     0);
+
+        vm.prank(strategyManager);
+        poolManager.requestFunds(destination, requestAmount);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance - requestAmount);
+        assertEq(asset.balanceOf(strategyManager), 0);
+        assertEq(asset.balanceOf(destination),     requestAmount);
+    }
+
+    function test_requestFunds_success_strategy_multipleRequests_fillsCap() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 cap                = 1_000e18;
+        uint256 firstRequest       = 400e18;
+        uint256 secondRequest      = cap - firstRequest;
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, cap);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance);
+        assertEq(asset.balanceOf(destination),   0);
+        assertEq(asset.balanceOf(strategy),      0);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, firstRequest);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - firstRequest);
+        assertEq(asset.balanceOf(destination),   firstRequest);
+        assertEq(asset.balanceOf(strategy),      0);
+
+        MockStrategy(strategy).__setAssetsUnderManagement(firstRequest);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, secondRequest);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - cap);
+        assertEq(asset.balanceOf(destination),   cap);
+        assertEq(asset.balanceOf(strategy),      0);
+    }
+
+    function test_requestFunds_success_strategyManager_multipleRequests_fillsCap() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 cap                = 1_000e18;
+        uint256 firstRequest       = 400e18;
+        uint256 secondRequest      = cap - firstRequest;
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategyManager, cap);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance);
+        assertEq(asset.balanceOf(destination),     0);
+        assertEq(asset.balanceOf(strategyManager), 0);
+
+        vm.prank(strategyManager);
+        poolManager.requestFunds(destination, firstRequest);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance - firstRequest);
+        assertEq(asset.balanceOf(destination),     firstRequest);
+        assertEq(asset.balanceOf(strategyManager), 0);
+
+        MockStrategy(strategyManager).__setAssetsOf(address(poolManager), firstRequest);
+
+        vm.prank(strategyManager);
+        poolManager.requestFunds(destination, secondRequest);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance - cap);
+        assertEq(asset.balanceOf(destination),     cap);
+        assertEq(asset.balanceOf(strategyManager), 0);
+    }
+
+    function test_requestFunds_success_multipleStrategies_independentCaps() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 strategyCap        = 300e18;
+        uint256 strategyManagerCap = 700e18;
+
+        vm.startPrank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, strategyCap);
+        poolManager.setStrategyCap(strategyManager, strategyManagerCap);
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance);
+        assertEq(asset.balanceOf(destination),     0);
+        assertEq(asset.balanceOf(strategy),        0);
+        assertEq(asset.balanceOf(strategyManager), 0);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, strategyCap);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance - strategyCap);
+        assertEq(asset.balanceOf(destination),     strategyCap);
+        assertEq(asset.balanceOf(strategy),        0);
+        assertEq(asset.balanceOf(strategyManager), 0);
+
+        vm.prank(strategyManager);
+        poolManager.requestFunds(destination, strategyManagerCap);
+
+        assertEq(asset.balanceOf(address(pool)),   initialPoolBalance - strategyCap - strategyManagerCap);
+        assertEq(asset.balanceOf(destination),     strategyCap + strategyManagerCap);
+        assertEq(asset.balanceOf(strategy),        0);
+        assertEq(asset.balanceOf(strategyManager), 0);
+    }
+
+    // TODO: Consider deleting this and similar tests once addStrategy and addStrategyManager are done
+    function test_requestFunds_success_bothMappingsTrue_managerPathWins() external {
+        // This test is not realistic but shows that if both mappings are true PM is giving advantage on modular strategy flow.
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 cap                = 1_000e18;
+
+        poolManager.__setIsStrategyManager(strategy, true);
+
+        MockGlobals(globals).setValidInstance("STRATEGY_MANAGER_FACTORY", strategyFactory, true);
+
+        MockStrategy(strategy).__setAssetsUnderManagement(900e18);
+        MockStrategy(strategy).__setAssetsOf(address(poolManager), 0);
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, cap);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance);
+        assertEq(asset.balanceOf(destination),   0);
+        assertEq(asset.balanceOf(strategy),      0);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, cap);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - cap);
+        assertEq(asset.balanceOf(destination),   cap);
+        assertEq(asset.balanceOf(strategy),      0);
+    }
+
+    function test_requestFunds_success_strategy_realizedLosses_freesCapHeadroom() external {
+        uint256 initialPoolBalance = 1_000_000e18;
+        uint256 cap                = 1_000e18;
+        uint256 lossAmount         = 400e18;
+        uint256 secondRequest      = lossAmount;
+
+        vm.prank(POOL_DELEGATE);
+        poolManager.setStrategyCap(strategy, cap);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance);
+        assertEq(asset.balanceOf(destination),   0);
+        assertEq(asset.balanceOf(strategy),      0);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, cap);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - cap);
+        assertEq(asset.balanceOf(destination),   cap);
+        assertEq(asset.balanceOf(strategy),      0);
+
+        MockStrategy(strategy).__setAssetsUnderManagement(cap - lossAmount);
+
+        vm.prank(strategy);
+        poolManager.requestFunds(destination, secondRequest);
+
+        assertEq(asset.balanceOf(address(pool)), initialPoolBalance - cap - secondRequest);
+        assertEq(asset.balanceOf(destination),   cap + secondRequest);
+        assertEq(asset.balanceOf(strategy),      0);
     }
 
 }

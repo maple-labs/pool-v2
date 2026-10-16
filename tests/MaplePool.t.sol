@@ -1,23 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }       from "../modules/forge-std/src/Test.sol";
-import { stdError }   from "../modules/forge-std/src/StdError.sol";
-import { MockERC20 }  from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
+import { stdError } from "../modules/forge-std/src/StdError.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
-import { MaplePool }                   from "../contracts/MaplePool.sol";
-import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
-import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePool } from "../contracts/MaplePool.sol";
+import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
-import {
-    MockGlobals,
-    MockReenteringERC20,
-    MockRevertingERC20,
-    MockPoolManager,
-    MockWithdrawalManager
-} from "./mocks/Mocks.sol";
+import { MockGlobals, MockReenteringERC20, MockRevertingERC20, MockPoolManager, MockWithdrawalManager } from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 
@@ -25,9 +19,9 @@ contract PoolTestBase is TestBase {
 
     address POOL_DELEGATE = makeAddr("POOL_DELEGATE");
 
-    MockReenteringERC20     asset;
-    MockWithdrawalManager   withdrawalManager;
-    MaplePool               pool;
+    MockReenteringERC20 asset;
+    MockWithdrawalManager withdrawalManager;
+    MaplePool pool;
     MaplePoolManagerFactory factory;
 
     address poolManager;
@@ -58,10 +52,8 @@ contract PoolTestBase is TestBase {
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, poolName_, poolSymbol_);
 
-        poolManager = address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(
-            arguments,
-            keccak256(abi.encode(POOL_DELEGATE)))
-        ));
+        poolManager =
+            address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
         pool = MaplePool(MaplePoolManager(poolManager).pool());
 
@@ -76,12 +68,20 @@ contract PoolTestBase is TestBase {
     }
 
     // Returns an ERC-2612 `permit` digest for the `owner` to sign
-    function _getDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_)
-        internal view returns (bytes32 digest_)
+    function _getDigest(
+        address owner_,
+        address spender_,
+        uint256 value_,
+        uint256 nonce_,
+        uint256 deadline_
+    )
+        internal
+        view
+        returns (bytes32 digest_)
     {
         return keccak256(
             abi.encodePacked(
-                '\x19\x01',
+                "\x19\x01",
                 asset.DOMAIN_SEPARATOR(),
                 keccak256(abi.encode(asset.PERMIT_TYPEHASH(), owner_, spender_, value_, nonce_, deadline_))
             )
@@ -89,8 +89,17 @@ contract PoolTestBase is TestBase {
     }
 
     // Returns a valid `permit` signature signed by this contract's `owner` address
-    function _getValidPermitSignature(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_, uint256 ownerSk_)
-        internal view returns (uint8 v_, bytes32 r_, bytes32 s_)
+    function _getValidPermitSignature(
+        address owner_,
+        address spender_,
+        uint256 value_,
+        uint256 nonce_,
+        uint256 deadline_,
+        uint256 ownerSk_
+    )
+        internal
+        view
+        returns (uint8 v_, bytes32 r_, bytes32 s_)
     {
         return vm.sign(ownerSk_, _getDigest(owner_, spender_, value_, nonce_, deadline_));
     }
@@ -123,7 +132,7 @@ contract PoolTestBase is TestBase {
 
 contract ConstructorTests is PoolTestBase {
 
-    function setUp() public override {}
+    function setUp() public override { }
 
     function test_constructor_zeroManager() public {
         address asset = address(new MockERC20("Asset", "AT", 18));
@@ -181,7 +190,7 @@ contract DepositTests is PoolTestBase {
     }
 
     function test_deposit_zeroReceiver() public {
-        asset.mint(address(this),    DEPOSIT_AMOUNT);
+        asset.mint(address(this), DEPOSIT_AMOUNT);
         asset.approve(address(pool), DEPOSIT_AMOUNT);
 
         vm.expectRevert("P:M:ZERO_RECEIVER");
@@ -189,7 +198,7 @@ contract DepositTests is PoolTestBase {
     }
 
     function test_deposit_zeroShares() public {
-        asset.mint(address(this),    DEPOSIT_AMOUNT);
+        asset.mint(address(this), DEPOSIT_AMOUNT);
         asset.approve(address(pool), DEPOSIT_AMOUNT);
 
         vm.expectRevert("P:M:ZERO_SHARES");
@@ -199,7 +208,7 @@ contract DepositTests is PoolTestBase {
     function testFuzz_deposit_badApprove(uint256 depositAmount_) public {
         depositAmount_ = bound(depositAmount_, 1, 1e29);
 
-        asset.mint(address(this),    depositAmount_);
+        asset.mint(address(this), depositAmount_);
         asset.approve(address(pool), depositAmount_ - 1);
 
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -209,7 +218,7 @@ contract DepositTests is PoolTestBase {
     function testFuzz_deposit_insufficientBalance(uint256 depositAmount_) public {
         depositAmount_ = bound(depositAmount_, 1, 1e29);
 
-        asset.mint(address(this),    depositAmount_);
+        asset.mint(address(this), depositAmount_);
         asset.approve(address(pool), depositAmount_ + 1);
 
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -217,7 +226,7 @@ contract DepositTests is PoolTestBase {
     }
 
     function test_deposit_reentrancy() public {
-        asset.mint(address(this),    1);
+        asset.mint(address(this), 1);
         asset.approve(address(pool), 1);
         asset.setReentrancy(address(pool));
 
@@ -235,11 +244,11 @@ contract DepositWithPermitTests is PoolTestBase {
     uint256 STAKER_SK     = 1;
     uint256 NOT_STAKER_SK = 2;
 
-    uint256 DEADLINE       = 5_000_000_000;  // Timestamp far in the future
+    uint256 DEADLINE       = 5_000_000_000; // Timestamp far in the future
     uint256 DEPOSIT_AMOUNT = 1e18;
     uint256 NONCE          = 0;
 
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         STAKER     = vm.addr(STAKER_SK);
@@ -251,7 +260,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_checkCall() public {
         MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
 
-        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+        (, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
         address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(STAKER, DEPOSIT_AMOUNT);
@@ -265,7 +274,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_zeroAddress() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
-        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+        (, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -276,11 +285,8 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_notStakerSignature() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
-        (
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = _getValidPermitSignature(NOT_STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, NOT_STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) =
+            _getValidPermitSignature(NOT_STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, NOT_STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -291,7 +297,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_pastDeadline() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -304,7 +310,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_replay() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT * 2);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -317,7 +323,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_badNonce() public {
         asset.mint(STAKER, DEPOSIT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE + 1, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), DEPOSIT_AMOUNT, NONCE + 1, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -328,7 +334,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_zeroReceiver() public {
         asset.mint(STAKER, 1);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:ZERO_RECEIVER");
@@ -338,7 +344,7 @@ contract DepositWithPermitTests is PoolTestBase {
     function test_depositWithPermit_zeroShares() public {
         asset.mint(STAKER, 1);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:ZERO_SHARES");
@@ -349,7 +355,7 @@ contract DepositWithPermitTests is PoolTestBase {
         depositAmount_ = bound(depositAmount_, 1, 1e29);
         asset.mint(STAKER, depositAmount_);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), depositAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), depositAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -360,7 +366,7 @@ contract DepositWithPermitTests is PoolTestBase {
         asset.mint(STAKER, 1);
         asset.setReentrancy(address(pool));
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -386,7 +392,7 @@ contract MintTests is PoolTestBase {
     }
 
     function test_mint_zeroReceiver() public {
-        asset.mint(address(this),    MINT_AMOUNT);
+        asset.mint(address(this), MINT_AMOUNT);
         asset.approve(address(pool), MINT_AMOUNT);
 
         vm.expectRevert("P:M:ZERO_RECEIVER");
@@ -394,7 +400,7 @@ contract MintTests is PoolTestBase {
     }
 
     function test_mint_zeroShares() public {
-        asset.mint(address(this),    MINT_AMOUNT);
+        asset.mint(address(this), MINT_AMOUNT);
         asset.approve(address(pool), MINT_AMOUNT);
 
         vm.expectRevert("P:M:ZERO_SHARES");
@@ -404,7 +410,7 @@ contract MintTests is PoolTestBase {
     function testFuzz_mint_badApprove(uint256 mintAmount_) public {
         mintAmount_ = bound(mintAmount_, 1, 1e29);
 
-        asset.mint(address(this),    mintAmount_);
+        asset.mint(address(this), mintAmount_);
         asset.approve(address(pool), mintAmount_ - 1);
 
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -414,7 +420,7 @@ contract MintTests is PoolTestBase {
     function testFuzz_mint_insufficientBalance(uint256 mintAmount_) public {
         mintAmount_ = bound(mintAmount_, 1, 1e29);
 
-        asset.mint(address(this),    mintAmount_);
+        asset.mint(address(this), mintAmount_);
         asset.approve(address(pool), mintAmount_ + 1);
 
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -422,7 +428,7 @@ contract MintTests is PoolTestBase {
     }
 
     function test_mint_reentrancy() public {
-        asset.mint(address(this),    1);
+        asset.mint(address(this), 1);
         asset.approve(address(pool), 1);
         asset.setReentrancy(address(pool));
 
@@ -440,12 +446,12 @@ contract MintWithPermitTests is PoolTestBase {
     uint256 STAKER_SK     = 1;
     uint256 NOT_STAKER_SK = 2;
 
-    uint256 DEADLINE    = 5_000_000_000;  // Timestamp far in the future
+    uint256 DEADLINE    = 5_000_000_000; // Timestamp far in the future
     uint256 MAX_ASSETS  = type(uint256).max;
     uint256 MINT_AMOUNT = 1e18;
     uint256 NONCE       = 0;
 
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         STAKER     = vm.addr(STAKER_SK);
@@ -455,7 +461,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_checkCall() public {
         MockPoolManager(poolManager).__setCanCall(false, "TEST_MESSAGE");
 
-        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MINT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
+        (, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), MINT_AMOUNT, NONCE, DEADLINE, STAKER_SK);
 
         address asset_ = IMaplePool(pool).asset();
         MockERC20(asset_).mint(STAKER, MINT_AMOUNT);
@@ -469,7 +475,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_insufficientPermit() public {
         asset.mint(STAKER, 1);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 0, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:MWP:INSUFFICIENT_PERMIT");
@@ -479,7 +485,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_zeroAddress() public {
         asset.mint(STAKER, MINT_AMOUNT);
 
-        ( , bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
+        (, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -490,7 +496,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_notStakerSignature() public {
         asset.mint(STAKER, MINT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(NOT_STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, NOT_STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(NOT_STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, NOT_STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -501,7 +507,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_pastDeadline() public {
         asset.mint(STAKER, MINT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -514,7 +520,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_replay() public {
         asset.mint(STAKER, MINT_AMOUNT * 2);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -527,7 +533,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_badNonce() public {
         asset.mint(STAKER, MINT_AMOUNT);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE + 1, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), MAX_ASSETS, NONCE + 1, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
 
@@ -538,7 +544,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_zeroReceiver() public {
         asset.mint(STAKER, 1);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
         vm.expectRevert("P:M:ZERO_RECEIVER");
@@ -548,7 +554,7 @@ contract MintWithPermitTests is PoolTestBase {
     function test_mintWithPermit_zeroShares() public {
         asset.mint(STAKER, 1);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.startPrank(STAKER);
         vm.expectRevert("P:M:ZERO_SHARES");
@@ -559,7 +565,7 @@ contract MintWithPermitTests is PoolTestBase {
         mintAmount_ = bound(mintAmount_, 1, 1e29);
         asset.mint(STAKER, mintAmount_);
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), mintAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), mintAmount_ + 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -570,7 +576,7 @@ contract MintWithPermitTests is PoolTestBase {
         asset.mint(STAKER, 1);
         asset.setReentrancy(address(pool));
 
-        ( uint8 v, bytes32 r, bytes32 s ) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
+        (uint8 v, bytes32 r, bytes32 s) = _getValidPermitSignature(STAKER, address(pool), 1, NONCE, DEADLINE, STAKER_SK);
 
         vm.prank(STAKER);
         vm.expectRevert("P:M:TRANSFER_FROM");
@@ -600,7 +606,7 @@ contract RedeemTests is PoolTestBase {
 
         vm.prank(user);
         vm.expectRevert("TEST_MESSAGE");
-        pool.redeem(500e6, user, user);  // Redeem half of tokens at 2:1
+        pool.redeem(500e6, user, user); // Redeem half of tokens at 2:1
     }
 
     function test_redeem_reentrancy() external {
@@ -685,7 +691,7 @@ contract RedeemTests is PoolTestBase {
         assertEq(asset.balanceOf(user), 0);
 
         vm.prank(user);
-        uint256 withdrawAmount = pool.redeem(500e6, user, user);  // Redeem half of tokens at 2:1
+        uint256 withdrawAmount = pool.redeem(500e6, user, user); // Redeem half of tokens at 2:1
 
         assertEq(withdrawAmount, 1000e6);
 
@@ -716,7 +722,7 @@ contract RedeemTests is PoolTestBase {
         assertEq(asset.balanceOf(user2),      0);
 
         vm.prank(user2);
-        uint256 withdrawAmount = pool.redeem(500e6, user2, user);  // Redeem half of tokens at 2:1
+        uint256 withdrawAmount = pool.redeem(500e6, user2, user); // Redeem half of tokens at 2:1
 
         assertEq(withdrawAmount, 1000e6);
 
@@ -867,13 +873,6 @@ contract RequestRedeemTests is PoolTestBase {
         assertEq(pool.balanceOf(user),                1_000e6);
     }
 
-    function test_requestRedeem_zeroSharesAndNotOwnerAndNoAllowance() public {
-        assertEq(pool.allowance(user, address(this)), 0);
-
-        vm.expectRevert("PM:RR:NO_ALLOWANCE");
-        pool.requestRedeem(0, address(user));
-    }
-
 }
 
 contract RequestWithdraw is PoolTestBase {
@@ -886,7 +885,6 @@ contract RequestWithdraw is PoolTestBase {
         _deposit(address(pool), address(poolManager), user, depositAmount);
 
         MockPoolManager(poolManager).__setRedeemableAssets(depositAmount);
-
     }
 
     function test_requestWithdraw_checkCall() public {
@@ -955,7 +953,7 @@ contract TransferTests is PoolTestBase {
     function setUp() public override {
         super.setUp();
 
-        asset.mint(address(this),    TRANSFER_AMOUNT);
+        asset.mint(address(this), TRANSFER_AMOUNT);
         asset.approve(address(pool), TRANSFER_AMOUNT);
 
         pool.deposit(TRANSFER_AMOUNT, address(this));
@@ -975,7 +973,7 @@ contract TransferFromTests is PoolTestBase {
 
         vm.startPrank(OWNER);
 
-        asset.mint(OWNER,            TRANSFER_AMOUNT);
+        asset.mint(OWNER, TRANSFER_AMOUNT);
         asset.approve(address(pool), TRANSFER_AMOUNT);
 
         pool.deposit(TRANSFER_AMOUNT, OWNER);
@@ -1028,7 +1026,11 @@ contract WithdrawTests is PoolTestBase {
 contract PreviewDepositTests is PoolTestBase {
 
     function test_previewDeposit_initialState() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewDeposit(0), 0);
         assertEq(pool.previewDeposit(1), 1);
@@ -1036,7 +1038,11 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function test_previewDeposit_worthlessShares() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         vm.expectRevert(stdError.divisionError);
         pool.previewDeposit(0);
@@ -1049,7 +1055,11 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function test_previewDeposit_prematureYield() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewDeposit(0), 0);
         assertEq(pool.previewDeposit(1), 1);
@@ -1057,7 +1067,11 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function test_previewDeposit_initialExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewDeposit(0), 0);
         assertEq(pool.previewDeposit(1), 1);
@@ -1065,7 +1079,11 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function test_previewDeposit_increasedExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      2,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewDeposit(0), 0);
         assertEq(pool.previewDeposit(1), 0);
@@ -1073,7 +1091,11 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function test_previewDeposit_decreasedExchangeRate() public {
-        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      2,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewDeposit(0), 0);
         assertEq(pool.previewDeposit(1), 2);
@@ -1081,11 +1103,15 @@ contract PreviewDepositTests is PoolTestBase {
     }
 
     function testFuzz_previewDeposit(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToDeposit_) public {
-        totalSupply_     = bound(totalSupply_,     0, 1e30);
-        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        totalSupply_     = bound(totalSupply_, 0, 1e30);
+        totalAssets_     = bound(totalAssets_, 0, 1e30);
         assetsToDeposit_ = bound(assetsToDeposit_, 0, 1e30);
 
-        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      totalSupply_,
+            totalAssets_:      totalAssets_,
+            unrealizedLosses_: 0
+        });
 
         if (totalSupply_ != 0 && totalAssets_ == 0) {
             vm.expectRevert(stdError.divisionError);
@@ -1105,7 +1131,11 @@ contract PreviewDepositTests is PoolTestBase {
 contract PreviewMintTests is PoolTestBase {
 
     function test_previewMint_initialState() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 1);
@@ -1113,7 +1143,11 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function test_previewMint_worthlessShares() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 0);
@@ -1121,7 +1155,11 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function test_previewMint_prematureYield() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 1);
@@ -1129,7 +1167,11 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function test_previewMint_initialExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 1);
@@ -1137,7 +1179,11 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function test_previewMint_increasedExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      2,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 2);
@@ -1145,7 +1191,11 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function test_previewMint_decreasedExchangeRate() public {
-        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      2,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.previewMint(0), 0);
         assertEq(pool.previewMint(1), 1);
@@ -1153,11 +1203,15 @@ contract PreviewMintTests is PoolTestBase {
     }
 
     function testFuzz_previewMint(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToMint_) public {
-        totalSupply_  = bound(totalSupply_,  0, 1e30);
-        totalAssets_  = bound(totalAssets_,  0, 1e30);
+        totalSupply_  = bound(totalSupply_, 0, 1e30);
+        totalAssets_  = bound(totalAssets_, 0, 1e30);
         sharesToMint_ = bound(sharesToMint_, 0, 1e30);
 
-        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      totalSupply_,
+            totalAssets_:      totalAssets_,
+            unrealizedLosses_: 0
+        });
 
         uint256 assetsToDeposit_ = pool.previewMint(sharesToMint_);
 
@@ -1166,8 +1220,8 @@ contract PreviewMintTests is PoolTestBase {
         } else {
             assertEq(
                 assetsToDeposit_,
-                (sharesToMint_ * pool.totalAssets() / pool.totalSupply()) +
-                (sharesToMint_ * pool.totalAssets() % pool.totalSupply() == 0 ? 0 : 1)
+                (sharesToMint_ * pool.totalAssets() / pool.totalSupply())
+                    + (sharesToMint_ * pool.totalAssets() % pool.totalSupply() == 0 ? 0 : 1)
             );
         }
     }
@@ -1189,7 +1243,7 @@ contract ConvertToExitAssetsTests is PoolTestBase {
     }
 
     function test_convertToExitAssets() external {
-        _deposit(address(pool), address(poolManager), address(this), 100);  // Set totalSupply to 100
+        _deposit(address(pool), address(poolManager), address(this), 100); // Set totalSupply to 100
 
         MockPoolManager(poolManager).__setTotalAssets(100);
 
@@ -1198,27 +1252,27 @@ contract ConvertToExitAssetsTests is PoolTestBase {
 
         MockPoolManager(poolManager).__setTotalAssets(101);
 
-        assertEq(pool.convertToExitAssets(100), 101);  // 100 * 101 / 100
-        assertEq(pool.convertToExitAssets(150), 151);  // 150 * 101 / 100 Round down
+        assertEq(pool.convertToExitAssets(100), 101); // 100 * 101 / 100
+        assertEq(pool.convertToExitAssets(150), 151); // 150 * 101 / 100 Round down
 
         MockPoolManager(poolManager).__setTotalAssets(100);
         MockPoolManager(poolManager).__setUnrealizedLosses(100);
 
-        assertEq(pool.convertToExitAssets(100),               0);  // Zero numerator
-        assertEq(pool.convertToExitAssets(type(uint256).max), 0);  // Zero numerator
+        assertEq(pool.convertToExitAssets(100),               0); // Zero numerator
+        assertEq(pool.convertToExitAssets(type(uint256).max), 0); // Zero numerator
 
         MockPoolManager(poolManager).__setUnrealizedLosses(50);
 
-        assertEq(pool.convertToExitAssets(100), 50);  // Half
+        assertEq(pool.convertToExitAssets(100), 50); // Half
     }
 
     function testFuzz_convertToExitAssets(uint256 totalSupply, uint256 totalAssets, uint256 unrealizedLosses, uint256 shares) external {
-        totalSupply      = bound(totalSupply,      1, 1e29);
-        totalAssets      = bound(totalAssets,      0, 1e29);
+        totalSupply      = bound(totalSupply, 1, 1e29);
+        totalAssets      = bound(totalAssets, 0, 1e29);
         unrealizedLosses = bound(unrealizedLosses, 0, totalAssets);
-        shares           = bound(shares,           1, 1e29);
+        shares           = bound(shares, 1, 1e29);
 
-        _deposit(address(pool), address(poolManager), address(this), totalSupply);  // Set totalSupply
+        _deposit(address(pool), address(poolManager), address(this), totalSupply); // Set totalSupply
 
         MockPoolManager(poolManager).__setTotalAssets(totalAssets);
         MockPoolManager(poolManager).__setUnrealizedLosses(unrealizedLosses);
@@ -1286,8 +1340,8 @@ contract ConvertToExitAssetsTests is PoolTestBase {
 //         assertEq(pool.previewRedeem(2), 1);
 //     }
 
-//     function testFuzz_previewRedeem(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 sharesToRedeem_) public {
-//         totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
+//     function testFuzz_previewRedeem(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 sharesToRedeem_)
+// public { totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
 //         totalAssets_      = constrictToRange(totalAssets_,      0, 1e30);
 //         unrealizedLosses_ = constrictToRange(unrealizedLosses_, 0, totalAssets_);
 //         sharesToRedeem_   = constrictToRange(sharesToRedeem_,   0, 1e30);
@@ -1368,8 +1422,8 @@ contract ConvertToExitAssetsTests is PoolTestBase {
 //         assertEq(pool.previewWithdraw(2), 4);
 //     }
 
-//     function testFuzz_previewWithdraw(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 assetsToWithdraw_) public {
-//         totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
+//     function testFuzz_previewWithdraw(uint256 totalSupply_, uint256 totalAssets_, uint256 unrealizedLosses_, uint256 assetsToWithdraw_)
+// public { totalSupply_      = constrictToRange(totalSupply_,      0, 1e30);
 //         totalAssets_      = constrictToRange(totalAssets_,      0, 1e30);
 //         unrealizedLosses_ = constrictToRange(unrealizedLosses_, 0, totalAssets_);
 //         assetsToWithdraw_ = constrictToRange(assetsToWithdraw_, 0, 1e30);
@@ -1398,7 +1452,11 @@ contract ConvertToExitAssetsTests is PoolTestBase {
 contract ConvertToAssetsTests is PoolTestBase {
 
     function test_convertToAssets_initialState() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 1);
@@ -1406,7 +1464,11 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function test_convertToAssets_worthlessShares() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 0);
@@ -1414,7 +1476,11 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function test_convertToAssets_prematureYield() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 1);
@@ -1422,7 +1488,11 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function test_convertToAssets_initialExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 1);
@@ -1430,7 +1500,11 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function test_convertToAssets_increasedExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      2,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 2);
@@ -1438,7 +1512,11 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function test_convertToAssets_decreasedExchangeRate() public {
-        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      2,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToAssets(0), 0);
         assertEq(pool.convertToAssets(1), 0);
@@ -1446,11 +1524,15 @@ contract ConvertToAssetsTests is PoolTestBase {
     }
 
     function testFuzz_convertToAssets(uint256 totalSupply_, uint256 totalAssets_, uint256 sharesToConvert_) public {
-        totalSupply_     = bound(totalSupply_,     0, 1e30);
-        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        totalSupply_     = bound(totalSupply_, 0, 1e30);
+        totalAssets_     = bound(totalAssets_, 0, 1e30);
         sharesToConvert_ = bound(sharesToConvert_, 0, 1e30);
 
-        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      totalSupply_,
+            totalAssets_:      totalAssets_,
+            unrealizedLosses_: 0
+        });
 
         uint256 assets_ = pool.convertToAssets(sharesToConvert_);
 
@@ -1460,12 +1542,17 @@ contract ConvertToAssetsTests is PoolTestBase {
             assertEq(assets_, sharesToConvert_ * pool.totalAssets() / pool.totalSupply());
         }
     }
+
 }
 
 contract ConvertToSharesTests is PoolTestBase {
 
     function test_convertToShares_initialState() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToShares(0), 0);
         assertEq(pool.convertToShares(1), 1);
@@ -1473,7 +1560,11 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function test_convertToShares_worthlessShares() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 0, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      0,
+            unrealizedLosses_: 0
+        });
 
         vm.expectRevert(stdError.divisionError);
         pool.convertToShares(0);
@@ -1486,7 +1577,11 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function test_convertToShares_prematureYield() public {
-        _setupPool({ totalSupply_: 0, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      0,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToShares(0), 0);
         assertEq(pool.convertToShares(1), 1);
@@ -1494,7 +1589,11 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function test_convertToShares_initialExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToShares(0), 0);
         assertEq(pool.convertToShares(1), 1);
@@ -1502,7 +1601,11 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function test_convertToShares_increasedExchangeRate() public {
-        _setupPool({ totalSupply_: 1, totalAssets_: 2, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      1,
+            totalAssets_:      2,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToShares(0), 0);
         assertEq(pool.convertToShares(1), 0);
@@ -1510,7 +1613,11 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function test_convertToShares_decreasedExchangeRate() public {
-        _setupPool({ totalSupply_: 2, totalAssets_: 1, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      2,
+            totalAssets_:      1,
+            unrealizedLosses_: 0
+        });
 
         assertEq(pool.convertToShares(0), 0);
         assertEq(pool.convertToShares(1), 2);
@@ -1518,11 +1625,15 @@ contract ConvertToSharesTests is PoolTestBase {
     }
 
     function testFuzz_convertToShares(uint256 totalSupply_, uint256 totalAssets_, uint256 assetsToConvert_) public {
-        totalSupply_     = bound(totalSupply_,     0, 1e30);
-        totalAssets_     = bound(totalAssets_,     0, 1e30);
+        totalSupply_     = bound(totalSupply_, 0, 1e30);
+        totalAssets_     = bound(totalAssets_, 0, 1e30);
         assetsToConvert_ = bound(assetsToConvert_, 0, 1e30);
 
-        _setupPool({ totalSupply_: totalSupply_, totalAssets_: totalAssets_, unrealizedLosses_: 0 });
+        _setupPool({
+            totalSupply_:      totalSupply_,
+            totalAssets_:      totalAssets_,
+            unrealizedLosses_: 0
+        });
 
         if (totalSupply_ != 0 && totalAssets_ == 0) {
             vm.expectRevert(stdError.divisionError);

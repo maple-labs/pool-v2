@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import { Test }       from "../modules/forge-std/src/Test.sol";
-import { stdError }   from "../modules/forge-std/src/StdError.sol";
-import { MockERC20 }  from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
+import { stdError } from "../modules/forge-std/src/StdError.sol";
+import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { IMaplePool } from "../contracts/interfaces/IMaplePool.sol";
 
-import { MaplePool }                   from "../contracts/MaplePool.sol";
-import { MaplePoolManager }            from "../contracts/MaplePoolManager.sol";
-import { MaplePoolManagerFactory }     from "../contracts/proxy/MaplePoolManagerFactory.sol";
+import { MaplePool } from "../contracts/MaplePool.sol";
+import { MaplePoolManager } from "../contracts/MaplePoolManager.sol";
+import { MaplePoolManagerFactory } from "../contracts/proxy/MaplePoolManagerFactory.sol";
 import { MaplePoolManagerInitializer } from "../contracts/proxy/MaplePoolManagerInitializer.sol";
 
-import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./mocks/Mocks.sol";
+import { MockGlobals, MockPoolManager, MockWithdrawalManager } from "./utils/Mocks.sol";
 
 import { TestBase } from "./utils/TestBase.sol";
 
@@ -21,9 +21,9 @@ contract MaplePoolMintFrontrunTests is TestBase {
     address USER1         = makeAddr("USER1");
     address USER2         = makeAddr("USER2");
 
-    MockERC20               asset;
-    MockWithdrawalManager   withdrawalManager;
-    MaplePool               pool;
+    MockERC20 asset;
+    MockWithdrawalManager withdrawalManager;
+    MaplePool pool;
     MaplePoolManagerFactory factory;
 
     address poolManager;
@@ -53,7 +53,8 @@ contract MaplePoolMintFrontrunTests is TestBase {
 
         bytes memory arguments = abi.encode(POOL_DELEGATE, address(asset), 0, "Pool", "POOL1");
 
-        poolManager = address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
+        poolManager =
+            address(MaplePoolManager(MaplePoolManagerFactory(factory).createInstance(arguments, keccak256(abi.encode(POOL_DELEGATE)))));
 
         pool = MaplePool(MaplePoolManager(poolManager).pool());
 
@@ -160,7 +161,7 @@ contract MaplePoolMintFrontrunTests is TestBase {
 
         _deposit(address(pool), address(poolManager), USER2, victimDepositAmount);
 
-        assertEq(pool.balanceOfAssets(USER1),      0.00099933e8);  // Attacker losses the 1e8 transfer amount.
+        assertEq(pool.balanceOfAssets(USER1),      0.00099933e8); // Attacker losses the 1e8 transfer amount.
         assertEq(pool.balanceOfAssets(USER2),      1.99967356e8);
         assertEq(pool.balanceOfAssets(address(0)), 0.99933711e8);
     }

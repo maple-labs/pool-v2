@@ -27,17 +27,7 @@ interface IGlobalsLike {
 
     function isPoolDeployer(address poolDeployer_) external view returns (bool isPoolDeployer_);
 
-    function isValidScheduledCall(address caller_, address contract_, bytes32 functionId_, bytes calldata callData_)
-        external view
-        returns (bool isValid_);
-
-    function mapleTreasury() external view returns (address mapleTreasury_);
-
-    function maxCoverLiquidationPercent(address poolManager_) external view returns (uint256 maxCoverLiquidationPercent_);
-
     function migrationAdmin() external view returns (address migrationAdmin_);
-
-    function minCoverAmount(address poolManager_) external view returns (uint256 minCoverAmount_);
 
     function operationalAdmin() external view returns (address operationalAdmin_);
 
@@ -47,27 +37,6 @@ interface IGlobalsLike {
 
     function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external;
 
-    function unscheduleCall(address caller_, bytes32 functionId_, bytes calldata callData_) external;
-
-}
-
-interface IStrategyLike {
-
-    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
-
-    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
-
-}
-
-interface ILoanManagerLike {
-
-    
-    function finishCollateralLiquidation(address loan_) external returns (uint256 remainingLosses_, uint256 serviceFee_);
-
-    function triggerDefault(address loan_, address liquidatorFactory_)
-        external
-        returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 platformFees_);
-
 }
 
 interface ILoanLike {
@@ -76,17 +45,18 @@ interface ILoanLike {
 
 }
 
+interface ILoanManagerLike {
+
+    function triggerDefault(address loan_, address liquidatorFactory_)
+        external returns (bool liquidationComplete_, uint256 remainingLosses_, uint256 unrecoveredPlatformFees_);
+
+}
+
 interface IMapleProxyFactoryLike {
 
     function isInstance(address instance_) external view returns (bool isInstance_);
 
     function mapleGlobals() external view returns (address mapleGlobals_);
-
-}
-
-interface IPoolDelegateCoverLike {
-
-    function moveFunds(uint256 amount_, address recipient_) external;
 
 }
 
@@ -102,7 +72,9 @@ interface IPoolLike is IERC20Like {
 
 interface IPoolManagerLike {
 
-    function addStrategy(address strategyFactory_, bytes calldata deploymentData_) external returns (address strategy_);
+    function addStrategy(address strategyFactory_, bytes32 salt_, bytes calldata deploymentData_) external returns (address strategy_);
+
+    function addStrategyManager(address strategyManager_) external;
 
     function canCall(bytes32 functionId_, address caller_, bytes memory data_)
         external view
@@ -122,8 +94,6 @@ interface IPoolManagerLike {
 
     function pool() external view returns (address pool_);
 
-    function poolDelegateCover() external view returns (address poolDelegateCover_);
-
     function previewRedeem(address owner_, uint256 shares_) external view returns (uint256 assets_);
 
     function previewWithdraw(address owner_, uint256 assets_) external view returns (uint256 shares_);
@@ -138,6 +108,8 @@ interface IPoolManagerLike {
 
     function removeShares(uint256 shares_, address owner_) external returns (uint256 sharesReturned_);
 
+    function removeStrategyManager(address strategyManager_) external;
+
     function requestRedeem(uint256 shares_, address owner_, address sender_) external;
 
     function requestWithdraw(uint256 shares_, uint256 assets_, address owner_, address sender_) external;
@@ -147,6 +119,8 @@ interface IPoolManagerLike {
     function setLiquidityCap(uint256 liquidityCap_) external;
 
     function setPoolPermissionManager(address poolPermissionManager_) external;
+
+    function setStrategyCap(address strategy_, uint256 cap_) external;
 
     function setWithdrawalManager(address withdrawalManager_) external;
 
@@ -161,6 +135,24 @@ interface IPoolPermissionManagerLike {
     function hasPermission(address poolManager, address caller, bytes32 functionId) external view returns (bool allowed);
 
     function hasPermission(address poolManager, address[] calldata caller, bytes32 functionId) external view returns (bool allowed);
+
+}
+
+interface IStrategyLike {
+
+    function assetsUnderManagement() external view returns (uint256 assetsUnderManagement_);
+
+    function unrealizedLosses() external view returns (uint256 unrealizedLosses_);
+
+}
+
+interface IStrategyManagerLike {
+
+    function assetsOf(address poolManager_) external view returns (uint256 assets_);
+
+    function isAssetSupported(address asset_) external view returns (bool isAssetSupported_);
+
+    function unrealizedLossesOf(address poolManager_) external view returns (uint256 unrealizedLosses_);
 
 }
 
